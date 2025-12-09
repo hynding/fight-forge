@@ -2,6 +2,10 @@ import type { GameState, Fighter, FighterState } from '../types';
 import { Physics } from './Physics';
 
 export class GameEngine {
+  private static readonly TARGET_FPS = 60;
+  private static readonly TARGET_FRAME_TIME = 1000 / GameEngine.TARGET_FPS; // 16.67ms
+  private static readonly ATTACK_DURATION_FRAMES = 18; // 300ms at 60fps
+
   private gameState: GameState;
   private lastTimestamp: number = 0;
   private animationFrameId: number | null = null;
@@ -16,7 +20,7 @@ export class GameEngine {
       this.lastTimestamp = timestamp;
 
       if (!this.gameState.isPaused) {
-        this.update(deltaTime / 16.67); // Normalize to 60fps
+        this.update(deltaTime / GameEngine.TARGET_FRAME_TIME); // Normalize to 60fps
         onUpdate(this.gameState);
       }
 
@@ -85,7 +89,7 @@ export class GameEngine {
     // Handle attack timer (attack lasts 18 frames at 60fps = 300ms)
     if (fighter.state === 'ATTACKING') {
       fighter.attackTimer += deltaTime;
-      if (fighter.attackTimer >= 18) {
+      if (fighter.attackTimer >= GameEngine.ATTACK_DURATION_FRAMES) {
         fighter.state = 'IDLE';
         fighter.attackTimer = 0;
       }
