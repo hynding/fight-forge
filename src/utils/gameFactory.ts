@@ -33,6 +33,7 @@ export function createFighter(
       width: 50,
       height: 70,
     },
+    attackTimer: 0,
   };
 }
 

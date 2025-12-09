@@ -40,6 +40,7 @@ export interface Fighter {
   stats: FighterStats;
   hitbox: CollisionBox;
   hurtbox: CollisionBox;
+  attackTimer: number;
 }
 
 export interface GameState {

@@ -81,6 +81,15 @@ export class GameEngine {
     if (fighter.state === 'HIT' && Math.abs(fighter.velocity.x) < 0.1) {
       fighter.state = 'IDLE';
     }
+
+    // Handle attack timer (attack lasts 18 frames at 60fps = 300ms)
+    if (fighter.state === 'ATTACKING') {
+      fighter.attackTimer += deltaTime;
+      if (fighter.attackTimer >= 18) {
+        fighter.state = 'IDLE';
+        fighter.attackTimer = 0;
+      }
+    }
   }
 
   private checkCollisions(): void {
@@ -163,13 +172,7 @@ export class GameEngine {
     const fighter = this.gameState.fighters.find((f) => f.id === fighterId);
     if (fighter && (fighter.state === 'IDLE' || fighter.state === 'WALKING')) {
       fighter.state = 'ATTACKING';
-      
-      // Reset attack state after a delay
-      setTimeout(() => {
-        if (fighter.state === 'ATTACKING') {
-          fighter.state = 'IDLE';
-        }
-      }, 300);
+      fighter.attackTimer = 0;
     }
   }
 
