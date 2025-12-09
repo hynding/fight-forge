@@ -5,6 +5,7 @@ export class GameEngine {
   private static readonly TARGET_FPS = 60;
   private static readonly TARGET_FRAME_TIME = 1000 / GameEngine.TARGET_FPS; // 16.67ms
   private static readonly ATTACK_DURATION_FRAMES = 18; // 300ms at 60fps
+  private static readonly KNOCKBACK_FORCE = 5;
 
   private gameState: GameState;
   private lastTimestamp: number = 0;
@@ -120,8 +121,7 @@ export class GameEngine {
     defender.state = 'HIT';
     
     // Knockback
-    const knockbackForce = 5;
-    defender.velocity.x = attacker.direction * knockbackForce;
+    defender.velocity.x = attacker.direction * GameEngine.KNOCKBACK_FORCE;
     
     if (defender.stats.health <= 0) {
       defender.state = 'DEFEATED';
