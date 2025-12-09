@@ -161,7 +161,7 @@ export class GameEngine {
 
   attackFighter(fighterId: string): void {
     const fighter = this.gameState.fighters.find((f) => f.id === fighterId);
-    if (fighter && fighter.state === 'IDLE' || fighter?.state === 'WALKING') {
+    if (fighter && (fighter.state === 'IDLE' || fighter.state === 'WALKING')) {
       fighter.state = 'ATTACKING';
       
       // Reset attack state after a delay
