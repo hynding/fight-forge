@@ -1,4 +1,4 @@
-import { useRef, useEffect, forwardRef, useState } from 'react'
+import { useRef, useEffect, forwardRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { RigidBody, RapierRigidBody, CuboidCollider } from '@react-three/rapier'
 import { Vector3, Euler } from 'three'
