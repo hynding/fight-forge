@@ -107,7 +107,7 @@ export const GameScene = () => {
 
   return (
     <>
-      <Canvas shadows>
+      <Canvas shadows dpr={[1, 2]}>
         <PerspectiveCamera makeDefault position={[playerPosition.x, playerPosition.y + 15, playerPosition.z + 20]} />
         <OrbitControls
           target={[playerPosition.x, playerPosition.y, playerPosition.z]}
