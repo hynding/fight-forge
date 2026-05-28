@@ -22,7 +22,8 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(({ id, type, positi
   const patrolTimer = useRef(0)
   const personalityTimer = useRef(Math.random() * 1000) // Random offset for behavior
   const animationTime = useRef(0)
-  const [isMoving, setIsMoving] = useState(false)
+  const isMoving = useRef(false)
+  // const [isMoving, setIsMoving] = useState(false)
   const removeEnemy = useGameStore((state) => state.removeEnemy)
   const addScore = useGameStore((state) => state.addScore)
   const attackingEnemyId = useGameStore((state) => state.attackingEnemyId)
@@ -68,7 +69,8 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(({ id, type, positi
     // Track velocity for animation
     const vel = enemyRef.current.linvel()
     const isCurrentlyMoving = Math.abs(vel.x) > 0.1 || Math.abs(vel.z) > 0.1
-    setIsMoving(isCurrentlyMoving)
+    isMoving.current = isCurrentlyMoving
+    // setIsMoving(isCurrentlyMoving)
 
     personalityTimer.current += delta * 1000
 
@@ -240,7 +242,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(({ id, type, positi
           emissiveIntensity={isAttacking ? 0.5 : 0}
           scale={getScale()}
           animationTime={animationTime.current}
-          isMoving={isMoving}
+          isMoving={isMoving.current}
         />
 
         {/* Attack hitbox indicator - only visible during attack */}
