@@ -60,7 +60,8 @@ export const GameScene = () => {
     if (isGameOver) return
 
     const interval = setInterval(() => {
-      if (enemies.length < 8) {
+      const currentCount = useGameStore.getState().enemies.length
+      if (currentCount < 8) {
         const angle = Math.random() * Math.PI * 2
         const distance = 10
         const x = Math.cos(angle) * distance
@@ -69,7 +70,6 @@ export const GameScene = () => {
         const types = [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY]
         const randomType = types[Math.floor(Math.random() * types.length)]
 
-        // Different health based on enemy type
         const healthMap = {
           [EnemyType.BASIC]: 50,
           [EnemyType.FAST]: 30,
@@ -87,7 +87,7 @@ export const GameScene = () => {
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [enemies.length, spawnEnemy, isGameOver])
+  }, [isGameOver, spawnEnemy])
 
   // Clean up enemy refs when enemies are removed
   useEffect(() => {
