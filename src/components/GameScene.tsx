@@ -1,9 +1,9 @@
-import { useRef, useEffect, useState, createRef } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { Physics } from '@react-three/rapier'
+import { useRef, useState, useEffect, createRef, RefObject } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Physics, RapierRigidBody } from '@react-three/rapier'
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
-import { RapierRigidBody } from '@react-three/rapier'
 import { Vector3 } from 'three'
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Player } from './Player'
 import { Enemy } from './Enemy'
 import { Arena } from './Arena'
@@ -13,26 +13,50 @@ import { CombatSystem } from './CombatSystem'
 import { useGameStore } from '../store/gameStore'
 import { EnemyType } from '../types/game'
 
+const _cameraTarget = new Vector3()
+
+interface CameraRigProps {
+  playerPositionRef: RefObject<Vector3>
+  controlsRef: RefObject<OrbitControlsImpl>
+}
+
+const CameraRig = ({ playerPositionRef, controlsRef }: CameraRigProps) => {
+  const { camera } = useThree()
+
+  useFrame(() => {
+    const p = playerPositionRef.current
+    if (!p) return
+
+    camera.position.set(p.x, p.y + 15, p.z + 20)
+
+    if (controlsRef.current) {
+      _cameraTarget.set(p.x, p.y, p.z)
+      controlsRef.current.target.copy(_cameraTarget)
+      controlsRef.current.update()
+    }
+  })
+
+  return null
+}
+
 export const GameScene = () => {
   const playerRef = useRef<RapierRigidBody>(null)
-  const enemyRefs = useRef<Map<string, React.RefObject<RapierRigidBody>>>(new Map())
+  const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
+  const playerPositionRef = useRef(new Vector3(0, 2, 0))
+  const controlsRef = useRef<OrbitControlsImpl>(null)
+  const attackDirectionRef = useRef(new Vector3(0, 0, -1))
+  // `playerAttacking` stays as React state because CombatSystem reads it as a prop
+  // in `useFrame` and React's reconciler is what gets the new value into the closure.
+  // The cost is one re-render of GameScene per attack (twice per swing — start and end),
+  // which is negligible compared to the previous 60Hz cascade.
   const [playerAttacking, setPlayerAttacking] = useState(false)
-  const [attackDirection, setAttackDirection] = useState(new Vector3(0, 0, -1))
-  const [playerPosition, setPlayerPosition] = useState(new Vector3(0, 2, 0))
-
-  const handleAttackChange = (isAttacking: boolean, direction: Vector3) => {
-    setPlayerAttacking(isAttacking)
-    if (isAttacking) {
-      setAttackDirection(direction)
-    }
-  }
 
   const enemies = useGameStore((state) => state.enemies)
   const spawnEnemy = useGameStore((state) => state.spawnEnemy)
   const isGameOver = useGameStore((state) => state.isGameOver)
   const hasSpawnedInitial = useRef(false)
 
-  // Spawn initial enemies only once
+  // Spawn initial enemies once
   useEffect(() => {
     if (hasSpawnedInitial.current) return
     hasSpawnedInitial.current = true
@@ -53,9 +77,9 @@ export const GameScene = () => {
         position: pos,
       })
     })
-  }, [])
+  }, [spawnEnemy])
 
-  // Spawn new enemies periodically
+  // Periodic spawn (5s) — reads enemy count from store snapshot inside callback
   useEffect(() => {
     if (isGameOver) return
 
@@ -105,12 +129,19 @@ export const GameScene = () => {
     })
   }, [enemies])
 
+  const handleAttackChange = (isAttacking: boolean, direction: Vector3) => {
+    if (isAttacking) {
+      attackDirectionRef.current.copy(direction)
+    }
+    setPlayerAttacking(isAttacking)
+  }
+
   return (
     <>
       <Canvas shadows dpr={[1, 2]}>
-        <PerspectiveCamera makeDefault position={[playerPosition.x, playerPosition.y + 15, playerPosition.z + 20]} />
+        <PerspectiveCamera makeDefault position={[0, 17, 20]} />
         <OrbitControls
-          target={[playerPosition.x, playerPosition.y, playerPosition.z]}
+          ref={controlsRef}
           minDistance={10}
           maxDistance={30}
           maxPolarAngle={Math.PI / 2.2}
@@ -119,7 +150,8 @@ export const GameScene = () => {
           enableZoom={false}
         />
 
-        {/* Lighting */}
+        <CameraRig playerPositionRef={playerPositionRef} controlsRef={controlsRef} />
+
         <ambientLight intensity={0.5} />
         <directionalLight
           position={[10, 20, 10]}
@@ -142,22 +174,6 @@ export const GameScene = () => {
               enemyRefs.current.set(enemy.id, createRef<RapierRigidBody>())
             }
 
-            // Get positions of other enemies for spacing AI
-            const otherEnemyPositions = enemies
-              .filter(e => e.id !== enemy.id)
-              .map(e => {
-                const ref = enemyRefs.current.get(e.id)
-                if (ref?.current) {
-                  const pos = ref.current.translation()
-                  return {
-                    id: e.id,
-                    position: new Vector3(pos.x, pos.y, pos.z)
-                  }
-                }
-                return null
-              })
-              .filter((p): p is { id: string; position: Vector3 } => p !== null)
-
             return (
               <Enemy
                 key={enemy.id}
@@ -165,8 +181,8 @@ export const GameScene = () => {
                 id={enemy.id}
                 type={enemy.type}
                 position={enemy.position}
-                playerPosition={playerPosition}
-                otherEnemyPositions={otherEnemyPositions}
+                playerPositionRef={playerPositionRef}
+                enemyRefs={enemyRefs.current}
               />
             )
           })}
@@ -174,9 +190,9 @@ export const GameScene = () => {
           <CombatSystem
             playerRef={playerRef}
             playerAttacking={playerAttacking}
-            attackDirection={attackDirection}
+            attackDirection={attackDirectionRef.current}
             enemyRefs={enemyRefs.current}
-            onPlayerPositionUpdate={setPlayerPosition}
+            playerPositionRef={playerPositionRef}
           />
         </Physics>
       </Canvas>
