@@ -37,6 +37,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const personalityTimer = useRef(Math.random() * 1000)
     const animationTimeRef = useRef(0)
     const isMovingRef = useRef(false)
+    const attackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const removeEnemy = useGameStore((state) => state.removeEnemy)
     const addScore = useGameStore((state) => state.addScore)
@@ -69,6 +70,14 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         addScore(100)
       }
     }, [health, id, removeEnemy, addScore])
+
+    useEffect(() => {
+      return () => {
+        if (attackTimeoutRef.current !== null) {
+          clearTimeout(attackTimeoutRef.current)
+        }
+      }
+    }, [])
 
     useFrame((_, delta) => {
       if (!enemyRef.current || !playerPositionRef.current) return
@@ -149,8 +158,12 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
 
               if (dotProduct > 0.5) {
                 setAttackingEnemy(id)
-                setTimeout(() => {
+                if (attackTimeoutRef.current !== null) {
+                  clearTimeout(attackTimeoutRef.current)
+                }
+                attackTimeoutRef.current = setTimeout(() => {
                   setAttackingEnemy(null)
+                  attackTimeoutRef.current = null
                 }, 1000)
               }
             }

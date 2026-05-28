@@ -190,7 +190,7 @@ export const GameScene = () => {
           <CombatSystem
             playerRef={playerRef}
             playerAttacking={playerAttacking}
-            attackDirection={attackDirectionRef.current}
+            attackDirectionRef={attackDirectionRef}
             enemyRefs={enemyRefs.current}
             playerPositionRef={playerPositionRef}
           />

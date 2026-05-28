@@ -14,7 +14,7 @@ const ATTACK_CONE = 0.5
 interface CombatSystemProps {
   playerRef: React.RefObject<RapierRigidBody>
   playerAttacking: boolean
-  attackDirection: Vector3
+  attackDirectionRef: RefObject<Vector3>
   enemyRefs: Map<string, React.RefObject<RapierRigidBody>>
   playerPositionRef: RefObject<Vector3>
 }
@@ -22,7 +22,7 @@ interface CombatSystemProps {
 export const CombatSystem = ({
   playerRef,
   playerAttacking,
-  attackDirection,
+  attackDirectionRef,
   enemyRefs,
   playerPositionRef,
 }: CombatSystemProps) => {
@@ -66,7 +66,7 @@ export const CombatSystem = ({
 
       if (playerAttacking && !damagedEnemiesThisAttack.current.has(enemyId)) {
         _toEnemy.subVectors(_enemyVec, _playerVec).normalize()
-        const dotProduct = attackDirection.dot(_toEnemy)
+        const dotProduct = attackDirectionRef.current?.dot(_toEnemy) ?? 0
 
         if (distance < ATTACK_RANGE && dotProduct > ATTACK_CONE) {
           damageEnemy(enemyId, 20)
