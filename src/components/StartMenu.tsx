@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { getLevels } from '../content/active'
 import { PackPanel } from './PackPanel'
+import { ControlsPanel } from './ControlsPanel'
+import { getBindings } from '../content/bindings'
+import { controlsHelp } from '../sim/input'
 
 export const StartMenu = () => {
   const startRun = useGameStore((state) => state.startRun)
@@ -9,6 +12,8 @@ export const StartMenu = () => {
   useGameStore((state) => state.packs)
   const contentError = useGameStore((state) => state.contentError)
   const [isHovered, setIsHovered] = useState(false)
+  // Re-render the controls line after a remap.
+  const [, setControlsVersion] = useState(0)
 
   // startRun goes to the loading screen, which advances to 'playing' when loaded.
   const handleStartGame = () => startRun(0)
@@ -54,6 +59,7 @@ export const StartMenu = () => {
       </div>
 
       <PackPanel />
+      <ControlsPanel onChange={() => setControlsVersion((v) => v + 1)} />
 
       {/* Play Button */}
       <button
@@ -118,7 +124,7 @@ export const StartMenu = () => {
         <div style={{ marginBottom: '10px' }}>
           <strong>CONTROLS:</strong>
         </div>
-        <div>A/D - Move (double-tap to run) | W/S - Depth | SPACE - Jump | J - Attack | K - Block | SHIFT - Dodge | ESC - Pause</div>
+        <div>{controlsHelp(getBindings())}</div>
       </div>
 
       {/* Visual Effects */}

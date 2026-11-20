@@ -75,7 +75,6 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "deceleration": 0,
     "depthTolerance": 0.5,
     "linearDamping": 2,
-    "maxSimultaneousAttackers": 1,
     "minSpacing": 2.5,
     "patrol": {
       "arriveDistance": 0.5,
@@ -235,6 +234,44 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       },
       "scale": 1.3,
       "speed": 1.5,
+    },
+  },
+  "input": {
+    "bindings": {
+      "attack": [
+        "j",
+      ],
+      "backward": [
+        "s",
+        "arrowdown",
+      ],
+      "block": [
+        "k",
+      ],
+      "dodge": [
+        "shift",
+      ],
+      "forward": [
+        "w",
+        "arrowup",
+      ],
+      "hitboxes": [
+        "h",
+      ],
+      "jump": [
+        " ",
+      ],
+      "left": [
+        "a",
+        "arrowleft",
+      ],
+      "pause": [
+        "escape",
+      ],
+      "right": [
+        "d",
+        "arrowright",
+      ],
     },
   },
   "moves": {
@@ -517,7 +554,13 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   },
   "rules": {
     "continues": 2,
+    "difficulty": {
+      "damageTaken": 1,
+      "enemyHealth": 1,
+    },
+    "friendlyFire": false,
     "lives": 3,
+    "maxSimultaneousAttackers": 1,
     "pickupRadius": 0.9,
     "respawnInvulnerability": 2,
   },

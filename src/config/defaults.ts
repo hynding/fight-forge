@@ -5,6 +5,7 @@ import type { ActionsConfig } from '../sim/defense'
 import type { AiBehavior } from '../sim/controllers'
 import { DEFAULT_CONTENT } from '../content/defaultContent'
 import type { DropDef, PickupDef } from '../sim/pickups'
+import type { Bindings } from '../sim/input'
 
 /**
  * Every gameplay tuning value in one typed object. The values come from
@@ -98,8 +99,6 @@ export interface GameConfig {
     aggroRange: number
     /** Enemies attack only when this close to the player in depth (Z); reach in X comes from the AI archetype. */
     depthTolerance: number
-    /** How many enemies may attack the player at once (attack tokens). */
-    maxSimultaneousAttackers: number
     /** The default move an enemy throws when it gets an attack token (one per hold). */
     attackMove: string
     /** How long an enemy holds its attack token. */
@@ -175,6 +174,20 @@ export interface GameConfig {
     respawnInvulnerability: number
     /** The player collects a pickup within this planar distance. */
     pickupRadius: number
+    /** How many enemies may attack the player at once (attack tokens). */
+    maxSimultaneousAttackers: number
+    /** Enemies' attacks also hit other enemies. */
+    friendlyFire: boolean
+    difficulty: {
+      /** Multiplies damage the player takes. */
+      damageTaken: number
+      /** Multiplies every enemy's max health. */
+      enemyHealth: number
+    }
+  }
+  /** Key bindings (lowercase `KeyboardEvent.key` values); the player can remap them. */
+  input: {
+    bindings: Bindings
   }
   /** Items by name, placed by levels or dropped by enemies. */
   pickups: Record<string, PickupDef>

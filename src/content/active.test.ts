@@ -51,3 +51,16 @@ describe('active content', () => {
     expect(useGameStore.getState().continuesLeft).toBe(0)
   })
 })
+
+describe('rules from the active content', () => {
+  it('sets how many enemies may attack at once', () => {
+    const r = loadContent([defaultPack(), remix({ maxSimultaneousAttackers: 2 })])
+    if (!r.ok) throw new Error(r.error)
+    setActiveContent(r.value)
+    const s = useGameStore.getState()
+    s.startRun(0)
+    expect(s.requestAttackToken('a')).toBe(true)
+    expect(s.requestAttackToken('b')).toBe(true)
+    expect(s.requestAttackToken('c')).toBe(false)
+  })
+})

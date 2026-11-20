@@ -7,9 +7,10 @@
 // they drift apart. Times are seconds of game time, distances world units.
 
 import { z } from 'zod'
+import { INPUT_ACTIONS, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 // ---------------------------------------------------------------- primitives
 
@@ -184,7 +185,6 @@ export const settingsSchema = z
       .object({
         aggroRange: nonNegative,
         depthTolerance: nonNegative,
-        maxSimultaneousAttackers: z.number().int().min(1),
         attackMove: idSchema,
         attackSlotDuration: positive,
         attackSlotRecovery: nonNegative,
@@ -251,6 +251,20 @@ export const settingsSchema = z
         continues: z.number().int().min(0),
         respawnInvulnerability: nonNegative,
         pickupRadius: positive,
+        maxSimultaneousAttackers: z.number().int().min(1),
+        friendlyFire: z.boolean(),
+        difficulty: z.object({ damageTaken: nonNegative, enemyHealth: positive }).strict(),
+      })
+      .strict(),
+    input: z
+      .object({
+        bindings: z
+          .object(
+            Object.fromEntries(
+              INPUT_ACTIONS.map((a) => [a, z.array(z.string().min(1).refine((k) => k === k.toLowerCase(), 'keys must be lowercase'))])
+            ) as Record<InputAction, z.ZodArray<z.ZodEffects<z.ZodString>>>
+          )
+          .strict(),
       })
       .strict(),
   })
