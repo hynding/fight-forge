@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import { CuboidCollider, RigidBody, RapierRigidBody, useRapier } from '@react-three/rapier'
 import { Group, Mesh } from 'three'
 import { FighterModel } from './FighterModel'
-import { DEFAULT_CONFIG, type ModelRef, type Vec3 } from '../config/defaults'
+import type { ModelRef, Vec3 } from '../config/defaults'
+import { getConfig } from '../content/active'
 import { isFrozen, useGameStore } from '../store/gameStore'
 import { gameStep } from '../utils/gameTime'
 import { SYSTEM_ORDER } from '../sim/loop'
@@ -24,7 +25,6 @@ import {
   type MovementConfig,
 } from '../sim/fighter'
 
-const { body: BODY, moves: MOVES, reactions: REACTIONS, actions: ACTIONS } = DEFAULT_CONFIG
 const HURT_FLASH_MS = 200
 
 interface FighterBodyProps {
@@ -71,7 +71,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       movement,
       jumpVelocity,
       model,
-      colliderHalfExtents = BODY.colliderHalfExtents,
+      colliderHalfExtents = getConfig().body.colliderHalfExtents,
       color,
       attackingColor,
       health,
@@ -112,7 +112,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       if (!body) return
       runtime.scale = scale
       runtime.hurtbox = { x: hx * scale, y: hy * scale, z: hz * scale }
-      stepReaction(runtime.reaction, dt, REACTIONS)
+      stepReaction(runtime.reaction, dt, getConfig().reactions)
       stepDodge(runtime.dodge, dt)
 
       const intent = getIntent(body, dt)
@@ -128,24 +128,24 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       groundRay.current.origin = { x: p.x, y: p.y, z: p.z }
       const hit = world.castRay(
         groundRay.current,
-        BODY.groundRayLength * scale,
+        getConfig().body.groundRayLength * scale,
         true,
         undefined,
         undefined,
         undefined,
         body
       )
-      let grounded = hit !== null && Math.abs(vel.y) < BODY.groundedMaxVelY
+      let grounded = hit !== null && Math.abs(vel.y) < getConfig().body.groundedMaxVelY
 
       // An air move ends when the fighter lands.
-      const current = runtime.move.move ? MOVES[runtime.move.move] : null
+      const current = runtime.move.move ? getConfig().moves[runtime.move.move] : null
       if (current?.air && grounded) interruptMove(runtime.move)
 
       // Dodge on a press, from the ground, when free.
       const dodgePressed = !!intent.dodge && !runtime.dodgeHeld
       runtime.dodgeHeld = !!intent.dodge
       if (dodgePressed && grounded && !isBusy(runtime) && canDodge(runtime.dodge)) {
-        startDodge(runtime.dodge, intent.move.z, ACTIONS.dodge)
+        startDodge(runtime.dodge, intent.move.z, getConfig().actions.dodge)
       }
 
       // During a move, a hit reaction or a dodge the controller can't walk, jump or turn.
@@ -155,21 +155,21 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       runtime.blocking = !!intent.block && grounded && (!busy || reaction === 'blockstun')
       const running = !busy && !runtime.blocking && !!intent.run
 
-      const move = runtime.move.move ? MOVES[runtime.move.move] : null
+      const move = runtime.move.move ? getConfig().moves[runtime.move.move] : null
       let next
       if (reaction !== null) {
         // Slide with the knockback that combat set on the runtime.
-        const f = Math.pow(REACTIONS.knockbackFriction, dt * 60)
+        const f = Math.pow(getConfig().reactions.knockbackFriction, dt * 60)
         next = { x: runtime.velocity.x * f, z: runtime.velocity.z * f }
       } else if (isDodging(runtime.dodge)) {
-        next = { x: 0, z: runtime.dodge.dirZ * ACTIONS.dodge.speed }
+        next = { x: 0, z: runtime.dodge.dirZ * getConfig().actions.dodge.speed }
       } else if (move?.air) {
         next = { x: vel.x, z: vel.z } // keep the jump's arc
       } else if (move?.lunge && movePhase(move, runtime.move.time) !== 'recovery') {
         next = { x: runtime.facing.x * move.lunge, z: 0 }
       } else {
         const want = busy || runtime.blocking ? { x: 0, z: 0 } : intent.move
-        const factor = running ? ACTIONS.run.speedFactor : 1
+        const factor = running ? getConfig().actions.run.speedFactor : 1
         next = stepVelocity({ x: vel.x, z: vel.z }, { x: want.x * factor, z: want.z }, movement, dt)
       }
       let velY = vel.y
@@ -236,7 +236,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       const mesh = hitboxRef.current
       if (!mesh) return
       const name = runtime.move.move
-      const move = name ? MOVES[name] : null
+      const move = name ? getConfig().moves[name] : null
       mesh.visible = !!move && movePhase(move, runtime.move.time) === 'active'
       if (!move || !mesh.visible) return
       const hb = move.hitbox

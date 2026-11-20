@@ -5,7 +5,7 @@ import { AnimationAction, Color, Group, LoopOnce, LoopRepeat, Material, Mesh, Me
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { ModelRef } from '../config/defaults'
 import { resolveFighterClip } from '../sim/animation'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { getConfig } from '../content/active'
 import type { FighterRuntime } from '../sim/fighter'
 
 type GltfRef = Extract<ModelRef, { kind: 'gltf' }>
@@ -97,7 +97,7 @@ export const GltfModel = ({
     current.current.state = key
     const clip = resolveFighterClip(
       runtime.state,
-      move ? DEFAULT_CONFIG.moves[move]?.clip : undefined,
+      move ? getConfig().moves[move]?.clip : undefined,
       model.clips,
       available
     )

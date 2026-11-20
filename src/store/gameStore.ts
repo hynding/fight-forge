@@ -1,12 +1,9 @@
 import { EMPTY_POOL, cancelRequest, forget, releaseToken, requestToken, type TokenPool } from '../sim/tokens'
 import { create } from 'zustand'
-import { EnemyType } from '../types/game'
-import { DEFAULT_CONFIG } from '../config/defaults'
-import { LEVELS } from '../config/levels'
+import type { EnemyType } from '../types/game'
+import { getConfig, getLevels } from '../content/active'
 import { applyPickup, type PickupInstance } from '../sim/pickups'
 
-export const ENEMY_KILL_SCORE = DEFAULT_CONFIG.scoring.enemyKill
-const RULES = DEFAULT_CONFIG.rules
 
 export interface Enemy {
   id: string
@@ -54,7 +51,7 @@ interface GameState {
   levelProgress: LevelProgress
   /** Debug overlay: draw hurtboxes and active hitboxes (toggle with H). Survives restarts. */
   showHitboxes: boolean
-  /** Which of `LEVELS` is being played. */
+  /** Which of the active levels (`getLevels()`) is being played. */
   levelIndex: number
   /** Lives left, including the current one. Losing the last is game over. */
   lives: number
@@ -113,17 +110,18 @@ const freshLevel = (state: GameState): Partial<GameState> => ({
 })
 
 /** Everything a run starts with. */
-const freshRun = (state: GameState): Partial<GameState> => ({
-  playerHealth: state.playerMaxHealth,
+const freshRun = (): Partial<GameState> => ({
+  playerHealth: getConfig().player.maxHealth,
+  playerMaxHealth: getConfig().player.maxHealth,
   score: 0,
-  lives: RULES.lives,
-  continuesLeft: RULES.continues,
+  lives: getConfig().rules.lives,
+  continuesLeft: getConfig().rules.continues,
   runKos: 0,
 })
 
 export const useGameStore = create<GameState>((set, get) => ({
-  playerHealth: DEFAULT_CONFIG.player.maxHealth,
-  playerMaxHealth: DEFAULT_CONFIG.player.maxHealth,
+  playerHealth: getConfig().player.maxHealth,
+  playerMaxHealth: getConfig().player.maxHealth,
   score: 0,
   enemies: [],
   isGameOver: false,
@@ -134,8 +132,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   levelProgress: INITIAL_LEVEL_PROGRESS,
   showHitboxes: false,
   levelIndex: 0,
-  lives: RULES.lives,
-  continuesLeft: RULES.continues,
+  lives: getConfig().rules.lives,
+  continuesLeft: getConfig().rules.continues,
   respawnCount: 0,
   kos: 0,
   runKos: 0,
@@ -198,7 +196,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       return {
         enemies: state.enemies.filter((e) => e.id !== id),
-        score: state.score + ENEMY_KILL_SCORE,
+        score: state.score + getConfig().scoring.enemyKill,
         attackTokens: forget(state.attackTokens, id),
         kos: state.kos + 1,
         runKos: state.runKos + 1,
@@ -208,7 +206,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   resetGame: () =>
     set((state) => ({
       ...freshLevel(state),
-      ...freshRun(state),
+      ...freshRun(),
       // Keep current screen if we're just resetting, otherwise go to playing
       gameScreen: state.gameScreen === 'menu' ? 'menu' : 'playing',
     })),
@@ -216,14 +214,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   startRun: (levelIndex) =>
     set((state) => ({
       ...freshLevel(state),
-      ...freshRun(state),
-      levelIndex: Math.max(0, Math.min(LEVELS.length - 1, levelIndex)),
+      ...freshRun(),
+      levelIndex: Math.max(0, Math.min(getLevels().length - 1, levelIndex)),
       gameScreen: 'loading',
     })),
 
   nextLevel: () =>
     set((state) =>
-      state.levelProgress.complete && state.levelIndex + 1 < LEVELS.length
+      state.levelProgress.complete && state.levelIndex + 1 < getLevels().length
         ? {
             ...freshLevel(state),
             levelIndex: state.levelIndex + 1,
@@ -238,7 +236,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         ? {
             isGameOver: false,
             continuesLeft: state.continuesLeft - 1,
-            lives: RULES.lives,
+            lives: getConfig().rules.lives,
             playerHealth: state.playerMaxHealth,
             respawnCount: state.respawnCount + 1,
           }
@@ -254,7 +252,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => {
       const item = state.pickups.find((p) => p.id === id)
       if (!item || state.isGameOver || state.levelProgress.complete) return {}
-      const def = DEFAULT_CONFIG.pickups[item.pickup]
+      const def = getConfig().pickups[item.pickup]
       return {
         pickups: state.pickups.filter((p) => p.id !== id),
         ...(def ? applyPickup(state, def) : {}),
@@ -273,7 +271,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }),
 
   requestAttackToken: (id) => {
-    const r = requestToken(get().attackTokens, id, DEFAULT_CONFIG.enemy.maxSimultaneousAttackers)
+    const r = requestToken(get().attackTokens, id, getConfig().enemy.maxSimultaneousAttackers)
     if (r.pool !== get().attackTokens) set({ attackTokens: r.pool })
     return r.granted
   },

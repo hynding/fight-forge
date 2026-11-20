@@ -14,7 +14,7 @@ export interface PickupDef {
 /** A pickup lying on the stage. */
 export interface PickupInstance {
   id: string
-  /** Name in `DEFAULT_CONFIG.pickups`. */
+  /** Pickup id in the content's `pickups`. */
   pickup: string
   x: number
   z: number

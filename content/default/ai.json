@@ -1,0 +1,26 @@
+{
+  "brawler": {
+    "approach": "beside",
+    "reach": 1.5,
+    "standOff": 0.8,
+    "attackFrom": "any"
+  },
+  "rusher": {
+    "approach": "beside",
+    "reach": 4,
+    "standOff": 0.9,
+    "attackFrom": "any"
+  },
+  "tank": {
+    "approach": "beside",
+    "reach": 1.7,
+    "standOff": 0.8,
+    "attackFrom": "any"
+  },
+  "flanker": {
+    "approach": "behind",
+    "reach": 1.5,
+    "standOff": 0.8,
+    "attackFrom": "behind"
+  }
+}

@@ -1,6 +1,6 @@
 // Defensive and movement actions: blocking, dodging (a short invulnerable
 // sidestep in depth), and running from a double-tap. Pure TS; FighterBody and
-// combat call into it, and the tuning lives in `DEFAULT_CONFIG.actions`.
+// combat call into it, and the tuning lives in the content's `actions` settings.
 
 import type { MoveDef } from './moves'
 

@@ -11,25 +11,28 @@ import { HUD } from './HUD'
 import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
 import { isFrozen, useGameStore } from '../store/gameStore'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { getConfig, getLevels } from '../content/active'
 import { SimLoopDriver } from '../sim/SimLoopDriver'
 import type { FighterRuntime } from '../sim/fighter'
 import { createStageView } from '../sim/stage'
 import { levelLength } from '../sim/level'
 import { Pickups } from './Pickups'
-import { LEVELS } from '../config/levels'
 import { LevelDirector } from './LevelDirector'
 
 export const GameScene = () => {
   // The scene remounts for each level (keyed on gameId), so read the level once.
-  const [LEVEL] = useState(() => LEVELS[useGameStore.getState().levelIndex] ?? LEVELS[0])
+  const config = getConfig()
+  const [LEVEL] = useState(() => {
+    const levels = getLevels()
+    return levels[useGameStore.getState().levelIndex] ?? levels[0]
+  })
   const STAGE_LENGTH = levelLength(LEVEL)
   const playerRef = useRef<RapierRigidBody>(null)
   const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
-  const playerPositionRef = useRef(new Vector3(...DEFAULT_CONFIG.player.spawnPosition))
+  const playerPositionRef = useRef(new Vector3(...config.player.spawnPosition))
   const lightRef = useRef<DirectionalLight>(null)
   // Horizontal camera state, shared by the camera, the player's screen bounds, and the spawner.
-  const [view] = useState(() => createStageView(DEFAULT_CONFIG.player.spawnPosition[0]))
+  const [view] = useState(() => createStageView(config.player.spawnPosition[0]))
   // Every fighter's live runtime (moves, reactions, facing) by name, for combat.
   // Fighters register themselves; mutable, so no re-render sits between a move and its hit.
   const [runtimes] = useState(() => new Map<string, FighterRuntime>())
@@ -58,7 +61,7 @@ export const GameScene = () => {
         {/* Without an explicit background the canvas is transparent over a white page,
             which made the white HUD text unreadable. */}
         <color attach="background" args={['#1a1a2e']} />
-        <PerspectiveCamera makeDefault fov={DEFAULT_CONFIG.camera.fov} />
+        <PerspectiveCamera makeDefault fov={config.camera.fov} />
 
         <ambientLight intensity={0.5} />
         <directionalLight
@@ -87,7 +90,7 @@ export const GameScene = () => {
           view={view}
           playerPositionRef={playerPositionRef}
         />
-        <Physics gravity={DEFAULT_CONFIG.physics.gravity} paused={frozen}>
+        <Physics gravity={config.physics.gravity} paused={frozen}>
           <Stage length={STAGE_LENGTH} />
           <Player
             ref={playerRef}

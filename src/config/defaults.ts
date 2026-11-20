@@ -1,17 +1,15 @@
-import { EnemyType } from '../types/game'
 import type { ClipMap } from '../sim/animation'
 import type { MoveSet } from '../sim/moves'
 import type { ReactionConfig } from '../sim/reactions'
 import type { ActionsConfig } from '../sim/defense'
-import type { AiBehavior, AiKind } from '../sim/controllers'
+import type { AiBehavior } from '../sim/controllers'
+import { DEFAULT_CONTENT } from '../content/defaultContent'
 import type { DropDef, PickupDef } from '../sim/pickups'
 
 /**
- * Every gameplay tuning value in one typed object.
- *
- * Components read from `DEFAULT_CONFIG` instead of declaring their own literals,
- * so later milestones can turn this into the default content pack (JSON validated
- * by a schema) without hunting constants across the codebase.
+ * Every gameplay tuning value in one typed object. The values come from
+ * content packs (`content/default/*.json` is the default pack), validated by
+ * the schemas in `src/content/schemas.ts`, which mirror these types.
  *
  * Units: distances in world units, speeds in units/s, times in seconds of game
  * time (see `gameStep`), unless the field name says otherwise.
@@ -48,8 +46,8 @@ export interface EnemyTypeDef {
   speed: number
   /** Multiplies `enemy.aggroRange`. */
   aggression: number
-  /** Which AI archetype drives it (see `ai`). */
-  ai: AiKind
+  /** Which AI archetype drives it (an id in `ai`). */
+  ai: string
   /** The move it throws when it gets an attack token; defaults to `enemy.attackMove`. */
   attackMove?: string
   /** Super armor: hits with at most this much hitstun (and no knockdown) don't stagger it. */
@@ -126,9 +124,10 @@ export interface GameConfig {
       arriveDistance: number
     }
   }
-  enemyTypes: Record<EnemyType, EnemyTypeDef>
+  /** Enemy types by id. */
+  enemyTypes: Record<string, EnemyTypeDef>
   /** AI archetypes: each is a small strategy picked by enemy definitions. */
-  ai: Record<AiKind, AiBehavior>
+  ai: Record<string, AiBehavior>
   /** Every move by name; times in seconds, hitboxes before the attacker's scale. */
   moves: MoveSet
   reactions: ReactionConfig
@@ -184,238 +183,9 @@ export interface GameConfig {
 /** The box humanoid: its feet sit 0.65 below its origin, so drop it 0.35 onto the collider bottom. */
 export const PROCEDURAL_MODEL: ModelRef = { kind: 'procedural', offset: [0, -0.35, 0] }
 
-const ROBOT_URL = '/models/robot-expressive.glb'
-// RobotExpressive is 4.46 units tall with its feet at y=0 and faces +Z.
-// Attacks play each move's own clip (see `moves`); `attack` here is the fallback.
-const ROBOT_MODEL: ModelRef = {
-  kind: 'gltf',
-  url: ROBOT_URL,
-  scale: 0.4,
-  offset: [0, -1, 0],
-  rotationY: Math.PI,
-  tintMaterials: ['Main'],
-  clips: {
-    idle: 'Idle',
-    walk: 'Walking',
-    run: 'Running',
-    jump: 'Jump',
-    attack: 'Punch',
-    knockdown: 'Death',
-    getup: { name: 'Standing', speed: 1 },
-    dead: 'Death',
-  },
-}
-
-// Shared light-hit hitbox: just in front of the fist, about chest height.
-const PUNCH_BOX = { forward: 0.8, up: 0.2, halfX: 0.55, halfY: 0.5, halfZ: 0.45 }
-// The Punch clip is 0.83s with its impact about 40% in; each move's clip
-// speed fits the clip to the move so the impact lands in the active frames.
-
-export const DEFAULT_CONFIG: GameConfig = {
-  physics: {
-    gravity: [0, -20, 0],
-  },
-  body: {
-    colliderHalfExtents: [0.25, 1, 0.25],
-    groundRayLength: 1.1,
-    groundedMaxVelY: 0.5,
-    stopSpeed: 0.1,
-  },
-  player: {
-    maxHealth: 100,
-    color: '#4444ff',
-    model: ROBOT_MODEL,
-    spawnPosition: [3, 2, 0],
-    walkSpeed: 5,
-    jumpVelocity: 8,
-    deceleration: 0.85,
-    linearDamping: 0,
-    lightAttack: 'jab',
-    jumpAttack: 'jumpKick',
-    dashAttack: 'dashPunch',
-  },
-  enemy: {
-    aggroRange: 10,
-    depthTolerance: 0.5,
-    maxSimultaneousAttackers: 1,
-    attackMove: 'enemyPunch',
-    attackSlotDuration: 1.5,
-    attackSlotRecovery: 1,
-    deceleration: 0,
-    minSpacing: 2.5,
-    crowdedThreshold: 0.1,
-    avoidanceWeight: 0.7,
-    circleSpeedFactor: 0.5,
-    linearDamping: 2,
-    patrol: {
-      retargetInterval: 3,
-      minDistance: 3,
-      maxDistance: 8,
-      speedFactor: 0.3,
-      arriveDistance: 0.5,
-    },
-  },
-  enemyTypes: {
-    [EnemyType.BASIC]: { maxHealth: 50, scale: 1, speed: 2, aggression: 1, ai: 'brawler', drop: { pickup: 'coin', chance: 0.2 }, color: '#00ff00', model: ROBOT_MODEL },
-    [EnemyType.FAST]: {
-      maxHealth: 30,
-      scale: 0.8,
-      speed: 3,
-      aggression: 1.2,
-      ai: 'rusher',
-      attackMove: 'rushPunch',
-      color: '#ffff00',
-      model: ROBOT_MODEL,
-    },
-    [EnemyType.HEAVY]: {
-      maxHealth: 100,
-      scale: 1.3,
-      speed: 1.5,
-      aggression: 0.8,
-      ai: 'tank',
-      armor: 0.4,
-      drop: { pickup: 'food', chance: 0.5 },
-      color: '#ff0000',
-      model: ROBOT_MODEL,
-    },
-    [EnemyType.FLANKER]: { maxHealth: 40, scale: 0.9, speed: 2.6, aggression: 1.1, ai: 'flanker', color: '#aa44ff', model: ROBOT_MODEL },
-  },
-  ai: {
-    brawler: { approach: 'beside', reach: 1.5, standOff: 0.8, attackFrom: 'any' },
-    // Hangs back, then lunges in with `rushPunch`.
-    rusher: { approach: 'beside', reach: 4, standOff: 0.9, attackFrom: 'any' },
-    // A brawler that shrugs off light hits (`armor` on its enemy type).
-    tank: { approach: 'beside', reach: 1.7, standOff: 0.8, attackFrom: 'any' },
-    // Works its way behind the player and only attacks from there.
-    flanker: { approach: 'behind', reach: 1.5, standOff: 0.8, attackFrom: 'behind' },
-  },
-  moves: {
-    // Light combo: jab, jab, hook, uppercut (launches and knocks down).
-    jab: {
-      startup: 0.05,
-      active: 0.08,
-      recovery: 0.17,
-      damage: 8,
-      hitbox: PUNCH_BOX,
-      reaction: { hitstun: 0.35, knockback: { x: 1, y: 0 } },
-      clip: { name: 'Punch', speed: 2.8 },
-      next: 'jab2',
-    },
-    jab2: {
-      startup: 0.05,
-      active: 0.08,
-      recovery: 0.17,
-      damage: 8,
-      hitbox: PUNCH_BOX,
-      reaction: { hitstun: 0.35, knockback: { x: 1, y: 0 } },
-      clip: { name: 'Punch', speed: 2.8 },
-      next: 'hook',
-    },
-    hook: {
-      startup: 0.08,
-      active: 0.1,
-      recovery: 0.22,
-      damage: 12,
-      hitbox: { ...PUNCH_BOX, halfX: 0.6 },
-      reaction: { hitstun: 0.45, knockback: { x: 1.5, y: 0 } },
-      clip: { name: 'Punch', speed: 2.1 },
-      next: 'uppercut',
-    },
-    uppercut: {
-      startup: 0.12,
-      active: 0.1,
-      recovery: 0.35,
-      damage: 20,
-      hitbox: { ...PUNCH_BOX, up: 0.5, halfY: 0.7 },
-      reaction: { hitstun: 0, knockback: { x: 5, y: 6 }, knockdown: true },
-      clip: { name: 'Punch', speed: 1.5 },
-    },
-    // Air attack: a low, wide box under and in front, keeps the jump's arc.
-    jumpKick: {
-      startup: 0.06,
-      active: 0.25,
-      recovery: 0.1,
-      damage: 14,
-      hitbox: { forward: 0.7, up: -0.4, halfX: 0.6, halfY: 0.6, halfZ: 0.45 },
-      reaction: { hitstun: 0.5, knockback: { x: 2.5, y: 0 } },
-      clip: { name: 'Punch', speed: 2 },
-      air: true,
-    },
-    // Running attack: lunges forward and knocks down.
-    dashPunch: {
-      startup: 0.1,
-      active: 0.15,
-      recovery: 0.35,
-      damage: 16,
-      hitbox: { ...PUNCH_BOX, halfX: 0.7 },
-      reaction: { hitstun: 0, knockback: { x: 4, y: 3 }, knockdown: true },
-      clip: { name: 'Punch', speed: 1.4 },
-      lunge: 7,
-    },
-    // Rusher: a long lunge from its hang-back distance.
-    rushPunch: {
-      startup: 0.2,
-      active: 0.15,
-      recovery: 0.5,
-      damage: 12,
-      hitbox: { ...PUNCH_BOX, halfX: 0.6 },
-      reaction: { hitstun: 0.4, knockback: { x: 3, y: 0 } },
-      clip: { name: 'Punch', speed: 1.2 },
-      lunge: 9,
-    },
-    enemyPunch: {
-      startup: 0.4,
-      active: 0.1,
-      recovery: 0.4,
-      damage: 10,
-      hitbox: { ...PUNCH_BOX, halfX: 0.6 },
-      reaction: { hitstun: 0.3, knockback: { x: 2, y: 0 } },
-      clip: { name: 'Punch', speed: 0.95 },
-    },
-  },
-  reactions: {
-    knockdownDuration: 1.1,
-    getupDuration: 0.4,
-    getupInvulnerability: 0.6,
-    knockbackFriction: 0.88,
-  },
-  actions: {
-    run: { speedFactor: 1.8, doubleTapWindow: 0.25 },
-    block: { damageFactor: 0.2, blockstun: 0.2, knockbackFactor: 0.5 },
-    dodge: { duration: 0.3, speed: 7, cooldown: 0.25 },
-  },
-  spawning: {
-    offscreenMargin: 2,
-    height: 2,
-  },
-  camera: {
-    height: 6,
-    distance: 12,
-    lookAtHeight: 2.5,
-    lookAtDepth: -3,
-    fov: 50,
-    deadZone: 2,
-    allowBacktrack: false,
-    edgeMargin: 0.75,
-  },
-  stage: {
-    depthBand: [-3, 3],
-    floorThickness: 0.5,
-    wallHeight: 4,
-    wallThickness: 0.5,
-  },
-  scoring: {
-    enemyKill: 100,
-  },
-  rules: {
-    lives: 3,
-    continues: 2,
-    respawnInvulnerability: 2,
-    pickupRadius: 0.9,
-  },
-  pickups: {
-    food: { effect: 'heal', amount: 30, color: '#ff8833', size: 0.35 },
-    feast: { effect: 'heal', amount: 100, color: '#ff3366', size: 0.5 },
-    coin: { effect: 'score', amount: 500, color: '#ffdd33', size: 0.3 },
-  },
-}
+/**
+ * The default pack's config (from `content/default/*.json`), for tests and
+ * tools. Gameplay code reads the active content with `getConfig()` from
+ * `src/content/active.ts` instead, so a loaded pack takes effect.
+ */
+export const DEFAULT_CONFIG: GameConfig = DEFAULT_CONTENT.config

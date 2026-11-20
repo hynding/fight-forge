@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useGameStore } from '../store/gameStore'
-import { LEVELS } from '../config/levels'
+import { getLevels } from '../content/active'
 import { formatTime } from '../utils/format'
 
 const ResultRow = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -57,7 +57,7 @@ export const HUD = () => {
   const continueGame = useGameStore((state) => state.continueGame)
   const nextLevel = useGameStore((state) => state.nextLevel)
   const startRun = useGameStore((state) => state.startRun)
-  const lastLevel = levelIndex >= LEVELS.length - 1
+  const lastLevel = levelIndex >= getLevels().length - 1
 
   // H toggles the hitbox debug overlay.
   useEffect(() => {
@@ -118,7 +118,7 @@ export const HUD = () => {
 
       {/* Level and fight progress */}
       <div style={{ fontSize: '16px', marginBottom: '10px' }}>
-        {`LEVEL ${levelIndex + 1}/${LEVELS.length}: ${level.levelName.toUpperCase()}`}
+        {`LEVEL ${levelIndex + 1}/${getLevels().length}: ${level.levelName.toUpperCase()}`}
         {level.waveLabel && ` | ${level.waveLabel.toUpperCase()}`}
         {` | ENEMIES: ${enemies.length}`}
       </div>

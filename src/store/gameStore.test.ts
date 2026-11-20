@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { ENEMY_KILL_SCORE, isFrozen, useGameStore, type Enemy } from './gameStore'
-import { EnemyType } from '../types/game'
+import { isFrozen, useGameStore, type Enemy } from './gameStore'
 import { DEFAULT_CONFIG } from '../config/defaults'
 
 const makeEnemy = (id: string, health = 50): Enemy => ({
   id,
-  type: EnemyType.BASIC,
+  type: 'BASIC',
   health,
   maxHealth: health,
   position: [0, 2, 0],
@@ -41,7 +40,7 @@ describe('damageEnemy', () => {
     s.damageEnemy('a', 20) // a second hit in the same frame must not score again
     const { enemies, score } = useGameStore.getState()
     expect(enemies).toHaveLength(0)
-    expect(score).toBe(ENEMY_KILL_SCORE)
+    expect(score).toBe(DEFAULT_CONFIG.scoring.enemyKill)
   })
 
   it('releases the attack token and queue place when an enemy dies', () => {

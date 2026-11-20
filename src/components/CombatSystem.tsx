@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { RapierRigidBody } from '@react-three/rapier'
 import { Vector3 } from 'three'
 import { useGameStore } from '../store/gameStore'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { useSimSystem } from '../sim/simContext'
 import { boxesOverlap, hitboxWorld, knockbackDirection } from '../sim/combat'
@@ -13,7 +13,6 @@ import { blockedHit, facesAttacker, isDodging } from '../sim/defense'
 import { rollDrop } from '../sim/pickups'
 import type { FighterRuntime } from '../sim/fighter'
 
-const { moves: MOVES, reactions: REACTIONS, actions: ACTIONS } = DEFAULT_CONFIG
 const PLAYER = 'player'
 
 interface CombatSystemProps {
@@ -63,7 +62,7 @@ export const CombatSystem = ({
     runtimes.forEach((attacker, attackerName) => {
       const moveName = attacker.move.move
       if (!moveName) return
-      const move = MOVES[moveName]
+      const move = getConfig().moves[moveName]
       if (movePhase(move, attacker.move.time) !== 'active') return
 
       // Read live store state; a render-time snapshot can lag the store by frames.
@@ -98,14 +97,14 @@ export const CombatSystem = ({
         const v = targetBody.linvel()
         let damage = move.damage
         if (target.blocking && facesAttacker(target.facing.x, t.x, a.x)) {
-          const blocked = blockedHit(move, ACTIONS.block)
+          const blocked = blockedHit(move, getConfig().actions.block)
           damage = blocked.damage
           applyBlockstun(target.reaction, blocked.blockstun)
           target.velocity = { x: dir * blocked.knockbackX, z: 0 }
           targetBody.setLinvel({ x: dir * blocked.knockbackX, y: v.y, z: 0 }, true)
           interruptMove(target.move)
         } else if (move.reaction.knockdown || move.reaction.hitstun > target.armor) {
-          applyHit(target.reaction, move.reaction, REACTIONS)
+          applyHit(target.reaction, move.reaction, getConfig().reactions)
           const kb = move.reaction.knockback
           target.velocity = { x: dir * kb.x, z: 0 }
           targetBody.setLinvel({ x: dir * kb.x, y: kb.y > 0 ? kb.y : v.y, z: 0 }, true)
@@ -122,7 +121,7 @@ export const CombatSystem = ({
           // Defeated: maybe drop a pickup where it fell.
           const dropped =
             enemy && !useGameStore.getState().enemies.some((e) => e.id === targetName)
-              ? rollDrop(DEFAULT_CONFIG.enemyTypes[enemy.type].drop)
+              ? rollDrop(getConfig().enemyTypes[enemy.type].drop)
               : null
           if (dropped) {
             useGameStore

@@ -19,12 +19,8 @@ export interface AttackData {
   duration: number
 }
 
-export enum EnemyType {
-  BASIC = 'BASIC',
-  HEAVY = 'HEAVY',
-  FAST = 'FAST',
-  FLANKER = 'FLANKER'
-}
+/** An enemy type's id in the content (`enemyTypes`), e.g. `BASIC`. */
+export type EnemyType = string
 
 export interface EnemyState extends CharacterState {
   type: EnemyType

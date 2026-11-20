@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "default",
+  "name": "Fight Forge",
+  "version": "1.0.0",
+  "meta": {
+    "author": "Fight Forge",
+    "description": "The built-in fighters, enemies and levels.",
+    "license": "MIT"
+  }
+}

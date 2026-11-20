@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useRef, useState, type RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
 import { useControls } from '../hooks/useControls'
 import { useGameStore } from '../store/gameStore'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { getConfig } from '../content/active'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { interruptMove, stepMoveRunner } from '../sim/moves'
@@ -12,12 +12,6 @@ import { createFighterRuntime, type FighterRuntime } from '../sim/fighter'
 import { screenBounds, type StageView } from '../sim/stage'
 import { FighterBody } from './FighterBody'
 
-const P = DEFAULT_CONFIG.player
-const MOVEMENT = {
-  walkSpeed: P.walkSpeed,
-  deceleration: P.deceleration,
-  stopSpeed: DEFAULT_CONFIG.body.stopSpeed,
-}
 
 interface PlayerProps {
   /** Every fighter's live runtime by name; the player registers as "player". */
@@ -28,6 +22,13 @@ interface PlayerProps {
 
 /** The player: a FighterBody driven by the keyboard (InputController). */
 export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view }, ref) => {
+  const config = getConfig()
+  const P = config.player
+  const [movement] = useState(() => ({
+    walkSpeed: P.walkSpeed,
+    deceleration: P.deceleration,
+    stopSpeed: config.body.stopSpeed,
+  }))
   const controls = useControls()
   const [runtime] = useState(createFighterRuntime)
   // Visual only (attack tint); gameplay reads `runtime.move`.
@@ -59,7 +60,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       interruptMove(runtime.move)
       runtime.reaction.kind = null
       runtime.reaction.timeLeft = 0
-      runtime.reaction.invulnerableLeft = DEFAULT_CONFIG.rules.respawnInvulnerability
+      runtime.reaction.invulnerableLeft = config.rules.respawnInvulnerability
       runtime.velocity = { x: 0, z: 0 }
       const body = (ref as RefObject<RapierRigidBody> | null)?.current
       if (body) {
@@ -78,7 +79,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       runtime.reaction.kind === null &&
       !runtime.blocking &&
       !(inAir && airAttackUsed.current)
-    const event = stepMoveRunner(runtime.move, wants, dt, DEFAULT_CONFIG.moves, first)
+    const event = stepMoveRunner(runtime.move, wants, dt, config.moves, first)
     if (event === 'started' && inAir) airAttackUsed.current = true
     // Also catches a move that combat interrupted.
     const attacking = runtime.move.move !== null
@@ -94,7 +95,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       name="player"
       position={P.spawnPosition}
       linearDamping={P.linearDamping}
-      movement={MOVEMENT}
+      movement={movement}
       jumpVelocity={P.jumpVelocity}
       model={P.model}
       colliderHalfExtents={P.colliderHalfExtents}
@@ -104,12 +105,12 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       isAttacking={isAttacking}
       getIntent={() => {
         const intent = inputIntent(controls)
-        intent.run = stepRunDetector(runDetector, intent.move.x, loop.time, DEFAULT_CONFIG.actions.run)
+        intent.run = stepRunDetector(runDetector, intent.move.x, loop.time, config.actions.run)
         return intent
       }}
       isDead={() => useGameStore.getState().playerHealth <= 0}
       getBounds={() =>
-        screenBounds(view, DEFAULT_CONFIG.stage.depthBand, DEFAULT_CONFIG.camera.edgeMargin)
+        screenBounds(view, config.stage.depthBand, config.camera.edgeMargin)
       }
       runtime={runtime}
     />

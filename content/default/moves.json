@@ -1,0 +1,202 @@
+{
+  "jab": {
+    "startup": 0.05,
+    "active": 0.08,
+    "recovery": 0.17,
+    "damage": 8,
+    "hitbox": {
+      "forward": 0.8,
+      "up": 0.2,
+      "halfX": 0.55,
+      "halfY": 0.5,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.35,
+      "knockback": {
+        "x": 1,
+        "y": 0
+      }
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 2.8
+    },
+    "next": "jab2"
+  },
+  "jab2": {
+    "startup": 0.05,
+    "active": 0.08,
+    "recovery": 0.17,
+    "damage": 8,
+    "hitbox": {
+      "forward": 0.8,
+      "up": 0.2,
+      "halfX": 0.55,
+      "halfY": 0.5,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.35,
+      "knockback": {
+        "x": 1,
+        "y": 0
+      }
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 2.8
+    },
+    "next": "hook"
+  },
+  "hook": {
+    "startup": 0.08,
+    "active": 0.1,
+    "recovery": 0.22,
+    "damage": 12,
+    "hitbox": {
+      "forward": 0.8,
+      "up": 0.2,
+      "halfX": 0.6,
+      "halfY": 0.5,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.45,
+      "knockback": {
+        "x": 1.5,
+        "y": 0
+      }
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 2.1
+    },
+    "next": "uppercut"
+  },
+  "uppercut": {
+    "startup": 0.12,
+    "active": 0.1,
+    "recovery": 0.35,
+    "damage": 20,
+    "hitbox": {
+      "forward": 0.8,
+      "up": 0.5,
+      "halfX": 0.55,
+      "halfY": 0.7,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 5,
+        "y": 6
+      },
+      "knockdown": true
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 1.5
+    }
+  },
+  "jumpKick": {
+    "startup": 0.06,
+    "active": 0.25,
+    "recovery": 0.1,
+    "damage": 14,
+    "hitbox": {
+      "forward": 0.7,
+      "up": -0.4,
+      "halfX": 0.6,
+      "halfY": 0.6,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.5,
+      "knockback": {
+        "x": 2.5,
+        "y": 0
+      }
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 2
+    },
+    "air": true
+  },
+  "dashPunch": {
+    "startup": 0.1,
+    "active": 0.15,
+    "recovery": 0.35,
+    "damage": 16,
+    "hitbox": {
+      "forward": 0.8,
+      "up": 0.2,
+      "halfX": 0.7,
+      "halfY": 0.5,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 4,
+        "y": 3
+      },
+      "knockdown": true
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 1.4
+    },
+    "lunge": 7
+  },
+  "rushPunch": {
+    "startup": 0.2,
+    "active": 0.15,
+    "recovery": 0.5,
+    "damage": 12,
+    "hitbox": {
+      "forward": 0.8,
+      "up": 0.2,
+      "halfX": 0.6,
+      "halfY": 0.5,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.4,
+      "knockback": {
+        "x": 3,
+        "y": 0
+      }
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 1.2
+    },
+    "lunge": 9
+  },
+  "enemyPunch": {
+    "startup": 0.4,
+    "active": 0.1,
+    "recovery": 0.4,
+    "damage": 10,
+    "hitbox": {
+      "forward": 0.8,
+      "up": 0.2,
+      "halfX": 0.6,
+      "halfY": 0.5,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.3,
+      "knockback": {
+        "x": 2,
+        "y": 0
+      }
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 0.95
+    }
+  }
+}
