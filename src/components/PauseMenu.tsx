@@ -9,7 +9,7 @@ export const PauseMenu = () => {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !e.repeat) {
         togglePause()
       }
     }

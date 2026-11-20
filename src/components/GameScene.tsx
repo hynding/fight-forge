@@ -12,8 +12,22 @@ import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
 import { useGameStore } from '../store/gameStore'
 import { EnemyType } from '../types/game'
+import { gameStep } from '../utils/gameTime'
 
 const _cameraTarget = new Vector3()
+
+const MAX_ENEMIES = 8
+const SPAWN_INTERVAL_MS = 5000
+const SPAWN_DISTANCE = 10
+const ENEMY_HEALTH: Record<EnemyType, number> = {
+  [EnemyType.BASIC]: 50,
+  [EnemyType.FAST]: 30,
+  [EnemyType.HEAVY]: 100,
+}
+
+// The timestamp prefix keeps ids unique even if a dev hot reload resets the counter.
+let enemyIdCounter = 0
+const nextEnemyId = () => `enemy-${Date.now().toString(36)}-${++enemyIdCounter}`
 
 interface CameraRigProps {
   playerPositionRef: RefObject<Vector3>
@@ -27,13 +41,48 @@ const CameraRig = ({ playerPositionRef, controlsRef }: CameraRigProps) => {
     const p = playerPositionRef.current
     if (!p) return
 
-    camera.position.set(p.x, p.y + 15, p.z + 20)
+    // After game over, OrbitControls rotation is enabled; stop forcing the camera
+    // position so the player can actually orbit around the final scene.
+    if (!useGameStore.getState().isGameOver) {
+      camera.position.set(p.x, p.y + 15, p.z + 20)
+    }
 
     if (controlsRef.current) {
       _cameraTarget.set(p.x, p.y, p.z)
       controlsRef.current.target.copy(_cameraTarget)
       controlsRef.current.update()
     }
+  })
+
+  return null
+}
+
+// Periodic spawner. Counts game time in useFrame: frozen while paused or game
+// over, and the clamped step means returning to a hidden tab can't pay out a burst.
+const EnemySpawner = () => {
+  const spawnEnemy = useGameStore((state) => state.spawnEnemy)
+  const elapsed = useRef(0)
+
+  useFrame((_, delta) => {
+    const { isPaused, isGameOver, enemies } = useGameStore.getState()
+    if (isPaused || isGameOver) return
+
+    elapsed.current += gameStep(delta) * 1000
+    if (elapsed.current < SPAWN_INTERVAL_MS) return
+    elapsed.current -= SPAWN_INTERVAL_MS
+    if (enemies.length >= MAX_ENEMIES) return
+
+    const angle = Math.random() * Math.PI * 2
+    const types = [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY]
+    const randomType = types[Math.floor(Math.random() * types.length)]
+
+    spawnEnemy({
+      id: nextEnemyId(),
+      type: randomType,
+      health: ENEMY_HEALTH[randomType],
+      maxHealth: ENEMY_HEALTH[randomType],
+      position: [Math.cos(angle) * SPAWN_DISTANCE, 2, Math.sin(angle) * SPAWN_DISTANCE],
+    })
   })
 
   return null
@@ -54,6 +103,7 @@ export const GameScene = () => {
   const enemies = useGameStore((state) => state.enemies)
   const spawnEnemy = useGameStore((state) => state.spawnEnemy)
   const isGameOver = useGameStore((state) => state.isGameOver)
+  const isPaused = useGameStore((state) => state.isPaused)
   const hasSpawnedInitial = useRef(false)
 
   // Spawn initial enemies once
@@ -68,50 +118,16 @@ export const GameScene = () => {
       [-5, 2, -5],
     ]
 
-    positions.forEach((pos, idx) => {
+    positions.forEach((pos) => {
       spawnEnemy({
-        id: `enemy-${idx}`,
+        id: nextEnemyId(),
         type: EnemyType.BASIC,
-        health: 50,
-        maxHealth: 50,
+        health: ENEMY_HEALTH[EnemyType.BASIC],
+        maxHealth: ENEMY_HEALTH[EnemyType.BASIC],
         position: pos,
       })
     })
   }, [spawnEnemy])
-
-  // Periodic spawn (5s) — reads enemy count from store snapshot inside callback
-  useEffect(() => {
-    if (isGameOver) return
-
-    const interval = setInterval(() => {
-      const currentCount = useGameStore.getState().enemies.length
-      if (currentCount < 8) {
-        const angle = Math.random() * Math.PI * 2
-        const distance = 10
-        const x = Math.cos(angle) * distance
-        const z = Math.sin(angle) * distance
-
-        const types = [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY]
-        const randomType = types[Math.floor(Math.random() * types.length)]
-
-        const healthMap = {
-          [EnemyType.BASIC]: 50,
-          [EnemyType.FAST]: 30,
-          [EnemyType.HEAVY]: 100,
-        }
-
-        spawnEnemy({
-          id: `enemy-${Date.now()}`,
-          type: randomType,
-          health: healthMap[randomType],
-          maxHealth: healthMap[randomType],
-          position: [x, 2, z],
-        })
-      }
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [isGameOver, spawnEnemy])
 
   // Clean up enemy refs when enemies are removed
   useEffect(() => {
@@ -139,6 +155,9 @@ export const GameScene = () => {
   return (
     <>
       <Canvas shadows dpr={[1, 2]}>
+        {/* Without an explicit background the canvas is transparent over a white page,
+            which made the white HUD text unreadable. */}
+        <color attach="background" args={['#1a1a2e']} />
         <PerspectiveCamera makeDefault position={[0, 17, 20]} />
         <OrbitControls
           ref={controlsRef}
@@ -151,6 +170,7 @@ export const GameScene = () => {
         />
 
         <CameraRig playerPositionRef={playerPositionRef} controlsRef={controlsRef} />
+        <EnemySpawner />
 
         <ambientLight intensity={0.5} />
         <directionalLight
@@ -165,7 +185,7 @@ export const GameScene = () => {
         />
         <pointLight position={[-10, 10, -10]} intensity={0.5} />
 
-        <Physics gravity={[0, -20, 0]}>
+        <Physics gravity={[0, -20, 0]} paused={isPaused || isGameOver}>
           <Arena />
           <Player ref={playerRef} onAttackChange={handleAttackChange} />
 

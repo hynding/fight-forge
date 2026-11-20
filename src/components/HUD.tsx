@@ -24,7 +24,8 @@ export const HUD = () => {
       left: 0,
       width: '100%',
       padding: '20px',
-      pointerEvents: isGameOver ? 'auto' : 'none',
+      // The game-over panel opts back in; the rest must let drags reach the canvas.
+      pointerEvents: 'none',
       color: 'white',
       fontFamily: 'monospace',
       userSelect: 'none',
@@ -63,7 +64,7 @@ export const HUD = () => {
 
       {/* Controls */}
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
-        WASD - Move | SPACE - Jump | J - Attack | K - Block
+        WASD - Move | SPACE - Jump | J - Attack | ESC - Pause
       </div>
 
       {/* Game Over Screen */}

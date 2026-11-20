@@ -1,10 +1,12 @@
-import { useRef, useEffect, forwardRef, RefObject } from 'react'
+import { useRef, forwardRef, RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { RigidBody, RapierRigidBody, CuboidCollider } from '@react-three/rapier'
+import { Billboard } from '@react-three/drei'
 import { Group, Vector3 } from 'three'
 import { EnemyType } from '../types/game'
 import { useGameStore } from '../store/gameStore'
 import { HumanoidModel } from './HumanoidModel'
+import { gameStep } from '../utils/gameTime'
 
 // Module-scoped temp vectors — reused every frame to avoid allocations.
 // Safe because Enemy.useFrame is single-threaded per renderer.
@@ -13,10 +15,14 @@ const _toOther = new Vector3()
 const _direction = new Vector3()
 const _avoidanceForce = new Vector3()
 const _moveDirection = new Vector3()
-const _toPlayer = new Vector3()
 const _circleDir = new Vector3()
 const _otherPos = new Vector3()
 const _patrolDelta = new Vector3()
+
+// How long an enemy holds the single attacker slot, then how long it waits
+// before it may claim the slot again.
+const ENEMY_ATTACK_DURATION_MS = 1000
+const ENEMY_ATTACK_RECOVERY_MS = 1000
 
 interface EnemyProps {
   id: string
@@ -37,10 +43,10 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const personalityTimer = useRef(Math.random() * 1000)
     const animationTimeRef = useRef(0)
     const isMovingRef = useRef(false)
-    const attackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Game-time (ms) countdowns; they only advance on unpaused frames.
+    const attackTimeLeft = useRef(0)
+    const attackRecoveryLeft = useRef(0)
 
-    const removeEnemy = useGameStore((state) => state.removeEnemy)
-    const addScore = useGameStore((state) => state.addScore)
     const attackingEnemyId = useGameStore((state) => state.attackingEnemyId)
     const setAttackingEnemy = useGameStore((state) => state.setAttackingEnemy)
 
@@ -59,28 +65,36 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
 
     const isAttacking = attackingEnemyId === id
 
+    const getScale = (): number => {
+      switch (type) {
+        case EnemyType.HEAVY:
+          return 1.3
+        case EnemyType.FAST:
+          return 0.8
+        default:
+          return 1
+      }
+    }
+
+    const scale = getScale()
+
     const AGGRO_RANGE = 10 * aggressionLevel.current
     const ATTACK_RANGE = 1.5
     const SPEED = type === EnemyType.FAST ? 3 : type === EnemyType.HEAVY ? 1.5 : 2
     const MIN_ENEMY_SPACING = 2.5
+    // HumanoidModel's feet sit 0.65*scale below its origin; the collider bottom is at -1*scale.
+    const modelYOffset = -0.35 * scale
 
-    useEffect(() => {
-      if (health <= 0) {
-        removeEnemy(id)
-        addScore(100)
-      }
-    }, [health, id, removeEnemy, addScore])
+    // Death (removal + score) is handled atomically by `damageEnemy` in the store.
 
-    useEffect(() => {
-      return () => {
-        if (attackTimeoutRef.current !== null) {
-          clearTimeout(attackTimeoutRef.current)
-        }
-      }
-    }, [])
-
-    useFrame((_, delta) => {
+    useFrame((_, frameDelta) => {
       if (!enemyRef.current || !playerPositionRef.current) return
+      // Read live store state: the render-time `attackingEnemyId` can be several
+      // frames stale, which let multiple enemies claim the attacker slot at once.
+      const { isPaused, isGameOver, attackingEnemyId: currentAttackerId } =
+        useGameStore.getState()
+      if (isPaused || isGameOver) return
+      const delta = gameStep(frameDelta)
 
       animationTimeRef.current += delta
 
@@ -92,6 +106,19 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       isMovingRef.current = Math.abs(vel.x) > 0.1 || Math.abs(vel.z) > 0.1
 
       personalityTimer.current += delta * 1000
+
+      // Attack slot bookkeeping. Removal on death/unmount is handled by the store.
+      attackRecoveryLeft.current = Math.max(0, attackRecoveryLeft.current - delta * 1000)
+      if (attackTimeLeft.current > 0) {
+        attackTimeLeft.current -= delta * 1000
+        if (attackTimeLeft.current <= 0) {
+          attackTimeLeft.current = 0
+          // Back off before trying again so other enemies get a turn.
+          attackRecoveryLeft.current = ENEMY_ATTACK_RECOVERY_MS
+          // Only release the slot if we still hold it.
+          if (currentAttackerId === id) setAttackingEnemy(null)
+        }
+      }
 
       // Avoidance against other enemies — read positions directly from refs.
       _avoidanceForce.set(0, 0, 0)
@@ -134,7 +161,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
           )
         } else {
           const shouldHold =
-            hasAvoidance && attackingEnemyId !== null && attackingEnemyId !== id
+            hasAvoidance && currentAttackerId !== null && currentAttackerId !== id
 
           if (shouldHold) {
             _circleDir.set(-_direction.z, 0, _direction.x)
@@ -152,20 +179,9 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
               true
             )
 
-            if (!isAttacking && attackingEnemyId === null) {
-              _toPlayer.subVectors(playerPositionRef.current, _enemyVec).normalize()
-              const dotProduct = facingDirection.current.dot(_toPlayer)
-
-              if (dotProduct > 0.5) {
-                setAttackingEnemy(id)
-                if (attackTimeoutRef.current !== null) {
-                  clearTimeout(attackTimeoutRef.current)
-                }
-                attackTimeoutRef.current = setTimeout(() => {
-                  setAttackingEnemy(null)
-                  attackTimeoutRef.current = null
-                }, 1000)
-              }
+            if (currentAttackerId === null && attackRecoveryLeft.current === 0) {
+              setAttackingEnemy(id)
+              attackTimeLeft.current = ENEMY_ATTACK_DURATION_MS
             }
           }
         }
@@ -227,18 +243,6 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       }
     }
 
-    const getScale = (): number => {
-      switch (type) {
-        case EnemyType.HEAVY:
-          return 1.3
-        case EnemyType.FAST:
-          return 0.8
-        default:
-          return 1
-      }
-    }
-
-    const scale = getScale()
 
     return (
       <RigidBody
@@ -250,7 +254,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       >
         <CuboidCollider args={[0.25 * scale, 1 * scale, 0.25 * scale]} />
 
-        <group ref={visualGroupRef}>
+        <group ref={visualGroupRef} position={[0, modelYOffset, 0]}>
           <HumanoidModel
             color={isAttacking ? '#ffffff' : getColor()}
             emissive={isAttacking ? '#ff0000' : '#000000'}
@@ -272,15 +276,20 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
             </mesh>
           )}
 
+        </group>
+
+        {/* Health bar: outside the rotating visual group and billboarded so it
+            always faces the camera instead of going edge-on as the enemy turns. */}
+        <Billboard position={[0, 1.5 * scale + modelYOffset, 0]}>
           {/* Health bar background */}
-          <mesh position={[0, 1.5 * scale, 0]} renderOrder={1000}>
+          <mesh position={[0, 0, 0]} renderOrder={1000}>
             <boxGeometry args={[1.2, 0.15, 0.02]} />
             <meshBasicMaterial color="#333333" depthTest={false} />
           </mesh>
 
           {/* Health bar fill */}
           <mesh
-            position={[-(1.2 * (1 - health / maxHealth)) / 2, 1.5 * scale, 0.01]}
+            position={[-(1.2 * (1 - health / maxHealth)) / 2, 0, 0.01]}
             renderOrder={1001}
           >
             <boxGeometry args={[1.2 * (health / maxHealth), 0.15, 0.02]} />
@@ -297,11 +306,11 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
           </mesh>
 
           {/* Health bar border */}
-          <mesh position={[0, 1.5 * scale, 0.02]} renderOrder={1002}>
+          <mesh position={[0, 0, 0.02]} renderOrder={1002}>
             <boxGeometry args={[1.24, 0.19, 0.01]} />
             <meshBasicMaterial color="#000000" transparent opacity={0.5} depthTest={false} />
           </mesh>
-        </group>
+        </Billboard>
       </RigidBody>
     )
   }

@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react'
+import { useGameStore } from '../store/gameStore'
+
+const LOADING_DURATION_MS = 2000
 
 export const LoadingScreen = () => {
   const [progress, setProgress] = useState(0)
   const [loadingText, setLoadingText] = useState('Loading')
+  const setGameScreen = useGameStore((state) => state.setGameScreen)
+
+  useEffect(() => {
+    // Simulated load: start the game once it "finishes". Cleared on unmount so a
+    // stale timer can never yank the user into the game from another screen.
+    const timer = setTimeout(() => setGameScreen('playing'), LOADING_DURATION_MS)
+    return () => clearTimeout(timer)
+  }, [setGameScreen])
 
   useEffect(() => {
     // Simulate loading progress
     const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          return 100
-        }
-        return prev + 5
-      })
-    }, 100)
+      setProgress((prev) => Math.min(100, prev + 5))
+    }, LOADING_DURATION_MS / 20)
 
     return () => clearInterval(interval)
   }, [])

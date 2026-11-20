@@ -5,12 +5,13 @@ import { useGameStore } from './store/gameStore'
 
 function App() {
   const gameScreen = useGameStore((state) => state.gameScreen)
+  const gameId = useGameStore((state) => state.gameId)
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
       {gameScreen === 'menu' && <StartMenu />}
       {gameScreen === 'loading' && <LoadingScreen />}
-      {gameScreen === 'playing' && <GameScene />}
+      {gameScreen === 'playing' && <GameScene key={gameId} />}
     </div>
   )
 }

@@ -1,10 +1,11 @@
 import { useRef, useState, useEffect, forwardRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { RigidBody, RapierRigidBody, CuboidCollider } from '@react-three/rapier'
+import { RigidBody, RapierRigidBody, CuboidCollider, useRapier } from '@react-three/rapier'
 import { Group, Vector3 } from 'three'
 import { useControls } from '../hooks/useControls'
 import { HumanoidModel } from './HumanoidModel'
 import { useGameStore } from '../store/gameStore'
+import { gameStep } from '../utils/gameTime'
 
 interface PlayerProps {
   onAttackChange?: (isAttacking: boolean, direction: Vector3) => void
@@ -12,8 +13,17 @@ interface PlayerProps {
 
 const SPEED = 5
 const JUMP_FORCE = 8
-const ATTACK_COOLDOWN = 500
+// Attack timings are in game time (seconds of unpaused frames), so pausing
+// mid-swing resumes the swing instead of silently consuming it.
+const ATTACK_COOLDOWN = 0.5
+const ATTACK_DURATION = 0.2
 const DECELERATION = 0.85
+// Grounded = something solid within this distance below the body centre.
+// The collider's half-height is 1, so this allows 0.1 of slack for contact jitter.
+const GROUND_RAY_LENGTH = 1.1
+const GROUNDED_MAX_VEL_Y = 0.5
+// HumanoidModel's feet sit 0.65 below its origin; drop it so they meet the collider bottom.
+const MODEL_Y_OFFSET = -0.35
 
 export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange }, ref) => {
   const rigidBodyRef = useRef<RapierRigidBody>(null)
@@ -24,18 +34,17 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
   const isMovingRef = useRef(false)
   const animationTimeRef = useRef(0)
   const lastDirection = useRef(new Vector3(0, 0, -1))
+  // `isAttacking` state drives visuals only. Per-frame gating uses refs so that
+  // frames rendered before React re-renders can't start a second swing.
   const [isAttacking, setIsAttacking] = useState(false)
-  const [attackCooldown, setAttackCooldown] = useState(0)
+  const attackTimeLeft = useRef(0)
+  const cooldownTimeLeft = useRef(0)
   const [isHurt, setIsHurt] = useState(false)
   const playerHealth = useGameStore((state) => state.playerHealth)
   const prevHealth = useRef(playerHealth)
 
-  useEffect(() => {
-    if (attackCooldown > 0) {
-      const timer = setTimeout(() => setAttackCooldown(0), attackCooldown)
-      return () => clearTimeout(timer)
-    }
-  }, [attackCooldown])
+  const { world, rapier } = useRapier()
+  const groundRay = useRef<InstanceType<typeof rapier.Ray> | null>(null)
 
   // Flash red when taking damage
   useEffect(() => {
@@ -48,8 +57,11 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     prevHealth.current = playerHealth
   }, [playerHealth])
 
-  useFrame((_, delta) => {
+  useFrame((_, frameDelta) => {
     if (!playerRef.current) return
+    const { isPaused, isGameOver } = useGameStore.getState()
+    if (isPaused || isGameOver) return
+    const delta = gameStep(frameDelta)
 
     animationTimeRef.current += delta
 
@@ -71,8 +83,11 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
       newVelX = targetVelX
       newVelZ = targetVelZ
     } else {
-      newVelX *= DECELERATION
-      newVelZ *= DECELERATION
+      // DECELERATION is tuned per 60 Hz frame; scale by elapsed time so the
+      // slide is roughly the same across refresh rates (not exact).
+      const decel = Math.pow(DECELERATION, delta * 60)
+      newVelX *= decel
+      newVelZ *= decel
       if (Math.abs(newVelX) < 0.1) newVelX = 0
       if (Math.abs(newVelZ) < 0.1) newVelZ = 0
     }
@@ -86,25 +101,45 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
 
     playerRef.current.setLinvel({ x: newVelX, y: velocity.y, z: newVelZ }, true)
 
+    // Grounded check: short downward ray that ignores the player's own body,
+    // so standing on the floor, an enemy, or any future platform all count.
+    const position = playerRef.current.translation()
+    if (!groundRay.current) {
+      groundRay.current = new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 })
+    }
+    groundRay.current.origin = { x: position.x, y: position.y, z: position.z }
+    const groundHit = world.castRay(
+      groundRay.current,
+      GROUND_RAY_LENGTH,
+      true,
+      undefined,
+      undefined,
+      undefined,
+      playerRef.current
+    )
+    isGroundedRef.current = groundHit !== null && Math.abs(velocity.y) < GROUNDED_MAX_VEL_Y
+
     // Jump
     if (controls.jump && isGroundedRef.current) {
       playerRef.current.setLinvel({ x: newVelX, y: JUMP_FORCE, z: newVelZ }, true)
+      isGroundedRef.current = false
     }
 
     // Attack
-    if (controls.attack && !isAttacking && attackCooldown === 0) {
-      setIsAttacking(true)
-      onAttackChange?.(true, lastDirection.current.clone())
-      setAttackCooldown(ATTACK_COOLDOWN)
-      setTimeout(() => {
+    cooldownTimeLeft.current = Math.max(0, cooldownTimeLeft.current - delta)
+    if (attackTimeLeft.current > 0) {
+      attackTimeLeft.current -= delta
+      if (attackTimeLeft.current <= 0) {
+        attackTimeLeft.current = 0
         setIsAttacking(false)
         onAttackChange?.(false, new Vector3())
-      }, 200)
+      }
+    } else if (controls.attack && cooldownTimeLeft.current === 0) {
+      attackTimeLeft.current = ATTACK_DURATION
+      cooldownTimeLeft.current = ATTACK_COOLDOWN
+      setIsAttacking(true)
+      onAttackChange?.(true, lastDirection.current.clone())
     }
-
-    // Grounded check
-    const position = playerRef.current.translation()
-    isGroundedRef.current = position.y < 1.1
 
     // Drive rotation imperatively from current facing direction
     if (visualGroupRef.current) {
@@ -126,7 +161,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     >
       <CuboidCollider args={[0.25, 1, 0.25]} />
 
-      <group ref={visualGroupRef}>
+      <group ref={visualGroupRef} position={[0, MODEL_Y_OFFSET, 0]}>
         <HumanoidModel
           color={isHurt ? '#ff0000' : isAttacking ? '#ff4444' : '#4444ff'}
           emissive={isAttacking || isHurt ? '#ff0000' : '#000000'}

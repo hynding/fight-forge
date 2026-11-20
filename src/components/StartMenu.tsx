@@ -6,12 +6,8 @@ export const StartMenu = () => {
   const [isHovered, setIsHovered] = useState(false)
 
   const handleStartGame = () => {
+    // LoadingScreen advances to 'playing' when its (simulated) load completes.
     setGameScreen('loading')
-
-    // Simulate loading and then start the game
-    setTimeout(() => {
-      setGameScreen('playing')
-    }, 2000)
   }
 
   return (
@@ -88,7 +84,7 @@ export const StartMenu = () => {
         <div style={{ marginBottom: '10px' }}>
           <strong>CONTROLS:</strong>
         </div>
-        <div>WASD - Move | SPACE - Jump | J - Attack | K - Block</div>
+        <div>WASD - Move | SPACE - Jump | J - Attack | ESC - Pause</div>
       </div>
 
       {/* Visual Effects */}
