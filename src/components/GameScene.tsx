@@ -20,6 +20,7 @@ import { Pickups } from './Pickups'
 import { LevelDirector } from './LevelDirector'
 import { Backdrop } from './Backdrop'
 import { Props } from './Props'
+import { sceneProbe } from '../sim/probe'
 
 export const GameScene = () => {
   // The scene remounts for each level (keyed on gameId), so read the level once.
@@ -45,6 +46,14 @@ export const GameScene = () => {
 
   const enemies = useGameStore((state) => state.enemies)
   const frozen = useGameStore(isFrozen)
+  const editing = useGameStore((state) => state.editing)
+  // Let the Forge (open over a paused playtest) see where the player stands.
+  useEffect(() => {
+    sceneProbe.playerX = () => playerPositionRef.current.x
+    return () => {
+      sceneProbe.playerX = () => null
+    }
+  }, [])
   // Clean up enemy refs when enemies are removed
   useEffect(() => {
     const currentEnemyIds = new Set(enemies.map((e) => e.id))
@@ -63,7 +72,8 @@ export const GameScene = () => {
 
   return (
     <>
-      <Canvas shadows dpr={[1, 2]}>
+      {/* While the Forge is open over the paused scene, stop drawing it. */}
+      <Canvas shadows dpr={[1, 2]} frameloop={editing ? 'never' : 'always'}>
         {/* Without an explicit background the canvas is transparent over a white page,
             which made the white HUD text unreadable. */}
         <color attach="background" args={[THEME.sky]} />

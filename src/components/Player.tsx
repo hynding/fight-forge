@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState, type RefObject } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
 import { useControls } from '../hooks/useControls'
 import { useGameStore } from '../store/gameStore'
@@ -22,13 +22,14 @@ interface PlayerProps {
 
 /** The player: a FighterBody driven by the keyboard (InputController). */
 export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view }, ref) => {
+  // Re-render when packs are reinstalled (a Forge playtest edit), so the steps below see the new tuning.
+  useGameStore((state) => state.packs)
   const config = getConfig()
   const P = config.player
-  const [movement] = useState(() => ({
-    walkSpeed: P.walkSpeed,
-    deceleration: P.deceleration,
-    stopSpeed: config.body.stopSpeed,
-  }))
+  const movement = useMemo(
+    () => ({ walkSpeed: P.walkSpeed, deceleration: P.deceleration, stopSpeed: config.body.stopSpeed }),
+    [P.walkSpeed, P.deceleration, config.body.stopSpeed]
+  )
   const controls = useControls()
   const [runtime] = useState(createFighterRuntime)
   // Visual only (attack tint); gameplay reads `runtime.move`.

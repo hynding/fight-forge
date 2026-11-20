@@ -9,7 +9,7 @@ export const PauseMenu = () => {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (actionForKey(e.key) === 'pause' && !e.repeat) {
+      if (actionForKey(e.key) === 'pause' && !e.repeat && !useGameStore.getState().editing) {
         togglePause()
       }
     }
@@ -80,6 +80,24 @@ export const PauseMenu = () => {
         >
           RESUME
         </button>
+
+        {inSandbox && (
+          <button
+            onClick={() => useGameStore.getState().editPlaytest()}
+            style={{
+              padding: '15px 60px',
+              fontSize: '18px',
+              backgroundColor: 'transparent',
+              color: '#ffd27a',
+              border: '2px solid #ffd27a',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              letterSpacing: '2px',
+            }}
+          >
+            ✎ EDIT IN FORGE
+          </button>
+        )}
 
         <button
           onClick={handleReturnToMenu}
