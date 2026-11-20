@@ -14,8 +14,8 @@ describe('gameStep', () => {
     expect(gameStep(-1)).toBe(0)
   })
 
-  it('treats non-finite deltas as no time passing', () => {
+  it('treats NaN as no time passing and clamps Infinity', () => {
     expect(gameStep(NaN)).toBe(0)
-    expect(gameStep(Infinity)).toBe(0)
+    expect(gameStep(Infinity)).toBe(MAX_FRAME_STEP)
   })
 })
