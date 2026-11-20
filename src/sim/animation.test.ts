@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveClip, type ClipMap } from './animation'
+import { resolveClip, resolveFighterClip, type ClipMap } from './animation'
 
 const ROBOT = new Set(['Idle', 'Walking', 'Jump', 'Punch', 'Death'])
 const clips: ClipMap = {
@@ -35,5 +35,21 @@ describe('resolveClip', () => {
   it('returns null when nothing matches', () => {
     expect(resolveClip('walk', {}, ROBOT)).toBeNull()
     expect(resolveClip('dead', { idle: 'Idle' }, ROBOT)).toBeNull()
+  })
+})
+
+describe('resolveFighterClip', () => {
+  it("plays an attack's own move clip once", () => {
+    expect(resolveFighterClip('attack', { name: 'Death', speed: 2 }, clips, ROBOT)).toEqual({
+      name: 'Death',
+      speed: 2,
+      loop: false,
+    })
+  })
+
+  it('falls back to the state clip when the move clip is missing or not an attack', () => {
+    expect(resolveFighterClip('attack', 'Kick', clips, ROBOT)?.name).toBe('Punch')
+    expect(resolveFighterClip('attack', undefined, clips, ROBOT)?.name).toBe('Punch')
+    expect(resolveFighterClip('walk', 'Death', clips, ROBOT)?.name).toBe('Walking')
   })
 })

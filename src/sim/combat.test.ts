@@ -1,52 +1,42 @@
 import { describe, expect, it } from 'vitest'
-import { enemyCanHitPlayer, isInAttackCone } from './combat'
+import { boxesOverlap, hitboxWorld, knockbackDirection } from './combat'
 
-const CONE = { range: 3, cone: 0.5 }
+const HB = { forward: 1, up: 0, halfX: 0.5, halfY: 0.5, halfZ: 0.5 }
+const hurt = (x: number, z = 0, y = 0) => ({ center: { x, y, z }, half: { x: 0.25, y: 1, z: 0.25 } })
 const origin = { x: 0, y: 0, z: 0 }
-const north = { x: 0, y: 0, z: -1 }
 
-describe('isInAttackCone', () => {
-  it('hits a target in front and in range', () => {
-    expect(isInAttackCone(origin, north, { x: 0, y: 0, z: -2 }, CONE)).toBe(true)
-  })
-
-  it('misses a target out of range', () => {
-    expect(isInAttackCone(origin, north, { x: 0, y: 0, z: -3 }, CONE)).toBe(false)
-  })
-
-  it('misses a target behind or beside', () => {
-    expect(isInAttackCone(origin, north, { x: 0, y: 0, z: 2 }, CONE)).toBe(false)
-    expect(isInAttackCone(origin, north, { x: 2, y: 0, z: 0 }, CONE)).toBe(false)
-  })
-
-  it('hits inside the 60 degree half-angle but not outside it', () => {
-    const at = (deg: number) => {
-      const r = (deg * Math.PI) / 180
-      return { x: Math.sin(r) * 2, y: 0, z: -Math.cos(r) * 2 }
-    }
-    expect(isInAttackCone(origin, north, at(55), CONE)).toBe(true)
-    expect(isInAttackCone(origin, north, at(65), CONE)).toBe(false)
-  })
-
-  it('misses a target at the exact same spot', () => {
-    expect(isInAttackCone(origin, north, origin, CONE)).toBe(false)
+describe('hitboxWorld', () => {
+  it('sits in front of the attacker on the side it faces, scaled', () => {
+    expect(hitboxWorld(origin, 1, HB, 1).center.x).toBe(1)
+    expect(hitboxWorld(origin, -1, HB, 1).center.x).toBe(-1)
+    const big = hitboxWorld(origin, 1, HB, 2)
+    expect(big.center.x).toBe(2)
+    expect(big.half.x).toBe(1)
   })
 })
 
-describe('enemyCanHitPlayer', () => {
-  const cfg = { hitRange: 2, damageCooldown: 1 }
-  const near = { x: 1, y: 0, z: 0 }
+describe('boxesOverlap', () => {
+  const hb = hitboxWorld(origin, 1, HB, 1)
 
-  it('hits in range with no previous hit', () => {
-    expect(enemyCanHitPlayer(near, origin, 0, undefined, cfg)).toBe(true)
+  it('hits a target in front within reach', () => {
+    expect(boxesOverlap(hb, hurt(1.5))).toBe(true)
   })
 
-  it('respects the per-enemy cooldown', () => {
-    expect(enemyCanHitPlayer(near, origin, 0.5, 0, cfg)).toBe(false)
-    expect(enemyCanHitPlayer(near, origin, 1.01, 0, cfg)).toBe(true)
+  it('misses behind, out of reach, or off in depth', () => {
+    expect(boxesOverlap(hb, hurt(-1))).toBe(false)
+    expect(boxesOverlap(hb, hurt(1.8))).toBe(false)
+    expect(boxesOverlap(hb, hurt(1, 0.8))).toBe(false)
   })
 
-  it('misses out of range', () => {
-    expect(enemyCanHitPlayer({ x: 3, y: 0, z: 0 }, origin, 0, undefined, cfg)).toBe(false)
+  it('misses a target far above (e.g. mid-jump over the hitbox)', () => {
+    expect(boxesOverlap(hb, hurt(1, 0, 2))).toBe(false)
+  })
+})
+
+describe('knockbackDirection', () => {
+  it('pushes away from the attacker, or along its facing when level', () => {
+    expect(knockbackDirection(0, 1, -1)).toBe(1)
+    expect(knockbackDirection(0, -1, 1)).toBe(-1)
+    expect(knockbackDirection(0, 0, -1)).toBe(-1)
   })
 })

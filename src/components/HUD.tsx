@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 
 export const HUD = () => {
@@ -9,6 +10,16 @@ export const HUD = () => {
   const level = useGameStore((state) => state.levelProgress)
   const resetGame = useGameStore((state) => state.resetGame)
   const setGameScreen = useGameStore((state) => state.setGameScreen)
+  const showHitboxes = useGameStore((state) => state.showHitboxes)
+
+  // H toggles the hitbox debug overlay.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'h' && !e.repeat) useGameStore.getState().toggleHitboxes()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const handleReturnToMenu = () => {
     setGameScreen('menu')
@@ -85,7 +96,8 @@ export const HUD = () => {
 
       {/* Controls */}
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
-        A/D - Move | W/S - Depth | SPACE - Jump | J - Attack | ESC - Pause
+        A/D - Move | W/S - Depth | SPACE - Jump | J - Attack (tap for combo) | ESC - Pause
+        <br />H - Hitboxes{showHitboxes ? ' (ON)' : ''}
       </div>
 
       {/* Game over / level complete */}

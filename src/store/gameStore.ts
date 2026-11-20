@@ -44,6 +44,8 @@ interface GameState {
   /** Incremented on every reset. App keys GameScene on it so a restart remounts the scene. */
   gameId: number
   levelProgress: LevelProgress
+  /** Debug overlay: draw hurtboxes and active hitboxes (toggle with H). Survives restarts. */
+  showHitboxes: boolean
 
   // Actions
   damagePlayer: (damage: number) => void
@@ -58,6 +60,7 @@ interface GameState {
   setAttackingEnemy: (id: string | null) => void
   setLevelProgress: (patch: Partial<LevelProgress>) => void
   completeLevel: () => void
+  toggleHitboxes: () => void
 }
 
 /** True while the game shouldn't advance: paused, game over, or level complete. */
@@ -75,6 +78,9 @@ export const useGameStore = create<GameState>((set) => ({
   attackingEnemyId: null,
   gameId: 0,
   levelProgress: INITIAL_LEVEL_PROGRESS,
+  showHitboxes: false,
+
+  toggleHitboxes: () => set((state) => ({ showHitboxes: !state.showHitboxes })),
 
   damagePlayer: (damage) =>
     set((state) => {

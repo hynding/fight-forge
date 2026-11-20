@@ -1,5 +1,7 @@
 import { EnemyType } from '../types/game'
 import type { ClipMap } from '../sim/animation'
+import type { MoveSet } from '../sim/moves'
+import type { ReactionConfig } from '../sim/reactions'
 
 /**
  * Every gameplay tuning value in one typed object.
@@ -75,14 +77,8 @@ export interface GameConfig {
     /** Velocity multiplier per 60 Hz frame while no direction is held. */
     deceleration: number
     linearDamping: number
-    attack: {
-      duration: number
-      cooldown: number
-      range: number
-      /** Minimum dot(facing, toEnemy) for a hit. */
-      cone: number
-      damage: number
-    }
+    /** First move of the light-attack combo (J); the rest chain through each move's `next`. */
+    lightAttack: string
   }
   enemy: {
     /** Base aggro radius, multiplied by the type's aggression. */
@@ -90,11 +86,8 @@ export interface GameConfig {
     /** Within this X distance (and `depthTolerance` in Z) an enemy stops chasing and tries to attack. */
     attackRange: number
     depthTolerance: number
-    /** Within this distance an attacking enemy's hit lands. */
-    hitRange: number
-    damage: number
-    /** Minimum game time between two hits from the same enemy. */
-    damageCooldown: number
+    /** The move an enemy throws when it takes the attacker slot (one per hold). */
+    attackMove: string
     /** How long an enemy holds the single attacker slot. */
     attackSlotDuration: number
     /** Wait after releasing the slot before claiming it again. */
@@ -118,6 +111,9 @@ export interface GameConfig {
     }
   }
   enemyTypes: Record<EnemyType, EnemyTypeDef>
+  /** Every move by name; times in seconds, hitboxes before the attacker's scale. */
+  moves: MoveSet
+  reactions: ReactionConfig
   spawning: {
     /** Enemies that walk in appear this far beyond the left or right screen edge. */
     offscreenMargin: number
@@ -158,7 +154,8 @@ export const PROCEDURAL_MODEL: ModelRef = { kind: 'procedural', offset: [0, -0.3
 
 const ROBOT_URL = '/models/robot-expressive.glb'
 // RobotExpressive is 4.46 units tall with its feet at y=0 and faces +Z.
-const robotModel = (attackSpeed: number): ModelRef => ({
+// Attacks play each move's own clip (see `moves`); `attack` here is the fallback.
+const ROBOT_MODEL: ModelRef = {
   kind: 'gltf',
   url: ROBOT_URL,
   scale: 0.4,
@@ -169,14 +166,17 @@ const robotModel = (attackSpeed: number): ModelRef => ({
     idle: 'Idle',
     walk: 'Walking',
     jump: 'Jump',
-    attack: { name: 'Punch', speed: attackSpeed },
+    attack: 'Punch',
+    knockdown: 'Death',
+    getup: { name: 'Standing', speed: 1 },
     dead: 'Death',
   },
-})
-// The punch clip is 0.83s: the player's 0.2s swing plays it fast, an enemy's
-// 1s hold on the attack slot plays it at normal speed.
-const PLAYER_MODEL = robotModel(3.5)
-const ENEMY_MODEL = robotModel(1)
+}
+
+// Shared light-hit hitbox: just in front of the fist, about chest height.
+const PUNCH_BOX = { forward: 0.8, up: 0.2, halfX: 0.55, halfY: 0.5, halfZ: 0.45 }
+// The Punch clip is 0.83s with its impact about 40% in; each move's clip
+// speed fits the clip to the move so the impact lands in the active frames.
 
 export const DEFAULT_CONFIG: GameConfig = {
   physics: {
@@ -191,27 +191,19 @@ export const DEFAULT_CONFIG: GameConfig = {
   player: {
     maxHealth: 100,
     color: '#4444ff',
-    model: PLAYER_MODEL,
+    model: ROBOT_MODEL,
     spawnPosition: [3, 2, 0],
     walkSpeed: 5,
     jumpVelocity: 8,
     deceleration: 0.85,
     linearDamping: 0,
-    attack: {
-      duration: 0.2,
-      cooldown: 0.5,
-      range: 3,
-      cone: 0.5,
-      damage: 20,
-    },
+    lightAttack: 'jab',
   },
   enemy: {
     aggroRange: 10,
     attackRange: 1.5,
     depthTolerance: 0.5,
-    hitRange: 2,
-    damage: 10,
-    damageCooldown: 1,
+    attackMove: 'enemyPunch',
     attackSlotDuration: 1,
     attackSlotRecovery: 1,
     deceleration: 0,
@@ -229,9 +221,66 @@ export const DEFAULT_CONFIG: GameConfig = {
     },
   },
   enemyTypes: {
-    [EnemyType.BASIC]: { maxHealth: 50, scale: 1, speed: 2, aggression: 1, color: '#00ff00', model: ENEMY_MODEL },
-    [EnemyType.FAST]: { maxHealth: 30, scale: 0.8, speed: 3, aggression: 1.2, color: '#ffff00', model: ENEMY_MODEL },
-    [EnemyType.HEAVY]: { maxHealth: 100, scale: 1.3, speed: 1.5, aggression: 0.8, color: '#ff0000', model: ENEMY_MODEL },
+    [EnemyType.BASIC]: { maxHealth: 50, scale: 1, speed: 2, aggression: 1, color: '#00ff00', model: ROBOT_MODEL },
+    [EnemyType.FAST]: { maxHealth: 30, scale: 0.8, speed: 3, aggression: 1.2, color: '#ffff00', model: ROBOT_MODEL },
+    [EnemyType.HEAVY]: { maxHealth: 100, scale: 1.3, speed: 1.5, aggression: 0.8, color: '#ff0000', model: ROBOT_MODEL },
+  },
+  moves: {
+    // Light combo: jab, jab, hook, uppercut (launches and knocks down).
+    jab: {
+      startup: 0.05,
+      active: 0.08,
+      recovery: 0.17,
+      damage: 8,
+      hitbox: PUNCH_BOX,
+      reaction: { hitstun: 0.35, knockback: { x: 1, y: 0 } },
+      clip: { name: 'Punch', speed: 2.8 },
+      next: 'jab2',
+    },
+    jab2: {
+      startup: 0.05,
+      active: 0.08,
+      recovery: 0.17,
+      damage: 8,
+      hitbox: PUNCH_BOX,
+      reaction: { hitstun: 0.35, knockback: { x: 1, y: 0 } },
+      clip: { name: 'Punch', speed: 2.8 },
+      next: 'hook',
+    },
+    hook: {
+      startup: 0.08,
+      active: 0.1,
+      recovery: 0.22,
+      damage: 12,
+      hitbox: { ...PUNCH_BOX, halfX: 0.6 },
+      reaction: { hitstun: 0.45, knockback: { x: 1.5, y: 0 } },
+      clip: { name: 'Punch', speed: 2.1 },
+      next: 'uppercut',
+    },
+    uppercut: {
+      startup: 0.12,
+      active: 0.1,
+      recovery: 0.35,
+      damage: 20,
+      hitbox: { ...PUNCH_BOX, up: 0.5, halfY: 0.7 },
+      reaction: { hitstun: 0, knockback: { x: 5, y: 6 }, knockdown: true },
+      clip: { name: 'Punch', speed: 1.5 },
+    },
+    enemyPunch: {
+      startup: 0.4,
+      active: 0.1,
+      recovery: 0.4,
+      damage: 10,
+      hitbox: { ...PUNCH_BOX, halfX: 0.6 },
+      reaction: { hitstun: 0.3, knockback: { x: 2, y: 0 } },
+      clip: { name: 'Punch', speed: 0.95 },
+    },
+  },
+  reactions: {
+    knockdownDuration: 1.1,
+    getupDuration: 0.4,
+    getupInvulnerability: 0.6,
+    knockbackFriction: 0.88,
   },
   spawning: {
     offscreenMargin: 2,

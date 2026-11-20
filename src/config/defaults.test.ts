@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from './defaults'
 import { EnemyType } from '../types/game'
-import { MAX_FRAME_STEP } from '../utils/gameTime'
+import { SIM_STEP } from '../sim/loop'
+import { validateMoves } from '../sim/moves'
 import { DEFAULT_LEVEL } from './levels'
 
 describe('DEFAULT_CONFIG', () => {
@@ -22,10 +23,15 @@ describe('DEFAULT_CONFIG', () => {
     for (const type of types) expect(DEFAULT_CONFIG.enemyTypes[type]).toBeDefined()
   })
 
-  it('keeps the player swing longer than one clamped frame step', () => {
-    // gameStep's clamp must stay below the shortest timer, or one long frame
-    // could start and end a swing before combat sees it.
-    expect(DEFAULT_CONFIG.player.attack.duration).toBeGreaterThan(MAX_FRAME_STEP)
+  it('has valid moves, and every move it references exists', () => {
+    const { moves, player, enemy } = DEFAULT_CONFIG
+    expect(validateMoves(moves, [player.lightAttack, enemy.attackMove])).toEqual([])
+  })
+
+  it('keeps every hitbox out for at least one sim step, so combat sees it', () => {
+    for (const m of Object.values(DEFAULT_CONFIG.moves)) {
+      expect(m.active).toBeGreaterThanOrEqual(SIM_STEP)
+    }
   })
 
   it('keeps the avoidance blend between 0 and 1', () => {

@@ -66,3 +66,21 @@ export const resolveClip = (
   }
   return null
 }
+
+/**
+ * Like `resolveClip`, but an attack plays its move's own clip (once) when the
+ * model has it, so each move in a combo can look different.
+ */
+export const resolveFighterClip = (
+  state: FighterStateName,
+  moveClip: ClipRef | undefined,
+  clips: ClipMap,
+  available: ReadonlySet<string>
+): ResolvedClip | null => {
+  if (state === 'attack' && moveClip !== undefined) {
+    const name = typeof moveClip === 'string' ? moveClip : moveClip.name
+    const speed = typeof moveClip === 'string' ? 1 : (moveClip.speed ?? 1)
+    if (available.has(name)) return { name, speed, loop: false }
+  }
+  return resolveClip(state, clips, available)
+}

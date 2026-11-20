@@ -24,17 +24,15 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   },
   "enemy": {
     "aggroRange": 10,
+    "attackMove": "enemyPunch",
     "attackRange": 1.5,
     "attackSlotDuration": 1,
     "attackSlotRecovery": 1,
     "avoidanceWeight": 0.7,
     "circleSpeedFactor": 0.5,
     "crowdedThreshold": 0.1,
-    "damage": 10,
-    "damageCooldown": 1,
     "deceleration": 0,
     "depthTolerance": 0.5,
-    "hitRange": 2,
     "linearDamping": 2,
     "minSpacing": 2.5,
     "patrol": {
@@ -52,13 +50,15 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "maxHealth": 50,
       "model": {
         "clips": {
-          "attack": {
-            "name": "Punch",
+          "attack": "Punch",
+          "dead": "Death",
+          "getup": {
+            "name": "Standing",
             "speed": 1,
           },
-          "dead": "Death",
           "idle": "Idle",
           "jump": "Jump",
+          "knockdown": "Death",
           "walk": "Walking",
         },
         "kind": "gltf",
@@ -83,13 +83,15 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "maxHealth": 30,
       "model": {
         "clips": {
-          "attack": {
-            "name": "Punch",
+          "attack": "Punch",
+          "dead": "Death",
+          "getup": {
+            "name": "Standing",
             "speed": 1,
           },
-          "dead": "Death",
           "idle": "Idle",
           "jump": "Jump",
+          "knockdown": "Death",
           "walk": "Walking",
         },
         "kind": "gltf",
@@ -114,13 +116,15 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "maxHealth": 100,
       "model": {
         "clips": {
-          "attack": {
-            "name": "Punch",
+          "attack": "Punch",
+          "dead": "Death",
+          "getup": {
+            "name": "Standing",
             "speed": 1,
           },
-          "dead": "Death",
           "idle": "Idle",
           "jump": "Jump",
+          "knockdown": "Death",
           "walk": "Walking",
         },
         "kind": "gltf",
@@ -140,6 +144,132 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "speed": 1.5,
     },
   },
+  "moves": {
+    "enemyPunch": {
+      "active": 0.1,
+      "clip": {
+        "name": "Punch",
+        "speed": 0.95,
+      },
+      "damage": 10,
+      "hitbox": {
+        "forward": 0.8,
+        "halfX": 0.6,
+        "halfY": 0.5,
+        "halfZ": 0.45,
+        "up": 0.2,
+      },
+      "reaction": {
+        "hitstun": 0.3,
+        "knockback": {
+          "x": 2,
+          "y": 0,
+        },
+      },
+      "recovery": 0.4,
+      "startup": 0.4,
+    },
+    "hook": {
+      "active": 0.1,
+      "clip": {
+        "name": "Punch",
+        "speed": 2.1,
+      },
+      "damage": 12,
+      "hitbox": {
+        "forward": 0.8,
+        "halfX": 0.6,
+        "halfY": 0.5,
+        "halfZ": 0.45,
+        "up": 0.2,
+      },
+      "next": "uppercut",
+      "reaction": {
+        "hitstun": 0.45,
+        "knockback": {
+          "x": 1.5,
+          "y": 0,
+        },
+      },
+      "recovery": 0.22,
+      "startup": 0.08,
+    },
+    "jab": {
+      "active": 0.08,
+      "clip": {
+        "name": "Punch",
+        "speed": 2.8,
+      },
+      "damage": 8,
+      "hitbox": {
+        "forward": 0.8,
+        "halfX": 0.55,
+        "halfY": 0.5,
+        "halfZ": 0.45,
+        "up": 0.2,
+      },
+      "next": "jab2",
+      "reaction": {
+        "hitstun": 0.35,
+        "knockback": {
+          "x": 1,
+          "y": 0,
+        },
+      },
+      "recovery": 0.17,
+      "startup": 0.05,
+    },
+    "jab2": {
+      "active": 0.08,
+      "clip": {
+        "name": "Punch",
+        "speed": 2.8,
+      },
+      "damage": 8,
+      "hitbox": {
+        "forward": 0.8,
+        "halfX": 0.55,
+        "halfY": 0.5,
+        "halfZ": 0.45,
+        "up": 0.2,
+      },
+      "next": "hook",
+      "reaction": {
+        "hitstun": 0.35,
+        "knockback": {
+          "x": 1,
+          "y": 0,
+        },
+      },
+      "recovery": 0.17,
+      "startup": 0.05,
+    },
+    "uppercut": {
+      "active": 0.1,
+      "clip": {
+        "name": "Punch",
+        "speed": 1.5,
+      },
+      "damage": 20,
+      "hitbox": {
+        "forward": 0.8,
+        "halfX": 0.55,
+        "halfY": 0.7,
+        "halfZ": 0.45,
+        "up": 0.5,
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 5,
+          "y": 6,
+        },
+        "knockdown": true,
+      },
+      "recovery": 0.35,
+      "startup": 0.12,
+    },
+  },
   "physics": {
     "gravity": [
       0,
@@ -148,27 +278,23 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     ],
   },
   "player": {
-    "attack": {
-      "cone": 0.5,
-      "cooldown": 0.5,
-      "damage": 20,
-      "duration": 0.2,
-      "range": 3,
-    },
     "color": "#4444ff",
     "deceleration": 0.85,
     "jumpVelocity": 8,
+    "lightAttack": "jab",
     "linearDamping": 0,
     "maxHealth": 100,
     "model": {
       "clips": {
-        "attack": {
-          "name": "Punch",
-          "speed": 3.5,
-        },
+        "attack": "Punch",
         "dead": "Death",
+        "getup": {
+          "name": "Standing",
+          "speed": 1,
+        },
         "idle": "Idle",
         "jump": "Jump",
+        "knockdown": "Death",
         "walk": "Walking",
       },
       "kind": "gltf",
@@ -190,6 +316,12 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       0,
     ],
     "walkSpeed": 5,
+  },
+  "reactions": {
+    "getupDuration": 0.4,
+    "getupInvulnerability": 0.6,
+    "knockbackFriction": 0.88,
+    "knockdownDuration": 1.1,
   },
   "scoring": {
     "enemyKill": 100,

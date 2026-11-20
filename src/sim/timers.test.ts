@@ -2,15 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { SIM_STEP } from './loop'
 import {
   canClaimAttackSlot,
+  releaseAttackSlotEarly,
   createAttackSlotTimer,
-  createPlayerAttackState,
   startAttackSlotHold,
   stepAttackSlot,
   stepIntervalClock,
-  stepPlayerAttack,
 } from './timers'
 
-const ATTACK = { duration: 0.2, cooldown: 0.5 }
 const SLOT = { attackSlotDuration: 1, attackSlotRecovery: 1 }
 
 /** Steps `fn` at the sim rate until it returns truthy; returns the step count. */
@@ -18,32 +16,6 @@ const stepsUntil = (fn: () => unknown, max = 1000) => {
   for (let i = 1; i <= max; i++) if (fn()) return i
   throw new Error('never happened')
 }
-
-describe('stepPlayerAttack', () => {
-  it('starts a swing when requested and off cooldown', () => {
-    const s = createPlayerAttackState()
-    expect(stepPlayerAttack(s, false, SIM_STEP, ATTACK)).toBeNull()
-    expect(stepPlayerAttack(s, true, SIM_STEP, ATTACK)).toBe('started')
-    expect(s.active).toBe(true)
-    expect(s.swing).toBe(1)
-  })
-
-  it('ends the swing after its duration', () => {
-    const s = createPlayerAttackState()
-    stepPlayerAttack(s, true, SIM_STEP, ATTACK)
-    const steps = stepsUntil(() => stepPlayerAttack(s, true, SIM_STEP, ATTACK) === 'ended')
-    expect(steps).toBe(Math.round(ATTACK.duration / SIM_STEP))
-    expect(s.active).toBe(false)
-  })
-
-  it('holds the next swing until the cooldown (from swing start) runs out', () => {
-    const s = createPlayerAttackState()
-    stepPlayerAttack(s, true, SIM_STEP, ATTACK)
-    const steps = stepsUntil(() => stepPlayerAttack(s, true, SIM_STEP, ATTACK) === 'started')
-    expect(steps).toBe(Math.round(ATTACK.cooldown / SIM_STEP))
-    expect(s.swing).toBe(2)
-  })
-})
 
 describe('attack slot timer', () => {
   it('can be claimed when idle, not while holding or recovering', () => {
@@ -78,5 +50,22 @@ describe('stepIntervalClock', () => {
     let fires = 0
     for (let i = 0; i < 60 * 20; i++) if (stepIntervalClock(c, SIM_STEP, 5)) fires++
     expect(fires).toBe(4)
+  })
+})
+
+describe('releaseAttackSlotEarly', () => {
+  it('ends the hold and starts recovery', () => {
+    const t = createAttackSlotTimer()
+    startAttackSlotHold(t, SLOT)
+    releaseAttackSlotEarly(t, SLOT)
+    expect(t.holdLeft).toBe(0)
+    expect(t.recoveryLeft).toBe(SLOT.attackSlotRecovery)
+    expect(canClaimAttackSlot(t)).toBe(false)
+  })
+
+  it('does nothing when not holding', () => {
+    const t = createAttackSlotTimer()
+    releaseAttackSlotEarly(t, SLOT)
+    expect(canClaimAttackSlot(t)).toBe(true)
   })
 })

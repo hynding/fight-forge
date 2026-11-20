@@ -13,7 +13,7 @@ import { CombatSystem } from './CombatSystem'
 import { isFrozen, useGameStore } from '../store/gameStore'
 import { DEFAULT_CONFIG } from '../config/defaults'
 import { SimLoopDriver } from '../sim/SimLoopDriver'
-import { createPlayerAttackState } from '../sim/timers'
+import type { FighterRuntime } from '../sim/fighter'
 import { createStageView } from '../sim/stage'
 import { levelLength } from '../sim/level'
 import { DEFAULT_LEVEL } from '../config/levels'
@@ -27,12 +27,11 @@ export const GameScene = () => {
   const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
   const playerPositionRef = useRef(new Vector3(...DEFAULT_CONFIG.player.spawnPosition))
   const lightRef = useRef<DirectionalLight>(null)
-  const attackDirectionRef = useRef(new Vector3(1, 0, 0))
   // Horizontal camera state, shared by the camera, the player's screen bounds, and the spawner.
   const [view] = useState(() => createStageView(DEFAULT_CONFIG.player.spawnPosition[0]))
-  // Mutable swing state shared by Player (writes) and CombatSystem (reads) inside
-  // the fixed-step sim, so no React re-render sits between a swing and its hit.
-  const [playerAttack] = useState(createPlayerAttackState)
+  // Every fighter's live runtime (moves, reactions, facing) by name, for combat.
+  // Fighters register themselves; mutable, so no re-render sits between a move and its hit.
+  const [runtimes] = useState(() => new Map<string, FighterRuntime>())
 
   const enemies = useGameStore((state) => state.enemies)
   const frozen = useGameStore(isFrozen)
@@ -91,8 +90,7 @@ export const GameScene = () => {
           <Stage length={STAGE_LENGTH} />
           <Player
             ref={playerRef}
-            attack={playerAttack}
-            attackDirectionRef={attackDirectionRef}
+            runtimes={runtimes}
             view={view}
           />
 
@@ -112,14 +110,14 @@ export const GameScene = () => {
                 enemyRefs={enemyRefs.current}
                 stageLength={STAGE_LENGTH}
                 view={view}
+                runtimes={runtimes}
               />
             )
           })}
 
           <CombatSystem
             playerRef={playerRef}
-            attack={playerAttack}
-            attackDirectionRef={attackDirectionRef}
+            runtimes={runtimes}
             enemyRefs={enemyRefs.current}
             playerPositionRef={playerPositionRef}
           />
