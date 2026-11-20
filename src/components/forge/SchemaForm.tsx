@@ -91,6 +91,8 @@ export const Field = (props: FieldProps & { label?: string }): ReactNode => {
         <div>
           <Errors path={path} errors={errors} />
           {Object.entries(f.shape).map(([key, s]) => {
+            // Fixed values (a tagged union's tag) aren't editable; the tag has its own picker.
+            if (fieldKind(s).kind === 'literal') return null
             const optional = unwrap(s).optional
             const present = obj[key] !== undefined
             const set = (n: unknown) => onChange({ ...obj, [key]: n })

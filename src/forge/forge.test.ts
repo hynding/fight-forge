@@ -9,7 +9,8 @@ import { deleteIn, getIn, pathString, setIn } from './paths'
 import { defaultFor, fieldKind, labelFor } from './schemaForm'
 import { memoryStore } from './storage'
 import { addNode, buildTree, nodeValue, overrideNode, removeNode } from './tree'
-import { duplicatePack, editPack, exportBundle, importBundle, newPack, slugify, uniqueId, validatePack } from './workspace'
+import { addModelAsset, assetFile, comboChain, fitModel, gltfModelFor, moveFrames, phaseAt, removeAsset, setComboChain } from './fighter'
+import { baseContent, duplicatePack, editPack, exportBundle, importBundle, newPack, slugify, uniqueId, validatePack } from './workspace'
 
 const SAMPLE = join(__dirname, '../../content/samples/skeleton-remix')
 const sample = () => bundleFromFolder(SAMPLE, (p) => new Uint8Array(readFileSync(p)), (f) => readdirSync(f))
@@ -136,5 +137,55 @@ describe('content tree', () => {
     expect(key).toBe('moves/new-move')
     expect(find(next, key).status).toBe('own')
     expect(validatePack(next)).toEqual([])
+  })
+})
+
+describe('fighter tools', () => {
+  const glb = () => {
+    const b = new Uint8Array(32)
+    b.set([0x67, 0x6c, 0x54, 0x46])
+    return b
+  }
+
+  it('imports a .glb as a pack asset that exports and validates', async () => {
+    const wp = newPack('Models', [])
+    const r = addModelAsset(wp, 'Hero Model.glb', glb())
+    if (!r.ok) throw new Error(r.message)
+    expect(r.assetId).toBe('hero-model')
+    expect(r.pack.files).toHaveProperty(['models/hero-model.glb'])
+    expect(addModelAsset(r.pack, 'Hero Model.glb', glb()).ok && 'second').toBe('second')
+    expect(addModelAsset(wp, 'x.glb', new Uint8Array(32))).toEqual({ ok: false, message: '"x.glb" isn\'t a binary glTF (.glb) file' })
+
+    const json = setIn(r.pack.json, ['settings', 'player'], { ...baseContent().settings.player, model: gltfModelFor(r.assetId) })
+    const withModel = editPack(r.pack, json as Record<string, unknown>)
+    expect(validatePack(withModel.json)).toEqual([])
+    const back = await readBundle(await exportBundle(withModel))
+    expect(back.ok).toBe(true)
+    expect(assetFile(withModel, 'hero-model')).toEqual(glb())
+    expect(removeAsset(withModel, 'hero-model').files).toEqual({})
+  })
+
+  it('fits a model to the body', () => {
+    expect(fitModel(0, 4, 1)).toEqual({ scale: 0.5, offset: [0, -1, 0] })
+    expect(fitModel(-1, 1, 1)).toEqual({ scale: 1, offset: [0, 0, 0] })
+  })
+
+  it('times moves in phases and frames', () => {
+    const m = { startup: 0.05, active: 0.1, recovery: 0.15 }
+    expect([phaseAt(m, 0), phaseAt(m, 0.07), phaseAt(m, 0.2), phaseAt(m, 0.3)]).toEqual(['startup', 'active', 'recovery', 'recovery'])
+    expect(moveFrames(m)).toBe(18)
+  })
+
+  it('reads and rewrites the light-attack combo', () => {
+    const json = newPack('C', []).json
+    expect(comboChain(json)).toEqual(['jab', 'jab2', 'hook', 'uppercut'])
+    const next = setComboChain(json, ['jab', 'hook'])
+    expect(comboChain(next)).toEqual(['jab', 'hook'])
+    expect(Object.keys(next.moves as object).sort()).toEqual(['hook', 'jab'])
+    expect((next.moves as Record<string, { next?: string }>).hook.next).toBeUndefined()
+    expect(validatePack(next)).toEqual([])
+    const reordered = setComboChain(json, ['hook', 'jab'])
+    expect(comboChain(reordered)).toEqual(['hook', 'jab'])
+    expect(validatePack(reordered)).toEqual([])
   })
 })
