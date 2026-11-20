@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { getLevels } from '../content/active'
+import { actionForKey, getBindings } from '../content/bindings'
+import { actionLabel, controlsHelp } from '../sim/input'
 import { formatTime } from '../utils/format'
 
 const ResultRow = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -59,10 +61,10 @@ export const HUD = () => {
   const startRun = useGameStore((state) => state.startRun)
   const lastLevel = levelIndex >= getLevels().length - 1
 
-  // H toggles the hitbox debug overlay.
+  // The hitbox key (H by default) toggles the debug overlay.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'h' && !e.repeat) useGameStore.getState().toggleHitboxes()
+      if (actionForKey(e.key) === 'hitboxes' && !e.repeat) useGameStore.getState().toggleHitboxes()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -143,8 +145,9 @@ export const HUD = () => {
 
       {/* Controls */}
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
-        A/D - Move (double-tap to run) | W/S - Depth | SPACE - Jump | J - Attack (tap for combo) | K - Block | SHIFT - Dodge | ESC - Pause
-        <br />H - Hitboxes{showHitboxes ? ' (ON)' : ''}
+        {controlsHelp(getBindings(), true)}
+        <br />
+        {actionLabel(getBindings(), 'hitboxes')} - Hitboxes{showHitboxes ? ' (ON)' : ''}
       </div>
 
       {/* Game over / level results */}

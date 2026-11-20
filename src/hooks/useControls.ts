@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { getBindings } from '../content/bindings'
+import { keyMap, normalizeKey, type InputAction } from '../sim/input'
 
 export interface Controls {
   forward: boolean
@@ -22,28 +24,26 @@ const INITIAL_CONTROLS: Controls = {
   dodge: false,
 }
 
-// Keys are lowercase because lookups lowercase `KeyboardEvent.key`
-// (so Shift+W and Caps Lock still map to `forward`).
-const KEY_MAP: Record<string, keyof Controls> = {
-  w: 'forward',
-  s: 'backward',
-  a: 'left',
-  d: 'right',
-  ' ': 'jump',
-  j: 'attack',
-  k: 'block',
-  shift: 'dodge',
+const isControl = (action: InputAction | undefined): action is keyof Controls =>
+  action !== undefined && action in INITIAL_CONTROLS
+
+/**
+ * The gameplay control a key drives under `map` (from the bindings), if any.
+ * Lookups lowercase `KeyboardEvent.key`, so Shift+W and Caps Lock still map.
+ */
+export const keyToControl = (key: string, map: ReadonlyMap<string, InputAction>): keyof Controls | undefined => {
+  const action = map.get(normalizeKey(key))
+  return isControl(action) ? action : undefined
 }
 
-export const keyToControl = (key: string): keyof Controls | undefined =>
-  KEY_MAP[key.toLowerCase()]
-
+/** Held state of each gameplay control, from the key bindings in effect when the player mounts. */
 export const useControls = () => {
   const [controls, setControls] = useState<Controls>(INITIAL_CONTROLS)
 
   useEffect(() => {
+    const map = keyMap(getBindings())
     const setKey = (e: KeyboardEvent, pressed: boolean) => {
-      const control = keyToControl(e.key)
+      const control = keyToControl(e.key, map)
       if (!control) return
       e.preventDefault()
       setControls((prev) => (prev[control] === pressed ? prev : { ...prev, [control]: pressed }))

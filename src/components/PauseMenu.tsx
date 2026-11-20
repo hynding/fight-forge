@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
+import { actionForKey } from '../content/bindings'
 
 export const PauseMenu = () => {
   const isPaused = useGameStore((state) => state.isPaused)
@@ -9,7 +10,7 @@ export const PauseMenu = () => {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !e.repeat) {
+      if (actionForKey(e.key) === 'pause' && !e.repeat) {
         togglePause()
       }
     }

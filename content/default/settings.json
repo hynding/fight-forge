@@ -44,7 +44,6 @@
   "enemy": {
     "aggroRange": 10,
     "depthTolerance": 0.5,
-    "maxSimultaneousAttackers": 1,
     "attackMove": "enemyPunch",
     "attackSlotDuration": 1.5,
     "attackSlotRecovery": 1,
@@ -111,6 +110,26 @@
     "lives": 3,
     "continues": 2,
     "respawnInvulnerability": 2,
-    "pickupRadius": 0.9
+    "pickupRadius": 0.9,
+    "maxSimultaneousAttackers": 1,
+    "friendlyFire": false,
+    "difficulty": {
+      "damageTaken": 1,
+      "enemyHealth": 1
+    }
+  },
+  "input": {
+    "bindings": {
+      "left": ["a", "arrowleft"],
+      "right": ["d", "arrowright"],
+      "forward": ["w", "arrowup"],
+      "backward": ["s", "arrowdown"],
+      "jump": [" "],
+      "attack": ["j"],
+      "block": ["k"],
+      "dodge": ["shift"],
+      "pause": ["escape"],
+      "hitboxes": ["h"]
+    }
   }
 }

@@ -8,6 +8,7 @@ import type { GameConfig, ModelRef } from '../config/defaults'
 import type { Level } from '../sim/level'
 import { cancelTime, moveDuration } from '../sim/moves'
 import { migratePack } from './migrations'
+import { bindingConflicts } from '../sim/input'
 import {
   packSchema,
   type AiBehaviorDef,
@@ -57,6 +58,7 @@ const SETTINGS_SECTIONS = [
   'stage',
   'scoring',
   'rules',
+  'input',
 ] as const satisfies readonly (keyof Settings)[]
 
 // ------------------------------------------------------------------ parsing
@@ -312,6 +314,10 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
     expect('move', player[key], 'settings:player', `settings.player.${key}`)
   checkModel(player.model, 'settings:player', 'settings.player.model')
   expect('move', enemy.attackMove, 'settings:enemy', 'settings.enemy.attackMove')
+  for (const { key, actions } of bindingConflicts(reg.settings.input.bindings))
+    err('settings:input', 'settings.input.bindings', `"${key}" is bound to both ${actions.join(' and ')}`)
+  for (const action of ['left', 'right', 'attack', 'pause'] as const)
+    if (reg.settings.input.bindings[action].length === 0) err('settings:input', `settings.input.bindings.${action}`, 'needs at least one key')
 
   for (const [id, m] of Object.entries(reg.moves)) {
     const origin = `move:${id}`

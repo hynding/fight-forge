@@ -65,7 +65,7 @@ describe('damageEnemy', () => {
 
   it('limits attackers to enemy.maxSimultaneousAttackers', () => {
     const s = useGameStore.getState()
-    const max = DEFAULT_CONFIG.enemy.maxSimultaneousAttackers
+    const max = DEFAULT_CONFIG.rules.maxSimultaneousAttackers
     const granted = ['a', 'b', 'c', 'd'].filter((id) => s.requestAttackToken(id))
     expect(granted).toHaveLength(max)
     s.releaseAttackToken(granted[0])

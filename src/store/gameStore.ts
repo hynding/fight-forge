@@ -290,7 +290,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }),
 
   requestAttackToken: (id) => {
-    const r = requestToken(get().attackTokens, id, getConfig().enemy.maxSimultaneousAttackers)
+    const r = requestToken(get().attackTokens, id, getConfig().rules.maxSimultaneousAttackers)
     if (r.pool !== get().attackTokens) set({ attackTokens: r.pool })
     return r.granted
   },

@@ -6,6 +6,7 @@ import { SYSTEM_ORDER } from '../sim/loop'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { createLevelRuntime, placeItems, stepLevel, type Level, type SpawnDef } from '../sim/level'
 import { offscreenSpawn, type StageView } from '../sim/stage'
+import { scaledHealth } from '../sim/rules'
 
 // The "GO →" prompt hides once the player has walked this far past the
 // released lock, or after this long.
@@ -54,7 +55,7 @@ export const LevelDirector = ({
       at = offscreenSpawn(view, side, getConfig().spawning.offscreenMargin, depth, stageLength, getConfig().stage.depthBand)
     }
     const id = nextEnemyId()
-    const maxHealth = getConfig().enemyTypes[def.type].maxHealth
+    const maxHealth = scaledHealth(getConfig().enemyTypes[def.type].maxHealth, getConfig().rules.difficulty.enemyHealth)
     useGameStore.getState().spawnEnemy({
       id,
       type: def.type,

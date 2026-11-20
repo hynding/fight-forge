@@ -91,7 +91,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
           target: { x: target.x, z: target.z },
           targetFacingX: runtimes.get('player')?.facing.x,
           others,
-          tokensTaken: holders.length >= E.maxSimultaneousAttackers && !holders.includes(id),
+          tokensTaken: holders.length >= config.rules.maxSimultaneousAttackers && !holders.includes(id),
           // Off screen (walking in, or left behind by the camera): come and fight.
           forceEngage: Math.abs(self.x - view.cameraX) > view.halfWidth,
         },

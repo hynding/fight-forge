@@ -11,6 +11,7 @@ import { interruptMove, movePhase } from '../sim/moves'
 import { applyBlockstun, applyHit, isInvulnerable } from '../sim/reactions'
 import { blockedHit, facesAttacker, isDodging } from '../sim/defense'
 import { rollDrop } from '../sim/pickups'
+import { combatTargets, scaledDamage } from '../sim/rules'
 import type { FighterRuntime } from '../sim/fighter'
 
 const PLAYER = 'player'
@@ -25,7 +26,8 @@ interface CombatSystemProps {
 /**
  * The `combat` sim system: every fighter whose move is in its active frames
  * checks its hitbox against its targets' hurtboxes. The player hits enemies;
- * an enemy hits the player only while it holds an attack token. A move
+ * an enemy hits the player (and other enemies, with `rules.friendlyFire`)
+ * only while it holds an attack token. A move
  * instance hits each target at most once. Knocked-down, getting-up and
  * dodging targets are invulnerable. A target guarding toward the attacker
  * blocks: chip damage, blockstun, a short push. A target whose `armor` covers
@@ -81,7 +83,8 @@ export const CombatSystem = ({
         hits.current.set(attackerName, record)
       }
 
-      const targets = attackerName === PLAYER ? [...enemyRefs.keys()] : [PLAYER]
+      const rules = getConfig().rules
+      const targets = combatTargets(attackerName, PLAYER, enemyRefs.keys(), rules.friendlyFire)
       for (const targetName of targets) {
         if (record.targets.has(targetName)) continue
         const target = runtimes.get(targetName)
@@ -114,7 +117,8 @@ export const CombatSystem = ({
 
         if (damage <= 0) continue
         if (targetName === PLAYER) {
-          store.damagePlayer(damage)
+          const taken = scaledDamage(damage, rules.difficulty.damageTaken)
+          if (taken > 0) store.damagePlayer(taken)
         } else {
           const enemy = store.enemies.find((e) => e.id === targetName)
           store.damageEnemy(targetName, damage)

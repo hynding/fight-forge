@@ -11,7 +11,30 @@ type Json = Record<string, unknown>
 /** `MIGRATIONS[n]` upgrades a pack from schemaVersion n to n + 1. */
 export type MigrationTable = Readonly<Record<number, (pack: Json) => Json>>
 
-export const MIGRATIONS: MigrationTable = {}
+const DEFAULT_RULES_V2 = { maxSimultaneousAttackers: 1, friendlyFire: false, difficulty: { damageTaken: 1, enemyHealth: 1 } }
+
+export const MIGRATIONS: MigrationTable = {
+  // v2: the attacker limit moved from `enemy` to `rules`, which also gained
+  // friendly fire and difficulty; key bindings arrived as `input` (a pack
+  // without it inherits the default pack's).
+  1: (pack) => {
+    const settings = { ...((pack.settings as Json | undefined) ?? {}) }
+    const enemy = settings.enemy as Json | undefined
+    const attackers = enemy?.maxSimultaneousAttackers
+    if (enemy) {
+      const rest = { ...enemy }
+      delete rest.maxSimultaneousAttackers
+      settings.enemy = rest
+    }
+    if (settings.rules)
+      settings.rules = {
+        ...DEFAULT_RULES_V2,
+        ...(typeof attackers === 'number' ? { maxSimultaneousAttackers: attackers } : {}),
+        ...(settings.rules as Json),
+      }
+    return pack.settings === undefined ? pack : { ...pack, settings }
+  },
+}
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }
 

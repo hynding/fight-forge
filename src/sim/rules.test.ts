@@ -1,0 +1,41 @@
+import { describe, expect, it } from 'vitest'
+import { combatTargets, scaledDamage, scaledHealth } from './rules'
+
+describe('scaledDamage', () => {
+  it('scales and rounds to whole points', () => {
+    expect(scaledDamage(10, 1)).toBe(10)
+    expect(scaledDamage(10, 1.5)).toBe(15)
+    expect(scaledDamage(10, 0.25)).toBe(3)
+  })
+
+  it('never turns a damaging hit into nothing unless the multiplier is 0', () => {
+    expect(scaledDamage(2, 0.1)).toBe(1)
+    expect(scaledDamage(10, 0)).toBe(0)
+    expect(scaledDamage(0, 2)).toBe(0)
+  })
+})
+
+describe('scaledHealth', () => {
+  it('scales enemy health, keeping at least 1', () => {
+    expect(scaledHealth(50, 2)).toBe(100)
+    expect(scaledHealth(50, 0.5)).toBe(25)
+    expect(scaledHealth(1, 0.1)).toBe(1)
+  })
+})
+
+describe('combatTargets', () => {
+  const enemies = ['e1', 'e2', 'e3']
+
+  it('lets the player hit every enemy', () => {
+    expect(combatTargets('player', 'player', enemies, false)).toEqual(enemies)
+    expect(combatTargets('player', 'player', enemies, true)).toEqual(enemies)
+  })
+
+  it('lets an enemy hit only the player without friendly fire', () => {
+    expect(combatTargets('e2', 'player', enemies, false)).toEqual(['player'])
+  })
+
+  it('lets an enemy hit the player and the other enemies with friendly fire', () => {
+    expect(combatTargets('e2', 'player', enemies, true)).toEqual(['player', 'e1', 'e3'])
+  })
+})

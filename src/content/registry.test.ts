@@ -387,3 +387,56 @@ describe('formatErrors', () => {
     ).toBe('[remix] moves.jab.next: unknown move "kick"\nlevels: no loaded pack defines a level')
   })
 })
+
+describe('schema version 1 packs', () => {
+  const v1 = (settings: Record<string, unknown>) => ({ ...addon({ settings }), schemaVersion: 1 })
+  const rulesV1: Record<string, unknown> = { ...DEFAULT_CONFIG.rules }
+  for (const key of ['maxSimultaneousAttackers', 'friendlyFire', 'difficulty']) delete rulesV1[key]
+  const enemyV1 = { ...DEFAULT_CONFIG.enemy, maxSimultaneousAttackers: 3 }
+
+  it('move the attacker limit from enemy to rules and get the new rules defaults', () => {
+    const reg = build(defaultPack(), v1({ enemy: enemyV1, rules: { ...rulesV1, lives: 5 } }))
+    expect(reg.settings.rules).toEqual({
+      ...rulesV1,
+      lives: 5,
+      maxSimultaneousAttackers: 3,
+      friendlyFire: false,
+      difficulty: { damageTaken: 1, enemyHealth: 1 },
+    })
+    expect(reg.settings.enemy).toEqual(DEFAULT_CONFIG.enemy)
+  })
+
+  it('still load when they only override enemy (the limit then comes from the base rules)', () => {
+    const reg = build(defaultPack(), v1({ enemy: enemyV1 }))
+    expect(reg.settings.rules).toEqual(DEFAULT_CONFIG.rules)
+  })
+
+  it('inherit the base key bindings', () => {
+    expect(build(defaultPack(), v1({ rules: rulesV1 })).settings.input).toEqual(DEFAULT_CONFIG.input)
+  })
+})
+
+describe('key bindings', () => {
+  const withBindings = (b: Record<string, string[]>) =>
+    addon({ settings: { input: { bindings: { ...DEFAULT_CONFIG.input.bindings, ...b } } } })
+
+  it('lets a pack rebind keys', () => {
+    expect(build(defaultPack(), withBindings({ attack: ['z'] })).settings.input.bindings.attack).toEqual(['z'])
+  })
+
+  it('rejects a key bound to two actions', () => {
+    expect(errorsOf(defaultPack(), withBindings({ block: ['j'] }))).toEqual([
+      { pack: 'remix', path: 'settings.input.bindings', message: '"j" is bound to both attack and block' },
+    ])
+  })
+
+  it('needs keys for moving, attacking and pausing', () => {
+    expect(paths(errorsOf(defaultPack(), withBindings({ attack: [] })))).toEqual(['settings.input.bindings.attack'])
+  })
+
+  it('needs lowercase keys and every action listed', () => {
+    const bad = withBindings({ attack: ['J'] })
+    delete ((bad.settings as Record<string, Record<string, Record<string, unknown>>>).input.bindings).hitboxes
+    expect(paths(errorsOf(defaultPack(), bad)).sort()).toEqual(['settings.input.bindings.attack[0]', 'settings.input.bindings.hitboxes'])
+  })
+})
