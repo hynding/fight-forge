@@ -56,6 +56,37 @@ const CameraRig = ({ playerPositionRef, controlsRef }: CameraRigProps) => {
   return null
 }
 
+// Periodic spawner. Counts game time in useFrame (frozen while paused or game
+// over, and while the tab is hidden), so spawns never pile up off-screen.
+const EnemySpawner = () => {
+  const spawnEnemy = useGameStore((state) => state.spawnEnemy)
+  const elapsed = useRef(0)
+
+  useFrame((_, delta) => {
+    const { isPaused, isGameOver, enemies } = useGameStore.getState()
+    if (isPaused || isGameOver) return
+
+    elapsed.current += delta * 1000
+    if (elapsed.current < SPAWN_INTERVAL_MS) return
+    elapsed.current -= SPAWN_INTERVAL_MS
+    if (enemies.length >= MAX_ENEMIES) return
+
+    const angle = Math.random() * Math.PI * 2
+    const types = [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY]
+    const randomType = types[Math.floor(Math.random() * types.length)]
+
+    spawnEnemy({
+      id: nextEnemyId(),
+      type: randomType,
+      health: ENEMY_HEALTH[randomType],
+      maxHealth: ENEMY_HEALTH[randomType],
+      position: [Math.cos(angle) * SPAWN_DISTANCE, 2, Math.sin(angle) * SPAWN_DISTANCE],
+    })
+  })
+
+  return null
+}
+
 export const GameScene = () => {
   const playerRef = useRef<RapierRigidBody>(null)
   const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
@@ -96,32 +127,6 @@ export const GameScene = () => {
       })
     })
   }, [spawnEnemy])
-
-  // Periodic spawn — reads live store state inside the callback. Ticks while
-  // paused are skipped rather than restarting the interval, so pausing can't
-  // keep resetting the spawn clock.
-  useEffect(() => {
-    if (isGameOver) return
-
-    const interval = setInterval(() => {
-      const { enemies: current, isPaused } = useGameStore.getState()
-      if (isPaused || current.length >= MAX_ENEMIES) return
-
-      const angle = Math.random() * Math.PI * 2
-      const types = [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY]
-      const randomType = types[Math.floor(Math.random() * types.length)]
-
-      spawnEnemy({
-        id: nextEnemyId(),
-        type: randomType,
-        health: ENEMY_HEALTH[randomType],
-        maxHealth: ENEMY_HEALTH[randomType],
-        position: [Math.cos(angle) * SPAWN_DISTANCE, 2, Math.sin(angle) * SPAWN_DISTANCE],
-      })
-    }, SPAWN_INTERVAL_MS)
-
-    return () => clearInterval(interval)
-  }, [isGameOver, spawnEnemy])
 
   // Clean up enemy refs when enemies are removed
   useEffect(() => {
@@ -164,6 +169,7 @@ export const GameScene = () => {
         />
 
         <CameraRig playerPositionRef={playerPositionRef} controlsRef={controlsRef} />
+        <EnemySpawner />
 
         <ambientLight intensity={0.5} />
         <directionalLight

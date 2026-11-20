@@ -10,6 +10,9 @@ const _toEnemy = new Vector3()
 
 const ATTACK_RANGE = 3
 const ATTACK_CONE = 0.5
+const ENEMY_HIT_RANGE = 2
+const ENEMY_DAMAGE = 10
+const ENEMY_DAMAGE_COOLDOWN = 1 // seconds of game time
 
 interface CombatSystemProps {
   playerRef: React.RefObject<RapierRigidBody>
@@ -29,10 +32,11 @@ export const CombatSystem = ({
   const damagePlayer = useGameStore((state) => state.damagePlayer)
   const damageEnemy = useGameStore((state) => state.damageEnemy)
   const lastEnemyDamageTime = useRef<Map<string, number>>(new Map())
+  const gameTime = useRef(0)
   const damagedEnemiesThisAttack = useRef<Set<string>>(new Set())
   const lastAttackState = useRef(false)
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!playerRef.current) return
 
     const playerPos = playerRef.current.translation()
@@ -47,7 +51,10 @@ export const CombatSystem = ({
     const { isPaused, isGameOver, attackingEnemyId } = useGameStore.getState()
     if (isPaused || isGameOver) return
 
-    const now = Date.now()
+    // Game-time clock (seconds of unpaused frames), so the per-enemy damage
+    // cooldown freezes with the enemy's attack-slot timer during a pause.
+    gameTime.current += delta
+    const now = gameTime.current
 
     if (!playerAttacking && lastAttackState.current) {
       damagedEnemiesThisAttack.current.clear()
@@ -61,9 +68,13 @@ export const CombatSystem = ({
       _enemyVec.set(enemyPos.x, enemyPos.y, enemyPos.z)
       const distance = _playerVec.distanceTo(_enemyVec)
 
-      const lastDmg = lastEnemyDamageTime.current.get(enemyId) || 0
-      if (attackingEnemyId === enemyId && distance < 2 && now - lastDmg > 1000) {
-        damagePlayer(10)
+      const lastDmg = lastEnemyDamageTime.current.get(enemyId) ?? -Infinity
+      if (
+        attackingEnemyId === enemyId &&
+        distance < ENEMY_HIT_RANGE &&
+        now - lastDmg > ENEMY_DAMAGE_COOLDOWN
+      ) {
+        damagePlayer(ENEMY_DAMAGE)
         lastEnemyDamageTime.current.set(enemyId, now)
       }
 
