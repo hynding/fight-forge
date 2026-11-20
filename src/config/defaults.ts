@@ -2,6 +2,7 @@ import { EnemyType } from '../types/game'
 import type { ClipMap } from '../sim/animation'
 import type { MoveSet } from '../sim/moves'
 import type { ReactionConfig } from '../sim/reactions'
+import type { ActionsConfig } from '../sim/defense'
 
 /**
  * Every gameplay tuning value in one typed object.
@@ -79,6 +80,10 @@ export interface GameConfig {
     linearDamping: number
     /** First move of the light-attack combo (J); the rest chain through each move's `next`. */
     lightAttack: string
+    /** J in the air (once per jump). */
+    jumpAttack: string
+    /** J while running (double-tap a direction). */
+    dashAttack: string
   }
   enemy: {
     /** Base aggro radius, multiplied by the type's aggression. */
@@ -114,6 +119,8 @@ export interface GameConfig {
   /** Every move by name; times in seconds, hitboxes before the attacker's scale. */
   moves: MoveSet
   reactions: ReactionConfig
+  /** Running, blocking and dodging. */
+  actions: ActionsConfig
   spawning: {
     /** Enemies that walk in appear this far beyond the left or right screen edge. */
     offscreenMargin: number
@@ -165,6 +172,7 @@ const ROBOT_MODEL: ModelRef = {
   clips: {
     idle: 'Idle',
     walk: 'Walking',
+    run: 'Running',
     jump: 'Jump',
     attack: 'Punch',
     knockdown: 'Death',
@@ -198,6 +206,8 @@ export const DEFAULT_CONFIG: GameConfig = {
     deceleration: 0.85,
     linearDamping: 0,
     lightAttack: 'jab',
+    jumpAttack: 'jumpKick',
+    dashAttack: 'dashPunch',
   },
   enemy: {
     aggroRange: 10,
@@ -266,6 +276,28 @@ export const DEFAULT_CONFIG: GameConfig = {
       reaction: { hitstun: 0, knockback: { x: 5, y: 6 }, knockdown: true },
       clip: { name: 'Punch', speed: 1.5 },
     },
+    // Air attack: a low, wide box under and in front, keeps the jump's arc.
+    jumpKick: {
+      startup: 0.06,
+      active: 0.25,
+      recovery: 0.1,
+      damage: 14,
+      hitbox: { forward: 0.7, up: -0.4, halfX: 0.6, halfY: 0.6, halfZ: 0.45 },
+      reaction: { hitstun: 0.5, knockback: { x: 2.5, y: 0 } },
+      clip: { name: 'Punch', speed: 2 },
+      air: true,
+    },
+    // Running attack: lunges forward and knocks down.
+    dashPunch: {
+      startup: 0.1,
+      active: 0.15,
+      recovery: 0.35,
+      damage: 16,
+      hitbox: { ...PUNCH_BOX, halfX: 0.7 },
+      reaction: { hitstun: 0, knockback: { x: 4, y: 3 }, knockdown: true },
+      clip: { name: 'Punch', speed: 1.4 },
+      lunge: 7,
+    },
     enemyPunch: {
       startup: 0.4,
       active: 0.1,
@@ -281,6 +313,11 @@ export const DEFAULT_CONFIG: GameConfig = {
     getupDuration: 0.4,
     getupInvulnerability: 0.6,
     knockbackFriction: 0.88,
+  },
+  actions: {
+    run: { speedFactor: 1.8, doubleTapWindow: 0.25 },
+    block: { damageFactor: 0.2, blockstun: 0.2, knockbackFactor: 0.5 },
+    dodge: { duration: 0.3, speed: 7, cooldown: 0.25 },
   },
   spawning: {
     offscreenMargin: 2,

@@ -38,6 +38,14 @@ describe('nextFighterState', () => {
     expect(nextFighterState({ ...base, reaction: 'getup' })).toBe('getup')
   })
 
+  it('runs when moving with run, blocks and dodges by priority', () => {
+    expect(nextFighterState({ ...base, moving: true, running: true })).toBe('run')
+    expect(nextFighterState({ ...base, blocking: true })).toBe('block')
+    expect(nextFighterState({ ...base, reaction: 'blockstun' })).toBe('block')
+    expect(nextFighterState({ ...base, dodging: true, attacking: true })).toBe('dodge')
+    expect(nextFighterState({ ...base, attacking: true, blocking: true })).toBe('attack')
+  })
+
   it('dead wins over everything', () => {
     expect(
       nextFighterState({ dead: true, reaction: 'hitstun', attacking: true, grounded: false, moving: true })

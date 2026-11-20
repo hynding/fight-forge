@@ -4,6 +4,7 @@
 
 import { createMoveRunner, type MoveRunner } from './moves'
 import { createReactionState, type ReactionKind, type ReactionState } from './reactions'
+import { createDodgeState, isDodging, type DodgeState } from './defense'
 
 /** Planar vector on the ground (X right, Z toward the camera). */
 export interface Vec2 {
@@ -21,16 +22,21 @@ export interface Intent {
   face?: Vec2
   jump: boolean
   attack: boolean
+  /** Hold to guard. */
+  block?: boolean
+  /** Press to sidestep in depth. */
+  dodge?: boolean
+  /** Run instead of walk (the player double-taps a direction). */
+  run?: boolean
 }
 
 export const idleIntent = (): Intent => ({ move: { x: 0, z: 0 }, jump: false, attack: false })
 
-/**
- * Fighter states. Block and dodge are reserved for M1.6.
- */
+/** Fighter states; each can map to an animation clip. */
 export type FighterStateName =
   | 'idle'
   | 'walk'
+  | 'run'
   | 'jump'
   | 'attack'
   | 'block'
@@ -44,24 +50,33 @@ export interface FighterStateInputs {
   dead: boolean
   /** The current hit reaction, if any. */
   reaction?: ReactionKind | null
+  dodging?: boolean
   attacking: boolean
+  blocking?: boolean
   grounded: boolean
   moving: boolean
+  running?: boolean
 }
 
 /** Picks the state from this step's facts, highest priority first. */
 export const nextFighterState = ({
   dead,
   reaction,
+  dodging,
   attacking,
+  blocking,
   grounded,
   moving,
+  running,
 }: FighterStateInputs): FighterStateName => {
   if (dead) return 'dead'
-  if (reaction) return reaction
+  // Blockstun looks like holding the guard.
+  if (reaction) return reaction === 'blockstun' ? 'block' : reaction
+  if (dodging) return 'dodge'
   if (attacking) return 'attack'
+  if (blocking) return 'block'
   if (!grounded) return 'jump'
-  if (moving) return 'walk'
+  if (moving) return running ? 'run' : 'walk'
   return 'idle'
 }
 
@@ -123,6 +138,11 @@ export interface FighterRuntime {
   move: MoveRunner
   /** The current hit reaction. */
   reaction: ReactionState
+  /** Guarding this step (also through blockstun). */
+  blocking: boolean
+  dodge: DodgeState
+  /** Last step's dodge button, for press detection. */
+  dodgeHeld: boolean
   /** Uniform scale; hitboxes scale with it. Set by the body. */
   scale: number
   /** Hurtbox half extents (the collider's, scaled). Set by the body. */
@@ -137,9 +157,13 @@ export const createFighterRuntime = (): FighterRuntime => ({
   intent: null,
   move: createMoveRunner(),
   reaction: createReactionState(),
+  blocking: false,
+  dodge: createDodgeState(),
+  dodgeHeld: false,
   scale: 1,
   hurtbox: { x: 0.25, y: 1, z: 0.25 },
 })
 
-/** Busy with a move or a hit reaction: the controller's movement and jumps are ignored. */
-export const isBusy = (rt: FighterRuntime): boolean => rt.move.move !== null || rt.reaction.kind !== null
+/** Busy with a move, a hit reaction or a dodge: the controller's movement and jumps are ignored. */
+export const isBusy = (rt: FighterRuntime): boolean =>
+  rt.move.move !== null || rt.reaction.kind !== null || isDodging(rt.dodge)

@@ -9,7 +9,8 @@ import { gameStep } from '../utils/gameTime'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { clampToBounds, type Bounds } from '../sim/stage'
 import { useSimSystem } from '../sim/simContext'
-import { movePhase } from '../sim/moves'
+import { interruptMove, movePhase } from '../sim/moves'
+import { canDodge, isDodging, startDodge, stepDodge } from '../sim/defense'
 import { stepReaction } from '../sim/reactions'
 import {
   facingToYaw,
@@ -23,7 +24,7 @@ import {
   type MovementConfig,
 } from '../sim/fighter'
 
-const { body: BODY, moves: MOVES, reactions: REACTIONS } = DEFAULT_CONFIG
+const { body: BODY, moves: MOVES, reactions: REACTIONS, actions: ACTIONS } = DEFAULT_CONFIG
 const HURT_FLASH_MS = 200
 
 interface FighterBodyProps {
@@ -91,6 +92,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
     const { world, rapier } = useRapier()
     const groundRay = useRef<InstanceType<typeof rapier.Ray> | null>(null)
     const hitboxRef = useRef<Mesh>(null)
+    const guardRef = useRef<Mesh>(null)
     const showHitboxes = useGameStore((state) => state.showHitboxes)
     const [hx, hy, hz] = colliderHalfExtents
 
@@ -111,23 +113,11 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       runtime.scale = scale
       runtime.hurtbox = { x: hx * scale, y: hy * scale, z: hz * scale }
       stepReaction(runtime.reaction, dt, REACTIONS)
+      stepDodge(runtime.dodge, dt)
 
       const intent = getIntent(body, dt)
       runtime.intent = intent
-      // During a move or a hit reaction the controller can't walk, jump or turn.
-      const busy = isBusy(runtime)
-      const reacting = runtime.reaction.kind !== null
-
       const vel = body.linvel()
-      let next
-      if (reacting) {
-        // Slide with the knockback that combat set on the runtime.
-        const f = Math.pow(REACTIONS.knockbackFriction, dt * 60)
-        next = { x: runtime.velocity.x * f, z: runtime.velocity.z * f }
-      } else {
-        next = stepVelocity({ x: vel.x, z: vel.z }, busy ? { x: 0, z: 0 } : intent.move, movement, dt)
-      }
-      let velY = vel.y
 
       // Grounded: a short downward ray that ignores this fighter's own body, so
       // floor, other fighters, and future platforms all count.
@@ -147,7 +137,44 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       )
       let grounded = hit !== null && Math.abs(vel.y) < BODY.groundedMaxVelY
 
-      if (intent.jump && grounded && !busy) {
+      // An air move ends when the fighter lands.
+      const current = runtime.move.move ? MOVES[runtime.move.move] : null
+      if (current?.air && grounded) interruptMove(runtime.move)
+
+      // Dodge on a press, from the ground, when free.
+      const dodgePressed = !!intent.dodge && !runtime.dodgeHeld
+      runtime.dodgeHeld = !!intent.dodge
+      if (dodgePressed && grounded && !isBusy(runtime) && canDodge(runtime.dodge)) {
+        startDodge(runtime.dodge, intent.move.z, ACTIONS.dodge)
+      }
+
+      // During a move, a hit reaction or a dodge the controller can't walk, jump or turn.
+      const busy = isBusy(runtime)
+      const reaction = runtime.reaction.kind
+      // Guard while holding block on the ground; blockstun keeps the guard up.
+      runtime.blocking = !!intent.block && grounded && (!busy || reaction === 'blockstun')
+      const running = !busy && !runtime.blocking && !!intent.run
+
+      const move = runtime.move.move ? MOVES[runtime.move.move] : null
+      let next
+      if (reaction !== null) {
+        // Slide with the knockback that combat set on the runtime.
+        const f = Math.pow(REACTIONS.knockbackFriction, dt * 60)
+        next = { x: runtime.velocity.x * f, z: runtime.velocity.z * f }
+      } else if (isDodging(runtime.dodge)) {
+        next = { x: 0, z: runtime.dodge.dirZ * ACTIONS.dodge.speed }
+      } else if (move?.air) {
+        next = { x: vel.x, z: vel.z } // keep the jump's arc
+      } else if (move?.lunge && movePhase(move, runtime.move.time) !== 'recovery') {
+        next = { x: runtime.facing.x * move.lunge, z: 0 }
+      } else {
+        const want = busy || runtime.blocking ? { x: 0, z: 0 } : intent.move
+        const factor = running ? ACTIONS.run.speedFactor : 1
+        next = stepVelocity({ x: vel.x, z: vel.z }, { x: want.x * factor, z: want.z }, movement, dt)
+      }
+      let velY = vel.y
+
+      if (intent.jump && grounded && !busy && !runtime.blocking) {
         velY = jumpVelocity
         grounded = false
       }
@@ -167,13 +194,17 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
 
       runtime.velocity = next
       runtime.grounded = grounded
-      if (!busy) updateFacing(runtime.facing, next, intent.face)
+      // While guarding, the held direction turns the guard without walking.
+      if (!busy) updateFacing(runtime.facing, next, runtime.blocking ? intent.move : intent.face)
       runtime.state = nextFighterState({
         dead: isDead?.() ?? false,
-        reaction: runtime.reaction.kind,
+        reaction,
+        dodging: isDodging(runtime.dodge),
         attacking: runtime.move.move !== null,
+        blocking: runtime.blocking,
         grounded,
         moving: isMoving(next, movement.stopSpeed),
+        running,
       })
     })
 
@@ -185,6 +216,14 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       if (visualGroupRef.current) {
         visualGroupRef.current.rotation.y = facingToYaw(runtime.facing)
       }
+    })
+
+    // Guard: a translucent shield on the side the fighter faces while blocking.
+    useFrame(() => {
+      const guard = guardRef.current
+      if (!guard) return
+      guard.visible = runtime.blocking
+      guard.position.x = runtime.facing.x * (hx + 0.2) * scale
     })
 
     // Debug overlay: place the active hitbox (the body doesn't rotate, so body
@@ -227,6 +266,11 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
             isMovingRef={isMovingRef}
           />
         </group>
+
+        <mesh ref={guardRef} visible={false}>
+          <boxGeometry args={[0.08 * scale, 1.5 * scale, 0.9 * scale]} />
+          <meshBasicMaterial color="#66aaff" transparent opacity={0.35} depthWrite={false} />
+        </mesh>
 
         {showHitboxes && (
           <>

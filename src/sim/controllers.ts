@@ -11,6 +11,8 @@ export const inputIntent = (c: Controls): Intent => ({
   },
   jump: c.jump,
   attack: c.attack,
+  block: c.block,
+  dodge: c.dodge,
 })
 
 export interface BrawlerConfig {

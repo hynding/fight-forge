@@ -2,6 +2,22 @@
 
 exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retuning) 1`] = `
 {
+  "actions": {
+    "block": {
+      "blockstun": 0.2,
+      "damageFactor": 0.2,
+      "knockbackFactor": 0.5,
+    },
+    "dodge": {
+      "cooldown": 0.25,
+      "duration": 0.3,
+      "speed": 7,
+    },
+    "run": {
+      "doubleTapWindow": 0.25,
+      "speedFactor": 1.8,
+    },
+  },
   "body": {
     "colliderHalfExtents": [
       0.25,
@@ -59,6 +75,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
           "idle": "Idle",
           "jump": "Jump",
           "knockdown": "Death",
+          "run": "Running",
           "walk": "Walking",
         },
         "kind": "gltf",
@@ -92,6 +109,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
           "idle": "Idle",
           "jump": "Jump",
           "knockdown": "Death",
+          "run": "Running",
           "walk": "Walking",
         },
         "kind": "gltf",
@@ -125,6 +143,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
           "idle": "Idle",
           "jump": "Jump",
           "knockdown": "Death",
+          "run": "Running",
           "walk": "Walking",
         },
         "kind": "gltf",
@@ -145,6 +164,32 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     },
   },
   "moves": {
+    "dashPunch": {
+      "active": 0.15,
+      "clip": {
+        "name": "Punch",
+        "speed": 1.4,
+      },
+      "damage": 16,
+      "hitbox": {
+        "forward": 0.8,
+        "halfX": 0.7,
+        "halfY": 0.5,
+        "halfZ": 0.45,
+        "up": 0.2,
+      },
+      "lunge": 7,
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 4,
+          "y": 3,
+        },
+        "knockdown": true,
+      },
+      "recovery": 0.35,
+      "startup": 0.1,
+    },
     "enemyPunch": {
       "active": 0.1,
       "clip": {
@@ -244,6 +289,31 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "recovery": 0.17,
       "startup": 0.05,
     },
+    "jumpKick": {
+      "active": 0.25,
+      "air": true,
+      "clip": {
+        "name": "Punch",
+        "speed": 2,
+      },
+      "damage": 14,
+      "hitbox": {
+        "forward": 0.7,
+        "halfX": 0.6,
+        "halfY": 0.6,
+        "halfZ": 0.45,
+        "up": -0.4,
+      },
+      "reaction": {
+        "hitstun": 0.5,
+        "knockback": {
+          "x": 2.5,
+          "y": 0,
+        },
+      },
+      "recovery": 0.1,
+      "startup": 0.06,
+    },
     "uppercut": {
       "active": 0.1,
       "clip": {
@@ -279,7 +349,9 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   },
   "player": {
     "color": "#4444ff",
+    "dashAttack": "dashPunch",
     "deceleration": 0.85,
+    "jumpAttack": "jumpKick",
     "jumpVelocity": 8,
     "lightAttack": "jab",
     "linearDamping": 0,
@@ -295,6 +367,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "idle": "Idle",
         "jump": "Jump",
         "knockdown": "Death",
+        "run": "Running",
         "walk": "Walking",
       },
       "kind": "gltf",

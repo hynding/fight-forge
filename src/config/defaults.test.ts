@@ -25,7 +25,9 @@ describe('DEFAULT_CONFIG', () => {
 
   it('has valid moves, and every move it references exists', () => {
     const { moves, player, enemy } = DEFAULT_CONFIG
-    expect(validateMoves(moves, [player.lightAttack, enemy.attackMove])).toEqual([])
+    expect(
+      validateMoves(moves, [player.lightAttack, player.jumpAttack, player.dashAttack, enemy.attackMove])
+    ).toEqual([])
   })
 
   it('keeps every hitbox out for at least one sim step, so combat sees it', () => {
