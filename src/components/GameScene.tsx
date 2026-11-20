@@ -18,6 +18,8 @@ import { createStageView } from '../sim/stage'
 import { levelLength } from '../sim/level'
 import { Pickups } from './Pickups'
 import { LevelDirector } from './LevelDirector'
+import { Backdrop } from './Backdrop'
+import { Props } from './Props'
 
 export const GameScene = () => {
   // The scene remounts for each level (keyed on gameId), so read the level once.
@@ -27,6 +29,8 @@ export const GameScene = () => {
     return levels[useGameStore.getState().levelIndex] ?? levels[0]
   })
   const STAGE_LENGTH = levelLength(LEVEL)
+  // The registry guarantees the level's theme exists.
+  const THEME = config.themes[LEVEL.theme]
   const playerRef = useRef<RapierRigidBody>(null)
   const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
   const playerPositionRef = useRef(new Vector3(...config.player.spawnPosition))
@@ -60,14 +64,16 @@ export const GameScene = () => {
       <Canvas shadows dpr={[1, 2]}>
         {/* Without an explicit background the canvas is transparent over a white page,
             which made the white HUD text unreadable. */}
-        <color attach="background" args={['#1a1a2e']} />
+        <color attach="background" args={[THEME.sky]} />
+        {THEME.fog && <fog attach="fog" args={[THEME.fog.color, THEME.fog.near, THEME.fog.far]} />}
         <PerspectiveCamera makeDefault fov={config.camera.fov} />
 
-        <ambientLight intensity={0.5} />
+        <ambientLight intensity={THEME.lighting.ambient} />
         <directionalLight
           ref={lightRef}
           position={[10, 20, 10]}
-          intensity={1}
+          color={THEME.lighting.sun.color}
+          intensity={THEME.lighting.sun.intensity}
           castShadow
           shadow-mapSize={[2048, 2048]}
           shadow-camera-left={-20}
@@ -75,7 +81,10 @@ export const GameScene = () => {
           shadow-camera-top={20}
           shadow-camera-bottom={-20}
         />
-        <hemisphereLight args={['#b8c4ff', '#30303a', 0.4]} />
+        <hemisphereLight
+          args={[THEME.lighting.hemisphere.sky, THEME.lighting.hemisphere.ground, THEME.lighting.hemisphere.intensity]}
+        />
+        <Backdrop theme={THEME} length={STAGE_LENGTH} view={view} />
 
         <SimLoopDriver>
         <CameraRig
@@ -91,7 +100,8 @@ export const GameScene = () => {
           playerPositionRef={playerPositionRef}
         />
         <Physics gravity={config.physics.gravity} paused={frozen}>
-          <Stage length={STAGE_LENGTH} />
+          <Stage length={STAGE_LENGTH} theme={THEME} />
+          <Props />
           <Player
             ref={playerRef}
             runtimes={runtimes}

@@ -1,0 +1,46 @@
+{
+  "crate": {
+    "shape": "box",
+    "size": [1, 1, 1],
+    "color": "#8b5a2b",
+    "solid": true,
+    "breakable": {
+      "health": 10,
+      "drop": {
+        "pickup": "coin",
+        "chance": 0.5
+      }
+    }
+  },
+  "barrel": {
+    "shape": "cylinder",
+    "size": [0.8, 1.1, 0.8],
+    "color": "#7a2e1f",
+    "solid": true,
+    "breakable": {
+      "health": 16,
+      "drop": {
+        "pickup": "food",
+        "chance": 0.6
+      }
+    }
+  },
+  "wall": {
+    "shape": "box",
+    "size": [0.6, 2.4, 1.4],
+    "color": "#4a4a58",
+    "solid": true
+  },
+  "platform": {
+    "shape": "box",
+    "size": [3, 0.8, 1.5],
+    "color": "#5b4a3a",
+    "solid": true
+  },
+  "bollard": {
+    "shape": "cylinder",
+    "size": [0.45, 0.7, 0.45],
+    "color": "#2c3e50",
+    "solid": true
+  }
+}

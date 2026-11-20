@@ -546,6 +546,72 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     ],
     "walkSpeed": 5,
   },
+  "props": {
+    "barrel": {
+      "breakable": {
+        "drop": {
+          "chance": 0.6,
+          "pickup": "food",
+        },
+        "health": 16,
+      },
+      "color": "#7a2e1f",
+      "shape": "cylinder",
+      "size": [
+        0.8,
+        1.1,
+        0.8,
+      ],
+      "solid": true,
+    },
+    "bollard": {
+      "color": "#2c3e50",
+      "shape": "cylinder",
+      "size": [
+        0.45,
+        0.7,
+        0.45,
+      ],
+      "solid": true,
+    },
+    "crate": {
+      "breakable": {
+        "drop": {
+          "chance": 0.5,
+          "pickup": "coin",
+        },
+        "health": 10,
+      },
+      "color": "#8b5a2b",
+      "shape": "box",
+      "size": [
+        1,
+        1,
+        1,
+      ],
+      "solid": true,
+    },
+    "platform": {
+      "color": "#5b4a3a",
+      "shape": "box",
+      "size": [
+        3,
+        0.8,
+        1.5,
+      ],
+      "solid": true,
+    },
+    "wall": {
+      "color": "#4a4a58",
+      "shape": "box",
+      "size": [
+        0.6,
+        2.4,
+        1.4,
+      ],
+      "solid": true,
+    },
+  },
   "reactions": {
     "getupDuration": 0.4,
     "getupInvulnerability": 0.6,
@@ -579,6 +645,104 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "floorThickness": 0.5,
     "wallHeight": 4,
     "wallThickness": 0.5,
+  },
+  "themes": {
+    "default": {
+      "backdrop": [
+        {
+          "color": "#2a2a44",
+          "distance": 4,
+          "height": 9,
+          "kind": "skyline",
+          "parallax": 0.25,
+          "seed": 11,
+        },
+        {
+          "color": "#222238",
+          "distance": 14,
+          "height": 14,
+          "kind": "skyline",
+          "parallax": 0.55,
+          "seed": 23,
+        },
+      ],
+      "fog": {
+        "color": "#1a1a2e",
+        "far": 80,
+        "near": 30,
+      },
+      "ground": {
+        "color": "#3a3a44",
+        "laneEdge": "#6a6a80",
+        "tile": "#474756",
+      },
+      "lighting": {
+        "ambient": 0.5,
+        "hemisphere": {
+          "ground": "#30303a",
+          "intensity": 0.4,
+          "sky": "#b8c4ff",
+        },
+        "sun": {
+          "color": "#ffffff",
+          "intensity": 1,
+        },
+      },
+      "sky": "#1a1a2e",
+      "wall": {
+        "accent": "#8a6a3a",
+        "color": "#55556a",
+        "pillar": "#6c6c84",
+      },
+    },
+    "docks": {
+      "backdrop": [
+        {
+          "color": "#6f8399",
+          "distance": 18,
+          "height": 11,
+          "kind": "skyline",
+          "parallax": 0.45,
+          "seed": 5,
+        },
+        {
+          "color": "#7d95a8",
+          "distance": 35,
+          "height": 7,
+          "kind": "hills",
+          "parallax": 0.75,
+          "seed": 9,
+        },
+      ],
+      "fog": {
+        "color": "#b6cfe2",
+        "far": 75,
+        "near": 22,
+      },
+      "ground": {
+        "color": "#6e5236",
+        "laneEdge": "#d9c49a",
+        "tile": "#7d5f40",
+      },
+      "lighting": {
+        "ambient": 0.65,
+        "hemisphere": {
+          "ground": "#6b5a44",
+          "intensity": 0.5,
+          "sky": "#d6ecff",
+        },
+        "sun": {
+          "color": "#fff1d6",
+          "intensity": 1.25,
+        },
+      },
+      "sky": "#8fb8d8",
+      "wall": {
+        "accent": "#b03a2e",
+        "color": "#5d6b78",
+        "pillar": "#44525e",
+      },
+    },
   },
 }
 `;

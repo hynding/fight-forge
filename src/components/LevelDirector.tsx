@@ -4,7 +4,7 @@ import { useGameStore } from '../store/gameStore'
 import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
-import { createLevelRuntime, placeItems, stepLevel, type Level, type SpawnDef } from '../sim/level'
+import { createLevelRuntime, placeItems, placeProps, stepLevel, type Level, type SpawnDef } from '../sim/level'
 import { offscreenSpawn, type StageView } from '../sim/stage'
 import { scaledHealth } from '../sim/rules'
 
@@ -74,6 +74,18 @@ export const LevelDirector = ({
     for (const it of placeItems(level)) {
       store.spawnPickup({ id: it.id, pickup: it.pickup, x: it.x, z: z0 + it.depth * (z1 - z0) })
     }
+    // ...and so do its props, with their hit points.
+    const propDefs = getConfig().props
+    store.placeProps(
+      placeProps(level).map((p) => ({
+        id: p.id,
+        prop: p.prop,
+        x: p.x,
+        y: p.y,
+        z: z0 + p.depth * (z1 - z0),
+        health: propDefs[p.prop]?.breakable?.health ?? Infinity,
+      }))
+    )
   }, [level])
 
   useSimSystem('level', SYSTEM_ORDER.level, (dt) => {

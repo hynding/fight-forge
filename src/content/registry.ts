@@ -19,6 +19,8 @@ import {
   type MoveDefData,
   type Pack,
   type PickupDefData,
+  type PropDefData,
+  type ThemeDefData,
   type Settings,
 } from './schemas'
 
@@ -33,13 +35,15 @@ export interface ContentError {
 export type Result<T> = { ok: true; value: T } | { ok: false; errors: ContentError[] }
 
 /** Kinds of definitions a reference like `move:jab` can name. */
-export type ContentKind = 'move' | 'ai' | 'enemyType' | 'pickup' | 'level' | 'asset'
+export type ContentKind = 'move' | 'ai' | 'enemyType' | 'pickup' | 'theme' | 'prop' | 'level' | 'asset'
 
 interface KindMap {
   move: MoveDefData
   ai: AiBehaviorDef
   enemyType: EnemyTypeData
   pickup: PickupDefData
+  theme: ThemeDefData
+  prop: PropDefData
   level: LevelDef
   asset: AssetDef
 }
@@ -96,6 +100,8 @@ export interface ContentData {
   ai: Readonly<Record<string, AiBehaviorDef>>
   enemyTypes: Readonly<Record<string, EnemyTypeData>>
   pickups: Readonly<Record<string, PickupDefData>>
+  themes: Readonly<Record<string, ThemeDefData>>
+  props: Readonly<Record<string, PropDefData>>
   /** In play order. */
   levels: readonly LevelDef[]
   assets: Readonly<Record<string, AssetDef>>
@@ -111,6 +117,8 @@ export class ContentRegistry {
   readonly ai: Readonly<Record<string, AiBehaviorDef>>
   readonly enemyTypes: Readonly<Record<string, EnemyTypeData>>
   readonly pickups: Readonly<Record<string, PickupDefData>>
+  readonly themes: Readonly<Record<string, ThemeDefData>>
+  readonly props: Readonly<Record<string, PropDefData>>
   readonly levels: readonly LevelDef[]
   readonly assets: Readonly<Record<string, AssetDef>>
   private readonly origins: ReadonlyMap<string, string>
@@ -122,6 +130,8 @@ export class ContentRegistry {
     this.ai = data.ai
     this.enemyTypes = data.enemyTypes
     this.pickups = data.pickups
+    this.themes = data.themes
+    this.props = data.props
     this.levels = data.levels
     this.assets = data.assets
     this.origins = data.origins
@@ -137,6 +147,10 @@ export class ContentRegistry {
         return this.enemyTypes
       case 'pickup':
         return this.pickups
+      case 'theme':
+        return this.themes
+      case 'prop':
+        return this.props
       case 'asset':
         return this.assets
       case 'level':
@@ -191,6 +205,8 @@ export class ContentRegistry {
       ai: { ...this.ai },
       moves: { ...this.moves },
       pickups: { ...this.pickups },
+      themes: { ...this.themes },
+      props: { ...this.props },
     }
     return { config, levels: [...this.levels] }
   }
@@ -225,6 +241,8 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
   const ai: Record<string, AiBehaviorDef> = {}
   const enemyTypes: Record<string, EnemyTypeData> = {}
   const pickups: Record<string, PickupDefData> = {}
+  const themes: Record<string, ThemeDefData> = {}
+  const props: Record<string, PropDefData> = {}
   const assets: Record<string, AssetDef> = {}
   const levels: LevelDef[] = []
 
@@ -248,6 +266,8 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
     merge('ai', ai, pack.ai)
     merge('enemyType', enemyTypes, pack.enemyTypes)
     merge('pickup', pickups, pack.pickups)
+    merge('theme', themes, pack.themes)
+    merge('prop', props, pack.props)
 
     const assetIds = new Set<string>()
     pack.assets.forEach((a, i) => {
@@ -282,6 +302,8 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
     ai,
     enemyTypes,
     pickups,
+    themes,
+    props,
     levels,
     assets,
     origins,
@@ -344,9 +366,13 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
       errors.push({ pack: pack.id, path: 'meta.cover', message: `asset "${a.id}" is a ${a.kind}, not a texture` })
   }
 
+  for (const [id, p] of Object.entries(reg.props))
+    expect('pickup', p.breakable?.drop?.pickup, `prop:${id}`, `props.${id}.breakable.drop.pickup`)
+
   reg.levels.forEach((level) => {
     const origin = `level:${level.id}`
     const base = `levels.${level.id}`
+    expect('theme', level.theme, origin, `${base}.theme`)
     let goals = 0
     level.segments.forEach((seg, si) => {
       const sp = `${base}.segments[${si}]`
@@ -363,6 +389,11 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
         const ip = `${sp}.items[${ii}]`
         if (it.at > seg.length) err(origin, `${ip}.at`, `${it.at} is past the segment's length ${seg.length}`)
         expect('pickup', it.pickup, origin, `${ip}.pickup`)
+      })
+      seg.props?.forEach((pl, pi) => {
+        const pp = `${sp}.props[${pi}]`
+        if (pl.at > seg.length) err(origin, `${pp}.at`, `${pl.at} is past the segment's length ${seg.length}`)
+        expect('prop', pl.prop, origin, `${pp}.prop`)
       })
     })
     if (goals === 0) err(origin, `${base}`, 'has no goal trigger, so it can never be completed')

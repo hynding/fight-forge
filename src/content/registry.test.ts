@@ -80,7 +80,7 @@ describe('registry lookups', () => {
 describe('layering packs', () => {
   it('lets a later pack override and add by id', () => {
     const jab = { ...clone(DEFAULT_CONFIG.moves.jab), damage: 99 }
-    const level = { id: 'extra', name: 'Extra', segments: [{ length: 20, triggers: [{ kind: 'goal', at: 18 }] }] }
+    const level = { id: 'extra', name: 'Extra', theme: 'default', segments: [{ length: 20, triggers: [{ kind: 'goal', at: 18 }] }] }
     const reg = build(
       defaultPack(),
       addon({
@@ -110,6 +110,7 @@ describe('layering packs', () => {
     const level = {
       id: 'arena',
       name: 'Arena',
+      theme: 'default',
       segments: [
         {
           length: 30,
@@ -320,6 +321,7 @@ describe('bad packs: references', () => {
     const level = {
       id: 'broken',
       name: 'Broken',
+      theme: 'default',
       segments: [
         {
           length: 10,
@@ -438,5 +440,42 @@ describe('key bindings', () => {
     const bad = withBindings({ attack: ['J'] })
     delete ((bad.settings as Record<string, Record<string, Record<string, unknown>>>).input.bindings).hitboxes
     expect(paths(errorsOf(defaultPack(), bad)).sort()).toEqual(['settings.input.bindings.attack[0]', 'settings.input.bindings.hitboxes'])
+  })
+})
+
+describe('themes and props', () => {
+  it('ships two distinct themes, used by the two default levels', () => {
+    const reg = build(defaultPack())
+    expect(reg.ids('theme').sort()).toEqual(['default', 'docks'])
+    expect(reg.levels.map((l) => l.theme)).toEqual(['default', 'docks'])
+    expect(reg.themes.default.sky).not.toBe(reg.themes.docks.sky)
+    expect(reg.ids('prop')).toEqual(expect.arrayContaining(['crate', 'barrel', 'wall', 'platform']))
+  })
+
+  it('checks theme, prop and drop references', () => {
+    const p = base()
+    const level = (p.levels as Record<string, unknown>[])[0] as Record<string, unknown> & { segments: Record<string, unknown>[] }
+    level.theme = 'moon'
+    level.segments[0].props = [{ prop: 'piano', at: 3 }, { prop: 'crate', at: 999 }]
+    ;(p.props as Record<string, Record<string, unknown>>).crate.breakable = { health: 5, drop: { pickup: 'gem', chance: 1 } }
+    expect(errorsOf(p).map((e) => `${e.path}: ${e.message}`).sort()).toEqual([
+      'levels.level-1.segments[0].props[0].prop: unknown prop "piano"',
+      "levels.level-1.segments[0].props[1].at: 999 is past the segment's length 45",
+      'levels.level-1.theme: unknown theme "moon"',
+      'props.crate.breakable.drop.pickup: unknown pickup "gem"',
+    ])
+  })
+
+  it('checks theme values', () => {
+    const p = base()
+    const t = (p.themes as Record<string, Record<string, unknown>>).docks
+    t.fog = { color: '#ffffff', near: 50, far: 10 }
+    ;(t.backdrop as Record<string, unknown>[])[0].parallax = 2
+    expect(paths(errorsOf(p)).sort()).toEqual(['themes.docks.backdrop[0].parallax', 'themes.docks.fog'])
+  })
+
+  it('gives levels from older packs the default theme', () => {
+    const old = { ...addon({ levels: [{ id: 'old', name: 'Old', segments: [{ length: 10, triggers: [{ kind: 'goal', at: 9 }] }] }] }), schemaVersion: 2 }
+    expect(build(defaultPack(), old).get('level:old')?.theme).toBe('default')
   })
 })

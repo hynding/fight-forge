@@ -8,6 +8,8 @@ import moves from '../../content/default/moves.json'
 import ai from '../../content/default/ai.json'
 import enemyTypes from '../../content/default/enemy-types.json'
 import pickups from '../../content/default/pickups.json'
+import themes from '../../content/default/themes.json'
+import props from '../../content/default/props.json'
 import levels from '../../content/default/levels.json'
 
 /** The default pack as unvalidated JSON (run it through `buildRegistry`). */
@@ -18,5 +20,7 @@ export const defaultPack = (): Record<string, unknown> => ({
   ai,
   enemyTypes,
   pickups,
+  themes,
+  props,
   levels,
 })

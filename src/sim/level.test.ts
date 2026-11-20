@@ -5,6 +5,7 @@ import {
   createLevelRuntime,
   levelLength,
   placeItems,
+  placeProps,
   placeTriggers,
   stepLevel,
   validateLevel,
@@ -19,6 +20,7 @@ const DEFAULT_LEVEL = LEVELS[0]
 const LEVEL: Level = {
   id: 't',
   name: 'Test',
+  theme: 'default',
   segments: [
     {
       length: 20,
@@ -77,6 +79,7 @@ describe('level layout', () => {
     const bad: Level = {
       id: 'b',
       name: 'Bad',
+      theme: 'default',
       segments: [{ length: 10, triggers: [{ kind: 'wave', at: 12, waves: [{ enemies: [] }] }] }],
     }
     const errors = validateLevel(bad)
@@ -164,5 +167,23 @@ describe('stepLevel', () => {
     const items = placeItems(DEFAULT_LEVEL)
     expect(items[0]).toEqual({ id: 'item-1-0', pickup: 'coin', x: 45 + 5, depth: 0.3 })
     expect(new Set(items.map((i) => i.id)).size).toBe(items.length)
+  })
+})
+
+describe('placeProps', () => {
+  it('gives props absolute X, defaults and stable ids', () => {
+    const level: Level = {
+      id: 'p',
+      name: 'Props',
+      theme: 'default',
+      segments: [
+        { length: 10, triggers: [], props: [{ prop: 'crate', at: 3 }] },
+        { length: 10, triggers: [{ kind: 'goal', at: 9 }], props: [{ prop: 'barrel', at: 2, depth: 0.1, y: 1 }] },
+      ],
+    }
+    expect(placeProps(level)).toEqual([
+      { id: 'prop-0-0', prop: 'crate', x: 3, y: 0, depth: 0.5 },
+      { id: 'prop-1-0', prop: 'barrel', x: 12, y: 1, depth: 0.1 },
+    ])
   })
 })

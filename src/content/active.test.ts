@@ -39,7 +39,7 @@ describe('active content', () => {
   })
 
   it('is what the game reads once a pack is installed', () => {
-    const level = { id: 'solo', name: 'Solo', segments: [{ length: 20, triggers: [{ kind: 'goal', at: 18 }] }] }
+    const level = { id: 'solo', name: 'Solo', theme: 'default', segments: [{ length: 20, triggers: [{ kind: 'goal', at: 18 }] }] }
     const r = loadContent([defaultPack(), remix({ lives: 7, continues: 0 }, { levels: [level] })])
     if (!r.ok) throw new Error(r.error)
     setActiveContent(r.value)
