@@ -90,6 +90,10 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "aggression": 1,
       "ai": "brawler",
       "color": "#00ff00",
+      "drop": {
+        "chance": 0.2,
+        "pickup": "coin",
+      },
       "maxHealth": 50,
       "model": {
         "clips": {
@@ -197,6 +201,10 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "ai": "tank",
       "armor": 0.4,
       "color": "#ff0000",
+      "drop": {
+        "chance": 0.5,
+        "pickup": "food",
+      },
       "maxHealth": 100,
       "model": {
         "clips": {
@@ -438,6 +446,26 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       0,
     ],
   },
+  "pickups": {
+    "coin": {
+      "amount": 500,
+      "color": "#ffdd33",
+      "effect": "score",
+      "size": 0.3,
+    },
+    "feast": {
+      "amount": 100,
+      "color": "#ff3366",
+      "effect": "heal",
+      "size": 0.5,
+    },
+    "food": {
+      "amount": 30,
+      "color": "#ff8833",
+      "effect": "heal",
+      "size": 0.35,
+    },
+  },
   "player": {
     "color": "#4444ff",
     "dashAttack": "dashPunch",
@@ -486,6 +514,12 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "getupInvulnerability": 0.6,
     "knockbackFriction": 0.88,
     "knockdownDuration": 1.1,
+  },
+  "rules": {
+    "continues": 2,
+    "lives": 3,
+    "pickupRadius": 0.9,
+    "respawnInvulnerability": 2,
   },
   "scoring": {
     "enemyKill": 100,

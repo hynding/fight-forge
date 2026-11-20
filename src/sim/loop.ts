@@ -23,6 +23,8 @@ export const SYSTEM_ORDER = {
   enemyAttackSlot: 200,
   /** Hit detection and damage. */
   combat: 300,
+  /** The player collects pickups it stands on. */
+  pickups: 350,
   /** Level script: triggers, waves, screen locks, goal (after combat, so kills count this step). */
   level: 400,
 } as const

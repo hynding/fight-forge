@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { EnemyType } from '../types/game'
-import { DEFAULT_LEVEL } from '../config/levels'
+import { DEFAULT_LEVEL, LEVELS } from '../config/levels'
 import { SIM_STEP } from './loop'
 import {
   createLevelRuntime,
   levelLength,
+  placeItems,
   placeTriggers,
   stepLevel,
   validateLevel,
@@ -135,25 +136,33 @@ describe('stepLevel', () => {
     expect(stepLevel(rt, { playerX: 100, cameraX: 0, isAlive: () => false, spawn: w.spawn }, SIM_STEP)).toEqual([])
   })
 
-  it('plays the shipped level start to finish when every enemy dies on spawn', () => {
-    const rt = createLevelRuntime(DEFAULT_LEVEL)
-    const w = world()
-    const length = levelLength(DEFAULT_LEVEL)
-    let x = 0
-    let locks = 0
-    for (let i = 0; i < 60 * 120 && !rt.complete; i++) {
-      // Walk right at 5 u/s, but not while the camera is locked.
-      if (rt.lockX === null) x = Math.min(length, x + 5 * SIM_STEP)
-      const ev = stepLevel(rt, { playerX: x, cameraX: x, isAlive: w.isAlive, spawn: w.spawn }, SIM_STEP)
-      locks += ev.filter((e) => e.kind === 'lock').length
-      w.killAll()
+  it.each(LEVELS.map((l) => [l.name, l] as const))(
+    'plays "%s" start to finish when every enemy dies on spawn',
+    (_name, level) => {
+      const rt = createLevelRuntime(level)
+      const w = world()
+      const length = levelLength(level)
+      const triggers = level.segments.flatMap((s) => s.triggers)
+      let x = 0
+      let locks = 0
+      for (let i = 0; i < 60 * 120 && !rt.complete; i++) {
+        // Walk right at 5 u/s, but not while the camera is locked.
+        if (rt.lockX === null) x = Math.min(length, x + 5 * SIM_STEP)
+        const ev = stepLevel(rt, { playerX: x, cameraX: x, isAlive: w.isAlive, spawn: w.spawn }, SIM_STEP)
+        locks += ev.filter((e) => e.kind === 'lock').length
+        w.killAll()
+      }
+      expect(rt.complete).toBe(true)
+      expect(locks).toBe(triggers.filter((t) => t.kind === 'wave' && t.lock).length)
+      expect(w.spawned).toHaveLength(
+        triggers.flatMap((t) => (t.kind === 'wave' ? t.waves.flatMap((wv) => wv.enemies) : [])).length
+      )
     }
-    expect(rt.complete).toBe(true)
-    expect(locks).toBe(3)
-    expect(w.spawned).toHaveLength(
-      DEFAULT_LEVEL.segments
-        .flatMap((s) => s.triggers)
-        .flatMap((t) => (t.kind === 'wave' ? t.waves.flatMap((wv) => wv.enemies) : [])).length
-    )
+  )
+
+  it('places level items with stable ids in absolute X', () => {
+    const items = placeItems(DEFAULT_LEVEL)
+    expect(items[0]).toEqual({ id: 'item-1-0', pickup: 'coin', x: 45 + 5, depth: 0.3 })
+    expect(new Set(items.map((i) => i.id)).size).toBe(items.length)
   })
 })

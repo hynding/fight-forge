@@ -13,6 +13,12 @@ const makeEnemy = (id: string, health = 50): Enemy => ({
 
 const initialState = useGameStore.getState()
 
+/** Loses the last life: game over. */
+const killPlayer = () => {
+  useGameStore.setState({ lives: 1 })
+  useGameStore.getState().damagePlayer(1000)
+}
+
 beforeEach(() => {
   useGameStore.setState(initialState, true)
 })
@@ -70,7 +76,7 @@ describe('damageEnemy', () => {
   it('does nothing after game over', () => {
     const s = useGameStore.getState()
     s.spawnEnemy(makeEnemy('a', 10))
-    s.damagePlayer(1000)
+    killPlayer()
     s.damageEnemy('a', 10)
     expect(useGameStore.getState().enemies).toHaveLength(1)
     expect(useGameStore.getState().score).toBe(0)
@@ -78,7 +84,8 @@ describe('damageEnemy', () => {
 })
 
 describe('damagePlayer', () => {
-  it('clamps at 0 and sets game over', () => {
+  it('clamps at 0 and sets game over on the last life', () => {
+    useGameStore.setState({ lives: 1 })
     useGameStore.getState().damagePlayer(150)
     const { playerHealth, isGameOver } = useGameStore.getState()
     expect(playerHealth).toBe(0)
@@ -95,7 +102,7 @@ describe('togglePause', () => {
   })
 
   it('is ignored once the game is over', () => {
-    useGameStore.getState().damagePlayer(1000)
+    killPlayer()
     useGameStore.getState().togglePause()
     expect(useGameStore.getState().isPaused).toBe(false)
   })
@@ -107,7 +114,7 @@ describe('resetGame', () => {
     s.setGameScreen('playing')
     s.spawnEnemy(makeEnemy('a'))
     s.addScore(300)
-    s.damagePlayer(1000)
+    killPlayer()
     const prevGameId = useGameStore.getState().gameId
 
     useGameStore.getState().resetGame()
@@ -132,7 +139,7 @@ describe('level completion', () => {
   it('freezes the game and blocks further damage and pausing', () => {
     const s = useGameStore.getState()
     s.spawnEnemy(makeEnemy('a'))
-    s.completeLevel()
+    s.completeLevel(42)
     const after = useGameStore.getState()
     expect(after.levelProgress.complete).toBe(true)
     expect(isFrozen(after)).toBe(true)
@@ -146,8 +153,109 @@ describe('level completion', () => {
   })
 
   it('is cleared by a reset', () => {
-    useGameStore.getState().completeLevel()
+    useGameStore.getState().completeLevel(42)
     useGameStore.getState().resetGame()
     expect(useGameStore.getState().levelProgress.complete).toBe(false)
+  })
+})
+
+describe('lives and continues', () => {
+  it('loses a life and respawns at full health while lives remain', () => {
+    const s = useGameStore.getState()
+    s.damagePlayer(1000)
+    const after = useGameStore.getState()
+    expect(after.lives).toBe(DEFAULT_CONFIG.rules.lives - 1)
+    expect(after.playerHealth).toBe(after.playerMaxHealth)
+    expect(after.respawnCount).toBe(1)
+    expect(after.isGameOver).toBe(false)
+  })
+
+  it('is game over on the last life, then a continue restores lives in place', () => {
+    for (let i = 0; i < DEFAULT_CONFIG.rules.lives; i++) useGameStore.getState().damagePlayer(1000)
+    expect(useGameStore.getState().isGameOver).toBe(true)
+    useGameStore.setState({ score: 700 })
+    useGameStore.getState().continueGame()
+    const after = useGameStore.getState()
+    expect(after.isGameOver).toBe(false)
+    expect(after.lives).toBe(DEFAULT_CONFIG.rules.lives)
+    expect(after.continuesLeft).toBe(DEFAULT_CONFIG.rules.continues - 1)
+    expect(after.score).toBe(700)
+  })
+
+  it('has no continue left after using them all', () => {
+    useGameStore.setState({ continuesLeft: 0 })
+    killPlayer()
+    useGameStore.getState().continueGame()
+    expect(useGameStore.getState().isGameOver).toBe(true)
+  })
+})
+
+describe('runs and levels', () => {
+  it('counts KOs per level and per run', () => {
+    const s = useGameStore.getState()
+    s.spawnEnemy(makeEnemy('a', 10))
+    s.damageEnemy('a', 10)
+    expect(useGameStore.getState().kos).toBe(1)
+    expect(useGameStore.getState().runKos).toBe(1)
+  })
+
+  it('goes to the next level keeping score, lives and run KOs', () => {
+    const s = useGameStore.getState()
+    s.spawnEnemy(makeEnemy('a', 10))
+    s.damageEnemy('a', 10)
+    s.damagePlayer(1000) // lose a life
+    s.completeLevel(30)
+    const before = useGameStore.getState()
+    before.nextLevel()
+    const after = useGameStore.getState()
+    expect(after.levelIndex).toBe(1)
+    expect(after.score).toBe(before.score)
+    expect(after.lives).toBe(before.lives)
+    expect(after.runKos).toBe(1)
+    expect(after.kos).toBe(0)
+    expect(after.levelProgress.complete).toBe(false)
+    expect(after.gameId).toBe(before.gameId + 1)
+  })
+
+  it('only advances from a completed level', () => {
+    useGameStore.getState().nextLevel()
+    expect(useGameStore.getState().levelIndex).toBe(0)
+  })
+
+  it('starts a fresh run at any level through the loading screen', () => {
+    useGameStore.setState({ score: 500, lives: 1 })
+    useGameStore.getState().startRun(1)
+    const s = useGameStore.getState()
+    expect(s.levelIndex).toBe(1)
+    expect(s.score).toBe(0)
+    expect(s.lives).toBe(DEFAULT_CONFIG.rules.lives)
+    expect(s.gameScreen).toBe('loading')
+  })
+
+  it('records the level time on completion', () => {
+    useGameStore.getState().completeLevel(83)
+    expect(useGameStore.getState().levelProgress.time).toBe(83)
+  })
+})
+
+describe('pickups', () => {
+  it('heals on collection, once, and ignores duplicate spawns', () => {
+    const s = useGameStore.getState()
+    s.damagePlayer(50)
+    s.spawnPickup({ id: 'p1', pickup: 'food', x: 0, z: 0 })
+    s.spawnPickup({ id: 'p1', pickup: 'food', x: 0, z: 0 })
+    expect(useGameStore.getState().pickups).toHaveLength(1)
+    s.collectPickup('p1')
+    s.collectPickup('p1')
+    const after = useGameStore.getState()
+    expect(after.playerHealth).toBe(after.playerMaxHealth - 50 + DEFAULT_CONFIG.pickups.food.amount)
+    expect(after.pickups).toHaveLength(0)
+  })
+
+  it('scores coins', () => {
+    const s = useGameStore.getState()
+    s.spawnPickup({ id: 'c', pickup: 'coin', x: 0, z: 0 })
+    s.collectPickup('c')
+    expect(useGameStore.getState().score).toBe(DEFAULT_CONFIG.pickups.coin.amount)
   })
 })

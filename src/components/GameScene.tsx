@@ -16,13 +16,14 @@ import { SimLoopDriver } from '../sim/SimLoopDriver'
 import type { FighterRuntime } from '../sim/fighter'
 import { createStageView } from '../sim/stage'
 import { levelLength } from '../sim/level'
-import { DEFAULT_LEVEL } from '../config/levels'
+import { Pickups } from './Pickups'
+import { LEVELS } from '../config/levels'
 import { LevelDirector } from './LevelDirector'
 
-const LEVEL = DEFAULT_LEVEL
-const STAGE_LENGTH = levelLength(LEVEL)
-
 export const GameScene = () => {
+  // The scene remounts for each level (keyed on gameId), so read the level once.
+  const [LEVEL] = useState(() => LEVELS[useGameStore.getState().levelIndex] ?? LEVELS[0])
+  const STAGE_LENGTH = levelLength(LEVEL)
   const playerRef = useRef<RapierRigidBody>(null)
   const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
   const playerPositionRef = useRef(new Vector3(...DEFAULT_CONFIG.player.spawnPosition))
@@ -121,6 +122,7 @@ export const GameScene = () => {
             enemyRefs={enemyRefs.current}
             playerPositionRef={playerPositionRef}
           />
+          <Pickups playerPositionRef={playerPositionRef} />
         </Physics>
         </SimLoopDriver>
       </Canvas>

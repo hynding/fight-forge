@@ -1,5 +1,43 @@
-import { useEffect } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useGameStore } from '../store/gameStore'
+import { LEVELS } from '../config/levels'
+import { formatTime } from '../utils/format'
+
+const ResultRow = ({ label, value }: { label: string; value: ReactNode }) => (
+  <tr>
+    <td style={{ textAlign: 'left', color: '#aaaaaa' }}>{label}</td>
+    <td style={{ textAlign: 'right' }}>{value}</td>
+  </tr>
+)
+
+const MenuButton = ({
+  primary = false,
+  onClick,
+  children,
+}: {
+  primary?: boolean
+  onClick: () => void
+  children: ReactNode
+}) => {
+  const [hover, setHover] = useState(false)
+  const style = primary
+    ? { backgroundColor: hover ? '#6666ff' : '#4444ff', color: 'white', border: 'none' }
+    : {
+        backgroundColor: hover ? '#333333' : 'transparent',
+        color: hover ? 'white' : '#888888',
+        border: '2px solid #888888',
+      }
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ padding: '15px 30px', fontSize: '18px', borderRadius: '5px', cursor: 'pointer', ...style }}
+    >
+      {children}
+    </button>
+  )
+}
 
 export const HUD = () => {
   const playerHealth = useGameStore((state) => state.playerHealth)
@@ -11,6 +49,15 @@ export const HUD = () => {
   const resetGame = useGameStore((state) => state.resetGame)
   const setGameScreen = useGameStore((state) => state.setGameScreen)
   const showHitboxes = useGameStore((state) => state.showHitboxes)
+  const lives = useGameStore((state) => state.lives)
+  const continuesLeft = useGameStore((state) => state.continuesLeft)
+  const kos = useGameStore((state) => state.kos)
+  const runKos = useGameStore((state) => state.runKos)
+  const levelIndex = useGameStore((state) => state.levelIndex)
+  const continueGame = useGameStore((state) => state.continueGame)
+  const nextLevel = useGameStore((state) => state.nextLevel)
+  const startRun = useGameStore((state) => state.startRun)
+  const lastLevel = levelIndex >= LEVELS.length - 1
 
   // H toggles the hitbox debug overlay.
   useEffect(() => {
@@ -64,14 +111,14 @@ export const HUD = () => {
         </div>
       </div>
 
-      {/* Score */}
+      {/* Score and lives */}
       <div style={{ fontSize: '20px', marginBottom: '10px' }}>
-        SCORE: {score}
+        SCORE: {score} | LIVES: {lives}
       </div>
 
       {/* Level and fight progress */}
       <div style={{ fontSize: '16px', marginBottom: '10px' }}>
-        {level.levelName.toUpperCase()}
+        {`LEVEL ${levelIndex + 1}/${LEVELS.length}: ${level.levelName.toUpperCase()}`}
         {level.waveLabel && ` | ${level.waveLabel.toUpperCase()}`}
         {` | ENEMIES: ${enemies.length}`}
       </div>
@@ -100,7 +147,7 @@ export const HUD = () => {
         <br />H - Hitboxes{showHitboxes ? ' (ON)' : ''}
       </div>
 
-      {/* Game over / level complete */}
+      {/* Game over / level results */}
       {(isGameOver || level.complete) && (
         <div style={{
           position: 'fixed',
@@ -112,62 +159,48 @@ export const HUD = () => {
           borderRadius: '10px',
           textAlign: 'center',
           pointerEvents: 'auto',
+          minWidth: '360px',
         }}>
           <h1
             style={{
               fontSize: '48px',
               color: isGameOver ? '#ff0000' : '#44ff88',
-              marginBottom: '20px',
+              margin: '0 0 20px',
             }}
           >
-            {isGameOver ? 'GAME OVER' : 'LEVEL COMPLETE'}
+            {isGameOver ? 'GAME OVER' : lastLevel ? 'ALL LEVELS CLEAR!' : 'LEVEL COMPLETE'}
           </h1>
-          <div style={{ fontSize: '24px', marginBottom: '30px' }}>
-            Final Score: {score}
-          </div>
-          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-            <button
-              onClick={resetGame}
-              style={{
-                padding: '15px 30px',
-                fontSize: '18px',
-                backgroundColor: '#4444ff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#6666ff'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#4444ff'
-              }}
-            >
-              {isGameOver ? 'RESTART' : 'PLAY AGAIN'}
-            </button>
-            <button
-              onClick={handleReturnToMenu}
-              style={{
-                padding: '15px 30px',
-                fontSize: '18px',
-                backgroundColor: 'transparent',
-                color: '#888888',
-                border: '2px solid #888888',
-                borderRadius: '5px',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#333333'
-                e.currentTarget.style.color = 'white'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-                e.currentTarget.style.color = '#888888'
-              }}
-            >
-              MAIN MENU
-            </button>
+          <table style={{ margin: '0 auto 30px', fontSize: '20px', borderSpacing: '24px 6px' }}>
+            <tbody>
+              <ResultRow label="SCORE" value={score} />
+              {level.complete && level.time !== null && <ResultRow label="TIME" value={formatTime(level.time)} />}
+              <ResultRow label="KOs" value={kos} />
+              {level.complete && lastLevel && levelIndex > 0 && <ResultRow label="TOTAL KOs" value={runKos} />}
+              {level.complete && <ResultRow label="LIVES" value={lives} />}
+            </tbody>
+          </table>
+          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {isGameOver && continuesLeft > 0 && (
+              <MenuButton primary onClick={continueGame}>
+                CONTINUE ({continuesLeft})
+              </MenuButton>
+            )}
+            {level.complete && !lastLevel && (
+              <MenuButton primary onClick={nextLevel}>
+                NEXT LEVEL
+              </MenuButton>
+            )}
+            {level.complete && lastLevel && (
+              <MenuButton primary onClick={() => startRun(0)}>
+                PLAY AGAIN
+              </MenuButton>
+            )}
+            {isGameOver && (
+              <MenuButton primary={continuesLeft === 0} onClick={resetGame}>
+                RESTART LEVEL
+              </MenuButton>
+            )}
+            <MenuButton onClick={handleReturnToMenu}>MAIN MENU</MenuButton>
           </div>
         </div>
       )}

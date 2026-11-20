@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
+import { LEVELS } from '../config/levels'
 
 export const StartMenu = () => {
-  const setGameScreen = useGameStore((state) => state.setGameScreen)
+  const startRun = useGameStore((state) => state.startRun)
   const [isHovered, setIsHovered] = useState(false)
 
-  const handleStartGame = () => {
-    // LoadingScreen advances to 'playing' when its (simulated) load completes.
-    setGameScreen('loading')
-  }
+  // startRun goes to the loading screen, which advances to 'playing' when loaded.
+  const handleStartGame = () => startRun(0)
 
   return (
     <div style={{
@@ -73,6 +72,33 @@ export const StartMenu = () => {
         START GAME
       </button>
 
+      {/* Level select */}
+      <div style={{ marginTop: '40px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
+        <div style={{ fontSize: '14px', color: '#888888', letterSpacing: '3px', marginBottom: '12px' }}>
+          LEVEL SELECT
+        </div>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {LEVELS.map((level, i) => (
+            <button
+              key={level.id}
+              onClick={() => startRun(i)}
+              style={{
+                padding: '10px 18px',
+                fontSize: '14px',
+                fontFamily: 'monospace',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                color: '#dddddd',
+                border: '1px solid #555555',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              {i + 1}. {level.name.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Controls Info */}
       <div style={{
         position: 'absolute',
@@ -84,7 +110,7 @@ export const StartMenu = () => {
         <div style={{ marginBottom: '10px' }}>
           <strong>CONTROLS:</strong>
         </div>
-        <div>WASD - Move | SPACE - Jump | J - Attack | ESC - Pause</div>
+        <div>A/D - Move (double-tap to run) | W/S - Depth | SPACE - Jump | J - Attack | K - Block | SHIFT - Dodge | ESC - Pause</div>
       </div>
 
       {/* Visual Effects */}

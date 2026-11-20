@@ -215,6 +215,10 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       isMovingRef.current = isMoving(runtime.velocity, movement.stopSpeed)
       if (visualGroupRef.current) {
         visualGroupRef.current.rotation.y = facingToYaw(runtime.facing)
+        // Blink while invulnerable after getting up or respawning.
+        const r = runtime.reaction
+        const blinking = r.invulnerableLeft > 0 && r.kind === null
+        visualGroupRef.current.visible = !blinking || Math.floor(animationTimeRef.current * 15) % 2 === 0
       }
     })
 

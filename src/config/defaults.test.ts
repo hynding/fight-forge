@@ -3,7 +3,8 @@ import { DEFAULT_CONFIG } from './defaults'
 import { EnemyType } from '../types/game'
 import { SIM_STEP } from '../sim/loop'
 import { validateMoves } from '../sim/moves'
-import { DEFAULT_LEVEL } from './levels'
+import { LEVELS } from './levels'
+import { validateLevel } from '../sim/level'
 
 describe('DEFAULT_CONFIG', () => {
   it('matches the snapshot (update it deliberately when retuning)', () => {
@@ -16,8 +17,21 @@ describe('DEFAULT_CONFIG', () => {
     }
   })
 
-  it('only spawns defined enemy types in the shipped level', () => {
-    const types = DEFAULT_LEVEL.segments
+  it('ships valid levels with unique ids', () => {
+    for (const level of LEVELS) expect(validateLevel(level)).toEqual([])
+    expect(new Set(LEVELS.map((l) => l.id)).size).toBe(LEVELS.length)
+  })
+
+  it('only uses defined pickups in levels and enemy drops', () => {
+    const names = [
+      ...LEVELS.flatMap((l) => l.segments.flatMap((s) => (s.items ?? []).map((i) => i.pickup))),
+      ...Object.values(DEFAULT_CONFIG.enemyTypes).flatMap((t) => (t.drop ? [t.drop.pickup] : [])),
+    ]
+    for (const name of names) expect(DEFAULT_CONFIG.pickups[name]).toBeDefined()
+  })
+
+  it('only spawns defined enemy types in the shipped levels', () => {
+    const types = LEVELS.flatMap((l) => l.segments)
       .flatMap((s) => s.triggers)
       .flatMap((t) => (t.kind === 'wave' ? t.waves.flatMap((w) => w.enemies.map((e) => e.type)) : []))
     for (const type of types) expect(DEFAULT_CONFIG.enemyTypes[type]).toBeDefined()
