@@ -1,16 +1,10 @@
 import { useMemo } from 'react'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { getConfig } from '../content/active'
 
-const { depthBand, floorThickness, wallHeight, wallThickness } = DEFAULT_CONFIG.stage
-const [minZ, maxZ] = depthBand
 // The floor runs a little past both ends and from the back wall to past the
 // front of the lane, so the camera never sees its edge.
 const FLOOR_OVERHANG = 12
-const FLOOR_FRONT = maxZ + 8
-const BACK_Z = minZ - 0.5 - wallThickness / 2
-const FLOOR_DEPTH = FLOOR_FRONT - BACK_Z
-const FLOOR_CENTER_Z = (FLOOR_FRONT + BACK_Z) / 2
 const TILE = 5
 
 type V3 = [number, number, number]
@@ -39,6 +33,12 @@ const PILLAR_EVERY = 10
  * lane's edges marked, and solid walls at both ends.
  */
 export const Stage = ({ length }: { length: number }) => {
+  const { depthBand, floorThickness, wallHeight, wallThickness } = getConfig().stage
+  const [minZ, maxZ] = depthBand
+  const FLOOR_FRONT = maxZ + 8
+  const BACK_Z = minZ - 0.5 - wallThickness / 2
+  const FLOOR_DEPTH = FLOOR_FRONT - BACK_Z
+  const FLOOR_CENTER_Z = (FLOOR_FRONT + BACK_Z) / 2
   const tiles = useMemo(
     () => Array.from({ length: Math.ceil(length / TILE) }, (_, i) => i * TILE + TILE / 2),
     [length]

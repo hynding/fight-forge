@@ -1,12 +1,11 @@
 import { useRef, type RefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { DirectionalLight, PerspectiveCamera, Vector3 } from 'three'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { useSimSystem } from '../sim/simContext'
 import { stepCamera, visibleHalfWidth, type StageView } from '../sim/stage'
 
-const CAMERA = DEFAULT_CONFIG.camera
 // The key light sits up and to the right of the screen centre; its shadow
 // camera follows so shadows exist wherever the view has scrolled to.
 const LIGHT_OFFSET = new Vector3(10, 20, 10)
@@ -24,6 +23,7 @@ interface CameraRigProps {
  * render loop only places the camera and light where the view says.
  */
 export const CameraRig = ({ view, stageLength, playerPositionRef, lightRef }: CameraRigProps) => {
+  const CAMERA = getConfig().camera
   const camera = useThree((s) => s.camera)
   const aspect = useThree((s) => s.size.width / s.size.height)
   const placed = useRef(false)

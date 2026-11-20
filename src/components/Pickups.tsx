@@ -2,15 +2,13 @@ import { useRef, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group, Vector3 } from 'three'
 import { useGameStore } from '../store/gameStore'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { inPickupReach, type PickupInstance } from '../sim/pickups'
 
-const { pickups: DEFS, rules: RULES } = DEFAULT_CONFIG
-
 const Item = ({ item }: { item: PickupInstance }) => {
-  const def = DEFS[item.pickup]
+  const def = getConfig().pickups[item.pickup]
   const ref = useRef<Group>(null)
   const loop = useSimLoop()
   // Bob and spin with game time, so it freezes with the game.
@@ -51,7 +49,7 @@ export const Pickups = ({ playerPositionRef }: { playerPositionRef: RefObject<Ve
     if (!player) return
     const store = useGameStore.getState()
     for (const item of store.pickups) {
-      if (inPickupReach({ x: player.x, z: player.z }, item, RULES.pickupRadius)) store.collectPickup(item.id)
+      if (inPickupReach({ x: player.x, z: player.z }, item, getConfig().rules.pickupRadius)) store.collectPickup(item.id)
     }
   })
 

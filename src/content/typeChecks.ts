@@ -22,12 +22,10 @@ export type ContentTypeChecks = [
   Check<Same<PickupDefData, PickupDef>>,
   Check<Same<AiBehaviorDef, AiBehavior>>,
   Check<Same<ModelRefDef, RuntimeModelData>>,
-  // Archetype ids are open strings in packs; the runtime still uses the AiKind union until M2.2.
-  Check<Same<Omit<EnemyTypeData, 'ai' | 'model'>, Omit<EnemyTypeDef, 'ai' | 'model'>>>,
+  Check<Same<Omit<EnemyTypeData, 'model'>, Omit<EnemyTypeDef, 'model'>>>,
   Check<Same<keyof Settings, SettingsKeys>>,
   Check<Same<Omit<Settings, 'player'>, Omit<Pick<GameConfig, SettingsKeys>, 'player'>>>,
   Check<Same<Omit<Settings['player'], 'model'>, Omit<GameConfig['player'], 'model'>>>,
-  // Spawn types are open strings in packs; the runtime still uses the EnemyType enum until M2.2.
-  Check<Same<keyof LevelDef, keyof Level>>,
+  Check<Same<LevelDef, Level>>,
   Check<Same<Runtime<{ m: ModelRef }>['m'], RuntimeModelData>>,
 ]

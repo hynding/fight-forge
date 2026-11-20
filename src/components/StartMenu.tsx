@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
-import { LEVELS } from '../config/levels'
+import { getLevels } from '../content/active'
 
 export const StartMenu = () => {
   const startRun = useGameStore((state) => state.startRun)
@@ -78,7 +78,7 @@ export const StartMenu = () => {
           LEVEL SELECT
         </div>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          {LEVELS.map((level, i) => (
+          {getLevels().map((level, i) => (
             <button
               key={level.id}
               onClick={() => startRun(i)}

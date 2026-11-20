@@ -1,0 +1,116 @@
+{
+  "physics": {
+    "gravity": [0, -20, 0]
+  },
+  "body": {
+    "colliderHalfExtents": [0.25, 1, 0.25],
+    "groundRayLength": 1.1,
+    "groundedMaxVelY": 0.5,
+    "stopSpeed": 0.1
+  },
+  "player": {
+    "maxHealth": 100,
+    "color": "#4444ff",
+    "model": {
+      "kind": "gltf",
+      "url": "/models/robot-expressive.glb",
+      "scale": 0.4,
+      "offset": [0, -1, 0],
+      "rotationY": 3.141592653589793,
+      "tintMaterials": ["Main"],
+      "clips": {
+        "idle": "Idle",
+        "walk": "Walking",
+        "run": "Running",
+        "jump": "Jump",
+        "attack": "Punch",
+        "knockdown": "Death",
+        "getup": {
+          "name": "Standing",
+          "speed": 1
+        },
+        "dead": "Death"
+      }
+    },
+    "spawnPosition": [3, 2, 0],
+    "walkSpeed": 5,
+    "jumpVelocity": 8,
+    "deceleration": 0.85,
+    "linearDamping": 0,
+    "lightAttack": "jab",
+    "jumpAttack": "jumpKick",
+    "dashAttack": "dashPunch"
+  },
+  "enemy": {
+    "aggroRange": 10,
+    "depthTolerance": 0.5,
+    "maxSimultaneousAttackers": 1,
+    "attackMove": "enemyPunch",
+    "attackSlotDuration": 1.5,
+    "attackSlotRecovery": 1,
+    "deceleration": 0,
+    "minSpacing": 2.5,
+    "crowdedThreshold": 0.1,
+    "avoidanceWeight": 0.7,
+    "circleSpeedFactor": 0.5,
+    "linearDamping": 2,
+    "patrol": {
+      "retargetInterval": 3,
+      "minDistance": 3,
+      "maxDistance": 8,
+      "speedFactor": 0.3,
+      "arriveDistance": 0.5
+    }
+  },
+  "reactions": {
+    "knockdownDuration": 1.1,
+    "getupDuration": 0.4,
+    "getupInvulnerability": 0.6,
+    "knockbackFriction": 0.88
+  },
+  "actions": {
+    "run": {
+      "speedFactor": 1.8,
+      "doubleTapWindow": 0.25
+    },
+    "block": {
+      "damageFactor": 0.2,
+      "blockstun": 0.2,
+      "knockbackFactor": 0.5
+    },
+    "dodge": {
+      "duration": 0.3,
+      "speed": 7,
+      "cooldown": 0.25
+    }
+  },
+  "spawning": {
+    "offscreenMargin": 2,
+    "height": 2
+  },
+  "camera": {
+    "height": 6,
+    "distance": 12,
+    "lookAtHeight": 2.5,
+    "lookAtDepth": -3,
+    "fov": 50,
+    "deadZone": 2,
+    "allowBacktrack": false,
+    "edgeMargin": 0.75
+  },
+  "stage": {
+    "depthBand": [-3, 3],
+    "floorThickness": 0.5,
+    "wallHeight": 4,
+    "wallThickness": 0.5
+  },
+  "scoring": {
+    "enemyKill": 100
+  },
+  "rules": {
+    "lives": 3,
+    "continues": 2,
+    "respawnInvulnerability": 2,
+    "pickupRadius": 0.9
+  }
+}

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from './defaults'
-import { EnemyType } from '../types/game'
 import { SIM_STEP } from '../sim/loop'
 import { validateMoves } from '../sim/moves'
 import { LEVELS } from './levels'
@@ -12,7 +11,7 @@ describe('DEFAULT_CONFIG', () => {
   })
 
   it('defines every enemy type', () => {
-    for (const type of Object.values(EnemyType)) {
+    for (const type of ['BASIC', 'FAST', 'HEAVY', 'FLANKER']) {
       expect(DEFAULT_CONFIG.enemyTypes[type]).toBeDefined()
     }
   })

@@ -177,7 +177,7 @@ export class ContentRegistry {
       return { ...rest, url: url ?? assetUrl(this.resolve(`asset:${asset ?? ''}`)) }
     }
     const s = this.settings
-    const config = {
+    const config: GameConfig = {
       ...s,
       player: { ...s.player, model: model(s.player.model) },
       enemyTypes: Object.fromEntries(
@@ -186,10 +186,8 @@ export class ContentRegistry {
       ai: { ...this.ai },
       moves: { ...this.moves },
       pickups: { ...this.pickups },
-      // The runtime still keys enemy types and AI archetypes by fixed unions;
-      // M2.2 widens them to the registry's string ids.
-    } as unknown as GameConfig
-    return { config, levels: this.levels as Level[] }
+    }
+    return { config, levels: [...this.levels] }
   }
 }
 

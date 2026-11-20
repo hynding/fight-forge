@@ -1,0 +1,20 @@
+{
+  "food": {
+    "effect": "heal",
+    "amount": 30,
+    "color": "#ff8833",
+    "size": 0.35
+  },
+  "feast": {
+    "effect": "heal",
+    "amount": 100,
+    "color": "#ff3366",
+    "size": 0.5
+  },
+  "coin": {
+    "effect": "score",
+    "amount": 500,
+    "color": "#ffdd33",
+    "size": 0.3
+  }
+}

@@ -4,7 +4,7 @@ import { Billboard } from '@react-three/drei'
 import { Vector3 } from 'three'
 import { EnemyType } from '../types/game'
 import { useGameStore } from '../store/gameStore'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { useSimSystem } from '../sim/simContext'
 import {
@@ -20,9 +20,6 @@ import { createFighterRuntime, idleIntent, isBusy, type FighterRuntime, type Vec
 import { stageBounds, type StageView } from '../sim/stage'
 import { FighterBody } from './FighterBody'
 
-const E = DEFAULT_CONFIG.enemy
-const BODY = DEFAULT_CONFIG.body
-const MOVES = DEFAULT_CONFIG.moves
 const HEALTH_BAR_WIDTH = 1.2
 
 interface EnemyProps {
@@ -40,7 +37,9 @@ interface EnemyProps {
 /** An enemy: a FighterBody driven by its type's AI archetype (`def.ai`). */
 export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
   ({ id, type, position, playerPositionRef, enemyRefs, stageLength, view, runtimes }, ref) => {
-    const def = DEFAULT_CONFIG.enemyTypes[type]
+    const config = getConfig()
+    const { enemy: E, body: BODY, moves: MOVES } = config
+    const def = config.enemyTypes[type]
     const [runtime] = useState(createFighterRuntime)
     const memory = useRef(createBrawlerMemory())
     // Attack-slot hold/recovery countdowns, stepped by the sim (game time).
@@ -48,7 +47,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     // Set by the AI when it's in reach and wants to hit; acted on by the slot system.
     const wantsAttack = useRef(false)
     const [ai] = useState<BrawlerConfig>(() => ({ ...E, aggroRange: E.aggroRange * def.aggression }))
-    const behavior = DEFAULT_CONFIG.ai[def.ai]
+    const behavior = config.ai[def.ai]
     const attackMove = def.attackMove ?? E.attackMove
     const [movement] = useState(() => ({
       walkSpeed: def.speed,
@@ -160,7 +159,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         health={health}
         isAttacking={isAttacking}
         getIntent={getIntent}
-        getBounds={() => stageBounds(stageLength, DEFAULT_CONFIG.stage.depthBand)}
+        getBounds={() => stageBounds(stageLength, config.stage.depthBand)}
         runtime={runtime}
       >
         {/* Health bar: outside the rotating model and billboarded so it always

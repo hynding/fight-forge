@@ -43,7 +43,7 @@ export type Trigger =
 export interface LevelItem {
   /** X offset inside the segment. */
   at: number
-  /** Name in `DEFAULT_CONFIG.pickups`. */
+  /** Pickup id in the content's `pickups`. */
   pickup: string
   /** Position across the depth lane: 0 = back, 1 = front (default middle). */
   depth?: number

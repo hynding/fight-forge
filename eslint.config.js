@@ -21,4 +21,22 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  {
+    // Gameplay reads the active content (getConfig / getLevels from src/content/active),
+    // so a loaded pack takes effect. The static defaults are for tests and tools only.
+    files: ['src/components/**', 'src/store/**', 'src/sim/**', 'src/hooks/**', 'src/App.tsx'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: '../config/levels', message: 'Use getLevels() from src/content/active.' },
+            { name: '../content/defaultContent', message: 'Use getContent() from src/content/active.' },
+            { name: '../config/defaults', importNames: ['DEFAULT_CONFIG'], message: 'Use getConfig() from src/content/active.' },
+          ],
+        },
+      ],
+    },
+  },
 )

@@ -15,7 +15,7 @@ export const inputIntent = (c: Controls): Intent => ({
   dodge: c.dodge,
 })
 
-/** Shared enemy AI tuning (from `DEFAULT_CONFIG.enemy`, aggro scaled per type). */
+/** Shared enemy AI tuning (the content's `enemy` settings, aggro scaled per type). */
 export interface BrawlerConfig {
   aggroRange: number
   /** An enemy attacks only when this close to the player in depth (Z), lined up like a beat 'em up. */
@@ -32,9 +32,6 @@ export interface BrawlerConfig {
     arriveDistance: number
   }
 }
-
-/** The archetypes an enemy definition can pick. */
-export type AiKind = 'brawler' | 'rusher' | 'tank' | 'flanker'
 
 /**
  * One archetype's strategy, as data. `approach` picks where the enemy stands:

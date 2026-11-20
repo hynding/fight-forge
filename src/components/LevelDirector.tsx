@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Vector3 } from 'three'
 import { useGameStore } from '../store/gameStore'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { createLevelRuntime, placeItems, stepLevel, type Level, type SpawnDef } from '../sim/level'
 import { offscreenSpawn, type StageView } from '../sim/stage'
 
-const { spawning: SPAWN, stage: STAGE, enemyTypes: ENEMY_TYPES } = DEFAULT_CONFIG
 // The "GO →" prompt hides once the player has walked this far past the
 // released lock, or after this long.
 const GO_PROMPT_DISTANCE = 4
@@ -46,22 +45,22 @@ export const LevelDirector = ({
     if (def.from === 'placed') {
       at = {
         x: Math.min(stageLength, Math.max(0, triggerX + (def.x ?? 0))),
-        z: STAGE.depthBand[0] + depth * (STAGE.depthBand[1] - STAGE.depthBand[0]),
+        z: getConfig().stage.depthBand[0] + depth * (getConfig().stage.depthBand[1] - getConfig().stage.depthBand[0]),
       }
     } else {
       // Off the left edge at the stage start would be on screen; come from the right.
-      const leftOffStage = view.cameraX - view.halfWidth - SPAWN.offscreenMargin < 0
+      const leftOffStage = view.cameraX - view.halfWidth - getConfig().spawning.offscreenMargin < 0
       const side = def.from === 'left' && !leftOffStage ? -1 : 1
-      at = offscreenSpawn(view, side, SPAWN.offscreenMargin, depth, stageLength, STAGE.depthBand)
+      at = offscreenSpawn(view, side, getConfig().spawning.offscreenMargin, depth, stageLength, getConfig().stage.depthBand)
     }
     const id = nextEnemyId()
-    const maxHealth = ENEMY_TYPES[def.type].maxHealth
+    const maxHealth = getConfig().enemyTypes[def.type].maxHealth
     useGameStore.getState().spawnEnemy({
       id,
       type: def.type,
       health: maxHealth,
       maxHealth,
-      position: [at.x, SPAWN.height, at.z],
+      position: [at.x, getConfig().spawning.height, at.z],
     })
     return id
   }
@@ -70,7 +69,7 @@ export const LevelDirector = ({
     const store = useGameStore.getState()
     store.setLevelProgress({ levelName: level.name })
     // Level items lie on the stage from the start (stable ids, so a re-run doesn't duplicate them).
-    const [z0, z1] = STAGE.depthBand
+    const [z0, z1] = getConfig().stage.depthBand
     for (const it of placeItems(level)) {
       store.spawnPickup({ id: it.id, pickup: it.pickup, x: it.x, z: z0 + it.depth * (z1 - z0) })
     }

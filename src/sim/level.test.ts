@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EnemyType } from '../types/game'
-import { DEFAULT_LEVEL, LEVELS } from '../config/levels'
+import { LEVELS } from '../config/levels'
 import { SIM_STEP } from './loop'
 import {
   createLevelRuntime,
@@ -14,7 +13,8 @@ import {
   type SpawnDef,
 } from './level'
 
-const B = EnemyType.BASIC
+const B = 'BASIC'
+const DEFAULT_LEVEL = LEVELS[0]
 
 const LEVEL: Level = {
   id: 't',

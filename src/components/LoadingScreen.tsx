@@ -1,37 +1,64 @@
 import { useEffect, useState } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useGameStore } from '../store/gameStore'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { setActiveContent } from '../content/active'
+import { defaultPack } from '../content/defaultPack'
+import { loadContent } from '../content/load'
 import { gltfModelUrls } from '../config/models'
 
-const LOADING_DURATION_MS = 2000
+// Keep the screen up at least this long so it doesn't just flash.
+const MIN_DURATION_MS = 600
 
+/**
+ * Loads the run's content: validates the packs (just the default pack for
+ * now; M2.3 adds pack selection), installs them as the active content, and
+ * fetches every glTF model they use, then starts the game. Invalid content
+ * stops here with the error list instead of starting a broken run.
+ */
 export const LoadingScreen = () => {
   const [progress, setProgress] = useState(0)
   const [loadingText, setLoadingText] = useState('Loading')
+  const [status, setStatus] = useState('Checking content')
+  const [error, setError] = useState<string | null>(null)
   const setGameScreen = useGameStore((state) => state.setGameScreen)
 
-  // Start fetching character models now so the scene usually finds them cached.
-  // The scene still suspends on any that aren't ready, showing the box humanoid.
   useEffect(() => {
-    gltfModelUrls(DEFAULT_CONFIG).forEach((url) => useGLTF.preload(url))
-  }, [])
-
-  useEffect(() => {
-    // Simulated load: start the game once it "finishes". Cleared on unmount so a
-    // stale timer can never yank the user into the game from another screen.
-    const timer = setTimeout(() => setGameScreen('playing'), LOADING_DURATION_MS)
-    return () => clearTimeout(timer)
+    // Cleared on unmount so a stale load can never yank the user into the game from another screen.
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const started = Date.now()
+    const run = async () => {
+      const result = loadContent([defaultPack()])
+      if (cancelled) return
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      setActiveContent(result.value)
+      const urls = gltfModelUrls(result.value.config)
+      setStatus(urls.length ? 'Loading models' : 'Ready')
+      setProgress(urls.length ? 10 : 100)
+      let done = 0
+      await Promise.all(
+        urls.map(async (url) => {
+          // Warm the HTTP cache and start the parse, so the scene usually finds
+          // models ready; a failed model falls back to the box humanoid in game.
+          useGLTF.preload(url)
+          await fetch(url).then((r) => r.blob()).catch(() => undefined)
+          done++
+          if (!cancelled) setProgress(10 + Math.round((90 * done) / urls.length))
+        })
+      )
+      if (cancelled) return
+      setStatus('Ready')
+      timer = setTimeout(() => setGameScreen('playing'), Math.max(0, MIN_DURATION_MS - (Date.now() - started)))
+    }
+    void run()
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
   }, [setGameScreen])
-
-  useEffect(() => {
-    // Simulate loading progress
-    const interval = setInterval(() => {
-      setProgress((prev) => Math.min(100, prev + 5))
-    }, LOADING_DURATION_MS / 20)
-
-    return () => clearInterval(interval)
-  }, [])
 
   useEffect(() => {
     // Animated loading text
@@ -61,6 +88,20 @@ export const LoadingScreen = () => {
       fontFamily: 'monospace',
       userSelect: 'none',
     }}>
+      {error && (
+        <div style={{ position: 'absolute', inset: 0, background: '#120a0a', padding: '40px', overflow: 'auto', zIndex: 1 }}>
+          <h2 style={{ color: '#ff4444', letterSpacing: '2px' }}>CONTENT ERRORS</h2>
+          <p style={{ color: '#aaaaaa' }}>The game content failed validation, so the run can't start:</p>
+          <pre style={{ whiteSpace: 'pre-wrap', color: '#ffbbbb', fontSize: '13px' }}>{error}</pre>
+          <button
+            onClick={() => setGameScreen('menu')}
+            style={{ marginTop: '20px', padding: '10px 24px', fontFamily: 'monospace', fontSize: '16px', cursor: 'pointer' }}
+          >
+            BACK TO MENU
+          </button>
+        </div>
+      )}
+
       {/* Loading Text */}
       <h2 style={{
         fontSize: '32px',
@@ -97,7 +138,7 @@ export const LoadingScreen = () => {
         color: '#aaaaaa',
         letterSpacing: '2px',
       }}>
-        {progress}%
+        {progress}% · {status}
       </div>
 
       {/* Loading Tips */}
