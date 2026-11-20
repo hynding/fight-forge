@@ -29,7 +29,7 @@ What stands between it and the goal:
 | Creator tooling | None | An in-browser editor ("Forge mode") with live preview and import/export |
 | Project hygiene | No CI | CI running lint, test, and build on every PR |
 
-There is also an unmerged `copilot/create-brawler-engine-framework` branch. It is a separate 2D, DOM-rendered engine on a different stack and shares no code with `main`. This plan does not build on it; recommend closing it once this roadmap is accepted.
+There is also an unmerged `copilot/create-brawler-engine-framework` branch. It is a separate 2D, DOM-rendered engine on a different stack and shares no code with `main`. This plan does not build on it, and Steve has agreed to close it (section 6).
 
 ---
 
@@ -40,7 +40,7 @@ There is also an unmerged `copilot/create-brawler-engine-framework` branch. It i
 - **Developers** can still extend the engine in code (new AI behaviors, new move effects), and those extensions become new options in the data.
 - **Single player first.** Local co-op is a stretch goal, but the architecture below keeps it possible (no "the player" singletons in combat code).
 
-The open questions in section 6 can change these assumptions; the phases are ordered so that the earliest work holds up under any of the answers.
+The genre and creator assumptions are confirmed (section 6). The remaining open questions there only affect later phases.
 
 ---
 
@@ -259,15 +259,18 @@ An in-app editor reachable from the start menu, as a new `gameScreen: 'forge'`. 
 
 ---
 
-## 6. Open questions for Steve
+## 6. Decisions and open questions
 
-These would change the plan, so they are worth settling before Phase 1:
+Settled by Steve on 2026-11-20:
 
-1. **Camera and movement:** is a 2.5D belt-scroller (left/right plus a shallow depth lane) the intended "scrollable", or should movement be a strict 2D plane (left/right and jump only)? The plan assumes the belt-scroller.
-2. **Who are the creators?** Non-programmers using an in-app editor (assumed), or developers editing JSON / TS directly? This decides how much of Phase 3 is needed versus documentation.
-3. **Sharing:** are local file import / export enough, or should packs be shareable online? Online sharing needs a backend and accounts.
-4. **Art direction:** keep the procedural low-poly look as the house style, or plan for imported models early (pulling M4.1 forward)?
-5. **The `copilot/create-brawler-engine-framework` branch:** OK to close it?
+1. **Camera and movement:** a classic 2.5D beat 'em up. Fighters move left/right along the level plus a shallow depth lane, and the camera scrolls as the player advances. (Settled; this is what Phase 1 builds.)
+2. **Who are the creators?** Non-programmers using the in-app Forge editor. Phase 3 stays in scope as planned. (Settled.)
+3. **The `copilot/create-brawler-engine-framework` branch:** close it; this plan does not build on it. (Settled.)
+
+Still open (neither blocks Phase 0 or Phase 1):
+
+4. **Sharing:** are local file import / export enough, or should packs be shareable online? Online sharing needs a backend and accounts. The plan assumes local files until this is decided (needed by M2.3).
+5. **Art direction:** keep the procedural low-poly look as the house style, or plan for imported models early (pulling M4.1 forward)? The plan assumes procedural first.
 
 ---
 
