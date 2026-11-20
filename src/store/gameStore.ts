@@ -14,6 +14,24 @@ export interface Enemy {
 
 type GameScreen = 'menu' | 'loading' | 'playing'
 
+/** What the HUD shows about the level. Per-frame level state lives in the level runtime. */
+export interface LevelProgress {
+  levelName: string
+  /** Set when the goal is reached; the scene freezes and shows the results overlay. */
+  complete: boolean
+  /** "GO →" after a screen lock is released. */
+  goPrompt: boolean
+  /** e.g. "Wave 2/3" during a fight, null otherwise. */
+  waveLabel: string | null
+}
+
+const INITIAL_LEVEL_PROGRESS: LevelProgress = {
+  levelName: '',
+  complete: false,
+  goPrompt: false,
+  waveLabel: null,
+}
+
 interface GameState {
   playerHealth: number
   playerMaxHealth: number
@@ -25,6 +43,7 @@ interface GameState {
   attackingEnemyId: string | null
   /** Incremented on every reset. App keys GameScene on it so a restart remounts the scene. */
   gameId: number
+  levelProgress: LevelProgress
 
   // Actions
   damagePlayer: (damage: number) => void
@@ -37,7 +56,13 @@ interface GameState {
   togglePause: () => void
   setGameScreen: (screen: GameScreen) => void
   setAttackingEnemy: (id: string | null) => void
+  setLevelProgress: (patch: Partial<LevelProgress>) => void
+  completeLevel: () => void
 }
+
+/** True while the game shouldn't advance: paused, game over, or level complete. */
+export const isFrozen = (s: Pick<GameState, 'isPaused' | 'isGameOver' | 'levelProgress'>): boolean =>
+  s.isPaused || s.isGameOver || s.levelProgress.complete
 
 export const useGameStore = create<GameState>((set) => ({
   playerHealth: DEFAULT_CONFIG.player.maxHealth,
@@ -49,10 +74,11 @@ export const useGameStore = create<GameState>((set) => ({
   gameScreen: 'menu',
   attackingEnemyId: null,
   gameId: 0,
+  levelProgress: INITIAL_LEVEL_PROGRESS,
 
   damagePlayer: (damage) =>
     set((state) => {
-      if (state.isGameOver) return {}
+      if (state.isGameOver || state.levelProgress.complete) return {}
       const newHealth = Math.max(0, state.playerHealth - damage)
       return {
         playerHealth: newHealth,
@@ -87,7 +113,7 @@ export const useGameStore = create<GameState>((set) => ({
   // dead enemy never lingers for a frame.
   damageEnemy: (id, damage) =>
     set((state) => {
-      if (state.isGameOver) return {}
+      if (state.isGameOver || state.levelProgress.complete) return {}
       const target = state.enemies.find((e) => e.id === id)
       if (!target) return {}
 
@@ -114,13 +140,16 @@ export const useGameStore = create<GameState>((set) => ({
       isPaused: false,
       attackingEnemyId: null,
       gameId: state.gameId + 1,
+      levelProgress: INITIAL_LEVEL_PROGRESS,
       // Keep current screen if we're just resetting, otherwise go to playing
       gameScreen: state.gameScreen === 'menu' ? 'menu' : 'playing',
     })),
 
-  // Pausing is meaningless once the game is over (the game-over overlay owns the screen).
+  // Pausing is meaningless once the game or level is over (their overlay owns the screen).
   togglePause: () =>
-    set((state) => (state.isGameOver ? {} : { isPaused: !state.isPaused })),
+    set((state) =>
+      state.isGameOver || state.levelProgress.complete ? {} : { isPaused: !state.isPaused }
+    ),
 
   setGameScreen: (screen) =>
     set({
@@ -131,4 +160,17 @@ export const useGameStore = create<GameState>((set) => ({
     set({
       attackingEnemyId: id,
     }),
+
+  setLevelProgress: (patch) =>
+    set((state) => ({ levelProgress: { ...state.levelProgress, ...patch } })),
+
+  completeLevel: () =>
+    set((state) =>
+      state.isGameOver
+        ? {}
+        : {
+            levelProgress: { ...state.levelProgress, complete: true, goPrompt: false, waveLabel: null },
+            isPaused: false,
+          }
+    ),
 }))

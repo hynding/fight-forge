@@ -6,6 +6,7 @@ export const HUD = () => {
   const score = useGameStore((state) => state.score)
   const enemies = useGameStore((state) => state.enemies)
   const isGameOver = useGameStore((state) => state.isGameOver)
+  const level = useGameStore((state) => state.levelProgress)
   const resetGame = useGameStore((state) => state.resetGame)
   const setGameScreen = useGameStore((state) => state.setGameScreen)
 
@@ -24,7 +25,7 @@ export const HUD = () => {
       left: 0,
       width: '100%',
       padding: '20px',
-      // The game-over panel opts back in; the rest must let drags reach the canvas.
+      // The end-of-game panel opts back in; the rest must let drags reach the canvas.
       pointerEvents: 'none',
       color: 'white',
       fontFamily: 'monospace',
@@ -57,18 +58,38 @@ export const HUD = () => {
         SCORE: {score}
       </div>
 
-      {/* Enemy Count */}
+      {/* Level and fight progress */}
       <div style={{ fontSize: '16px', marginBottom: '10px' }}>
-        ENEMIES: {enemies.length}
+        {level.levelName.toUpperCase()}
+        {level.waveLabel && ` | ${level.waveLabel.toUpperCase()}`}
+        {` | ENEMIES: ${enemies.length}`}
       </div>
+
+      {level.goPrompt && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '35%',
+            right: '8%',
+            fontSize: '56px',
+            fontWeight: 'bold',
+            color: '#ffdd44',
+            textShadow: '0 0 12px #000',
+            animation: 'ff-go-blink 0.6s steps(2, start) infinite',
+          }}
+        >
+          GO →
+          <style>{'@keyframes ff-go-blink { to { visibility: hidden; } }'}</style>
+        </div>
+      )}
 
       {/* Controls */}
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
         A/D - Move | W/S - Depth | SPACE - Jump | J - Attack | ESC - Pause
       </div>
 
-      {/* Game Over Screen */}
-      {isGameOver && (
+      {/* Game over / level complete */}
+      {(isGameOver || level.complete) && (
         <div style={{
           position: 'fixed',
           top: '50%',
@@ -80,8 +101,14 @@ export const HUD = () => {
           textAlign: 'center',
           pointerEvents: 'auto',
         }}>
-          <h1 style={{ fontSize: '48px', color: '#ff0000', marginBottom: '20px' }}>
-            GAME OVER
+          <h1
+            style={{
+              fontSize: '48px',
+              color: isGameOver ? '#ff0000' : '#44ff88',
+              marginBottom: '20px',
+            }}
+          >
+            {isGameOver ? 'GAME OVER' : 'LEVEL COMPLETE'}
           </h1>
           <div style={{ fontSize: '24px', marginBottom: '30px' }}>
             Final Score: {score}
@@ -105,7 +132,7 @@ export const HUD = () => {
                 e.currentTarget.style.backgroundColor = '#4444ff'
               }}
             >
-              RESTART
+              {isGameOver ? 'RESTART' : 'PLAY AGAIN'}
             </button>
             <button
               onClick={handleReturnToMenu}

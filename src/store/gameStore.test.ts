@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { ENEMY_KILL_SCORE, useGameStore, type Enemy } from './gameStore'
+import { ENEMY_KILL_SCORE, isFrozen, useGameStore, type Enemy } from './gameStore'
 import { EnemyType } from '../types/game'
 
 const makeEnemy = (id: string, health = 50): Enemy => ({
@@ -112,5 +112,29 @@ describe('resetGame', () => {
   it('stays on the menu when reset from the menu', () => {
     useGameStore.getState().resetGame()
     expect(useGameStore.getState().gameScreen).toBe('menu')
+  })
+})
+
+describe('level completion', () => {
+  it('freezes the game and blocks further damage and pausing', () => {
+    const s = useGameStore.getState()
+    s.spawnEnemy(makeEnemy('a'))
+    s.completeLevel()
+    const after = useGameStore.getState()
+    expect(after.levelProgress.complete).toBe(true)
+    expect(isFrozen(after)).toBe(true)
+    after.damagePlayer(10)
+    after.damageEnemy('a', 100)
+    after.togglePause()
+    const end = useGameStore.getState()
+    expect(end.playerHealth).toBe(end.playerMaxHealth)
+    expect(end.enemies).toHaveLength(1)
+    expect(end.isPaused).toBe(false)
+  })
+
+  it('is cleared by a reset', () => {
+    useGameStore.getState().completeLevel()
+    useGameStore.getState().resetGame()
+    expect(useGameStore.getState().levelProgress.complete).toBe(false)
   })
 })

@@ -119,15 +119,10 @@ export interface GameConfig {
   }
   enemyTypes: Record<EnemyType, EnemyTypeDef>
   spawning: {
-    initialType: EnemyType
-    initialPositions: Vec3[]
-    /** Game time between periodic spawns. */
-    interval: number
-    maxEnemies: number
-    /** Periodic spawns appear this far beyond the left or right screen edge. */
+    /** Enemies that walk in appear this far beyond the left or right screen edge. */
     offscreenMargin: number
+    /** Drop height for spawned enemies. */
     height: number
-    types: EnemyType[]
   }
   camera: {
     /** Height above the ground and distance in front of the depth lane's centre (z = 0). */
@@ -145,9 +140,8 @@ export interface GameConfig {
     /** Fighters stay this far inside the left and right screen edges. */
     edgeMargin: number
   }
+  /** The level's length comes from its segments (see src/sim/level.ts). */
   stage: {
-    /** The level runs from x = 0 to x = length. */
-    length: number
     /** Depth lane: fighters move within z in [min, max]. */
     depthBand: [number, number]
     floorThickness: number
@@ -240,18 +234,8 @@ export const DEFAULT_CONFIG: GameConfig = {
     [EnemyType.HEAVY]: { maxHealth: 100, scale: 1.3, speed: 1.5, aggression: 0.8, color: '#ff0000', model: ENEMY_MODEL },
   },
   spawning: {
-    initialType: EnemyType.BASIC,
-    initialPositions: [
-      [8, 2, -1.5],
-      [10, 2, 1.5],
-      [14, 2, -2],
-      [16, 2, 2],
-    ],
-    interval: 5,
-    maxEnemies: 8,
     offscreenMargin: 2,
     height: 2,
-    types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY],
   },
   camera: {
     height: 6,
@@ -264,7 +248,6 @@ export const DEFAULT_CONFIG: GameConfig = {
     edgeMargin: 0.75,
   },
   stage: {
-    length: 200,
     depthBand: [-3, 3],
     floorThickness: 0.5,
     wallHeight: 4,

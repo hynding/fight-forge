@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { DEFAULT_CONFIG } from '../config/defaults'
 
-const { length, depthBand, floorThickness, wallHeight, wallThickness } = DEFAULT_CONFIG.stage
+const { depthBand, floorThickness, wallHeight, wallThickness } = DEFAULT_CONFIG.stage
 const [minZ, maxZ] = depthBand
 // The floor runs a little past both ends and from the back wall to past the
 // front of the lane, so the camera never sees its edge.
@@ -34,18 +34,18 @@ const SolidBox = ({ position, size, color }: { position: V3; size: V3; color: st
 const PILLAR_EVERY = 10
 
 /**
- * A long side-scrolling strip from x = 0 to `stage.length`: floor with
+ * A long side-scrolling strip from x = 0 to the level's `length`: floor with
  * alternating tiles (so scrolling reads), a back wall with pillars, the depth
  * lane's edges marked, and solid walls at both ends.
  */
-export const Stage = () => {
+export const Stage = ({ length }: { length: number }) => {
   const tiles = useMemo(
     () => Array.from({ length: Math.ceil(length / TILE) }, (_, i) => i * TILE + TILE / 2),
-    []
+    [length]
   )
   const pillars = useMemo(
     () => Array.from({ length: Math.floor(length / PILLAR_EVERY) + 1 }, (_, i) => i * PILLAR_EVERY),
-    []
+    [length]
   )
   const top = floorThickness / 2
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from './defaults'
 import { EnemyType } from '../types/game'
 import { MAX_FRAME_STEP } from '../utils/gameTime'
+import { DEFAULT_LEVEL } from './levels'
 
 describe('DEFAULT_CONFIG', () => {
   it('matches the snapshot (update it deliberately when retuning)', () => {
@@ -14,11 +15,11 @@ describe('DEFAULT_CONFIG', () => {
     }
   })
 
-  it('only spawns defined enemy types', () => {
-    const { spawning, enemyTypes } = DEFAULT_CONFIG
-    for (const type of [spawning.initialType, ...spawning.types]) {
-      expect(enemyTypes[type]).toBeDefined()
-    }
+  it('only spawns defined enemy types in the shipped level', () => {
+    const types = DEFAULT_LEVEL.segments
+      .flatMap((s) => s.triggers)
+      .flatMap((t) => (t.kind === 'wave' ? t.waves.flatMap((w) => w.enemies.map((e) => e.type)) : []))
+    for (const type of types) expect(DEFAULT_CONFIG.enemyTypes[type]).toBeDefined()
   })
 
   it('keeps the player swing longer than one clamped frame step', () => {

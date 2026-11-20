@@ -196,37 +196,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   },
   "spawning": {
     "height": 2,
-    "initialPositions": [
-      [
-        8,
-        2,
-        -1.5,
-      ],
-      [
-        10,
-        2,
-        1.5,
-      ],
-      [
-        14,
-        2,
-        -2,
-      ],
-      [
-        16,
-        2,
-        2,
-      ],
-    ],
-    "initialType": "BASIC",
-    "interval": 5,
-    "maxEnemies": 8,
     "offscreenMargin": 2,
-    "types": [
-      "BASIC",
-      "FAST",
-      "HEAVY",
-    ],
   },
   "stage": {
     "depthBand": [
@@ -234,7 +204,6 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       3,
     ],
     "floorThickness": 0.5,
-    "length": 200,
     "wallHeight": 4,
     "wallThickness": 0.5,
   },
