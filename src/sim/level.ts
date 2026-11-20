@@ -219,9 +219,12 @@ export const stepLevel = (rt: LevelRuntime, input: LevelStepInput, dt: number): 
     for (const q of enc.queue) q.delayLeft -= dt
     const ready = enc.queue.filter((q) => q.delayLeft <= 1e-9)
     enc.queue = enc.queue.filter((q) => q.delayLeft > 1e-9)
-    for (const q of ready) enc.spawned.push(input.spawn(q.def, enc.trigger.x))
+    // Enemies spawned this step count as alive: the caller's view of who is
+    // alive may predate them (a wave with no delays spawns and checks at once).
+    const fresh = ready.map((q) => input.spawn(q.def, enc.trigger.x))
+    enc.spawned.push(...fresh)
 
-    const cleared = enc.queue.length === 0 && enc.spawned.every((id) => !input.isAlive(id))
+    const cleared = enc.queue.length === 0 && fresh.length === 0 && enc.spawned.every((id) => !input.isAlive(id))
     if (!cleared) continue
     enc.waveIndex++
     if (enc.waveIndex < enc.trigger.waves.length) {

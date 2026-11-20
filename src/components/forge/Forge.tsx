@@ -17,6 +17,7 @@ import {
 } from '../../forge/workspace'
 import { downloadBytes } from '../../utils/download'
 import { Field } from './SchemaForm'
+import { EnemyTools } from './EnemyTools'
 import { FighterTools } from './FighterTools'
 import { MoveTools } from './MoveTools'
 import { sectionHeading, ui } from './ui'
@@ -53,6 +54,9 @@ const nodePrefixes = (json: PackJson, node: TreeNode): string[] => {
   return [own, `levels.${String(id)}`]
 }
 
+/** Where the creator was, so coming back from a playtest lands on the same item. */
+const last = { packId: null as string | null, nodeKey: 'pack' }
+
 const errorsFor = (errors: ContentError[], prefixes: string[]) =>
   errors.filter((e) => prefixes.some((p) => e.path === p || e.path.startsWith(`${p}.`) || e.path.startsWith(`${p}[`)))
 
@@ -65,8 +69,8 @@ const errorsFor = (errors: ContentError[], prefixes: string[]) =>
 export const Forge = () => {
   const setGameScreen = useGameStore((s) => s.setGameScreen)
   const [packs, setPacks] = useState<WorkspacePack[] | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [nodeKey, setNodeKey] = useState('pack')
+  const [selectedId, setSelectedId] = useState<string | null>(last.packId)
+  const [nodeKey, setNodeKey] = useState(last.nodeKey)
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -76,9 +80,14 @@ export const Forge = () => {
   useEffect(() => {
     store.list().then((list) => {
       setPacks(list)
-      setSelectedId(list[0]?.id ?? null)
+      setSelectedId((id) => (id && list.some((p) => p.id === id) ? id : (list[0]?.id ?? null)))
     })
   }, [store])
+
+  useEffect(() => {
+    last.packId = selectedId
+    last.nodeKey = nodeKey
+  }, [selectedId, nodeKey])
 
   const pack = packs?.find((p) => p.id === selectedId) ?? null
   const ids = packs?.map((p) => p.id) ?? []
@@ -314,6 +323,16 @@ export const Forge = () => {
                   </div>
                 ))}
               </div>
+            )}
+            {node.group === 'enemyTypes' && (
+              <EnemyTools
+                key={`enemy:${node.key}`}
+                pack={pack}
+                node={node}
+                save={(wp) => put(wp, false)}
+                onError={(text) => setMessage({ text, error: true })}
+                invalid={errors.length > 0}
+              />
             )}
             {(node.key === 'settings/player' || node.group === 'enemyTypes') && (
               <div style={{ marginTop: '10px' }}>

@@ -49,7 +49,6 @@ export const HUD = () => {
   const isGameOver = useGameStore((state) => state.isGameOver)
   const level = useGameStore((state) => state.levelProgress)
   const resetGame = useGameStore((state) => state.resetGame)
-  const setGameScreen = useGameStore((state) => state.setGameScreen)
   const showHitboxes = useGameStore((state) => state.showHitboxes)
   const lives = useGameStore((state) => state.lives)
   const continuesLeft = useGameStore((state) => state.continuesLeft)
@@ -59,7 +58,8 @@ export const HUD = () => {
   const continueGame = useGameStore((state) => state.continueGame)
   const nextLevel = useGameStore((state) => state.nextLevel)
   const startRun = useGameStore((state) => state.startRun)
-  const lastLevel = levelIndex >= getLevels().length - 1
+  const sandbox = useGameStore((state) => state.sandbox !== null)
+  const lastLevel = sandbox || levelIndex >= getLevels().length - 1
 
   // The hitbox key (H by default) toggles the debug overlay.
   useEffect(() => {
@@ -71,9 +71,7 @@ export const HUD = () => {
   }, [])
 
   const handleReturnToMenu = () => {
-    setGameScreen('menu')
-    // Reset game state when returning to menu
-    resetGame()
+    useGameStore.getState().quitRun()
   }
 
   const healthPercentage = (playerHealth / playerMaxHealth) * 100
@@ -120,7 +118,7 @@ export const HUD = () => {
 
       {/* Level and fight progress */}
       <div style={{ fontSize: '16px', marginBottom: '10px' }}>
-        {`LEVEL ${levelIndex + 1}/${getLevels().length}: ${level.levelName.toUpperCase()}`}
+        {sandbox ? 'FORGE SANDBOX' : `LEVEL ${levelIndex + 1}/${getLevels().length}: ${level.levelName.toUpperCase()}`}
         {level.waveLabel && ` | ${level.waveLabel.toUpperCase()}`}
         {` | ENEMIES: ${enemies.length}`}
       </div>
@@ -171,14 +169,14 @@ export const HUD = () => {
               margin: '0 0 20px',
             }}
           >
-            {isGameOver ? 'GAME OVER' : lastLevel ? 'ALL LEVELS CLEAR!' : 'LEVEL COMPLETE'}
+            {isGameOver ? 'GAME OVER' : sandbox ? 'SANDBOX CLEAR' : lastLevel ? 'ALL LEVELS CLEAR!' : 'LEVEL COMPLETE'}
           </h1>
           <table style={{ margin: '0 auto 30px', fontSize: '20px', borderSpacing: '24px 6px' }}>
             <tbody>
               <ResultRow label="SCORE" value={score} />
               {level.complete && level.time !== null && <ResultRow label="TIME" value={formatTime(level.time)} />}
               <ResultRow label="KOs" value={kos} />
-              {level.complete && lastLevel && levelIndex > 0 && <ResultRow label="TOTAL KOs" value={runKos} />}
+              {level.complete && lastLevel && !sandbox && levelIndex > 0 && <ResultRow label="TOTAL KOs" value={runKos} />}
               {level.complete && <ResultRow label="LIVES" value={lives} />}
             </tbody>
           </table>
@@ -193,7 +191,12 @@ export const HUD = () => {
                 NEXT LEVEL
               </MenuButton>
             )}
-            {level.complete && lastLevel && (
+            {level.complete && sandbox && (
+              <MenuButton primary onClick={resetGame}>
+                FIGHT AGAIN
+              </MenuButton>
+            )}
+            {level.complete && lastLevel && !sandbox && (
               <MenuButton primary onClick={() => startRun(0)}>
                 PLAY AGAIN
               </MenuButton>
@@ -203,7 +206,7 @@ export const HUD = () => {
                 RESTART LEVEL
               </MenuButton>
             )}
-            <MenuButton onClick={handleReturnToMenu}>MAIN MENU</MenuButton>
+            <MenuButton onClick={handleReturnToMenu}>{sandbox ? 'BACK TO FORGE' : 'MAIN MENU'}</MenuButton>
           </div>
         </div>
       )}

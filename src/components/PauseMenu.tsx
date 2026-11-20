@@ -5,8 +5,6 @@ import { actionForKey } from '../content/bindings'
 export const PauseMenu = () => {
   const isPaused = useGameStore((state) => state.isPaused)
   const togglePause = useGameStore((state) => state.togglePause)
-  const setGameScreen = useGameStore((state) => state.setGameScreen)
-  const resetGame = useGameStore((state) => state.resetGame)
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -21,8 +19,7 @@ export const PauseMenu = () => {
 
   const handleReturnToMenu = () => {
     togglePause()
-    setGameScreen('menu')
-    resetGame()
+    useGameStore.getState().quitRun()
   }
 
   const handleResume = () => {

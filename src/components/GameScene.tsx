@@ -25,8 +25,10 @@ export const GameScene = () => {
   // The scene remounts for each level (keyed on gameId), so read the level once.
   const config = getConfig()
   const [LEVEL] = useState(() => {
+    const { sandbox, levelIndex } = useGameStore.getState()
+    if (sandbox) return sandbox
     const levels = getLevels()
-    return levels[useGameStore.getState().levelIndex] ?? levels[0]
+    return levels[levelIndex] ?? levels[0]
   })
   const STAGE_LENGTH = levelLength(LEVEL)
   // The registry guarantees the level's theme exists.
