@@ -91,16 +91,15 @@ export const isMoving = (v: Vec2, stopSpeed: number): boolean =>
   Math.abs(v.x) > stopSpeed || Math.abs(v.z) > stopSpeed
 
 /**
- * New unit facing: the explicit `face` if given, else the velocity direction,
- * else unchanged. Mutates and returns `facing`.
+ * Beat 'em up facing: fighters face only left (-X) or right (+X). Follows the
+ * explicit `face` direction if given, else the velocity; depth-only movement
+ * or standing still keeps the last side. Mutates and returns `facing`.
  */
 export const updateFacing = (facing: Vec2, velocity: Vec2, face?: Vec2): Vec2 => {
-  const src = face ?? velocity
-  const len = Math.hypot(src.x, src.z)
-  if (len > 0) {
-    facing.x = src.x / len
-    facing.z = src.z / len
-  }
+  const x = face ? face.x : velocity.x
+  if (x > 1e-6) facing.x = 1
+  else if (x < -1e-6) facing.x = -1
+  facing.z = 0
   return facing
 }
 
@@ -118,7 +117,7 @@ export interface FighterRuntime {
 
 export const createFighterRuntime = (): FighterRuntime => ({
   state: 'idle',
-  facing: { x: 0, z: -1 },
+  facing: { x: 1, z: 0 },
   velocity: { x: 0, z: 0 },
   grounded: false,
   intent: null,

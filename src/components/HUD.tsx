@@ -64,7 +64,7 @@ export const HUD = () => {
 
       {/* Controls */}
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
-        WASD - Move | SPACE - Jump | J - Attack | ESC - Pause
+        A/D - Move | W/S - Depth | SPACE - Jump | J - Attack | ESC - Pause
       </div>
 
       {/* Game Over Screen */}

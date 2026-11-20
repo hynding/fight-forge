@@ -62,18 +62,26 @@ describe('stepVelocity', () => {
 })
 
 describe('facing', () => {
-  it('follows velocity, keeps the last facing when stopped', () => {
-    const f = { x: 0, z: -1 }
-    updateFacing(f, { x: 3, z: 0 })
-    expect(f).toEqual({ x: 1, z: 0 })
-    updateFacing(f, { x: 0, z: 0 })
+  it('faces left or right by horizontal velocity', () => {
+    const f = { x: 1, z: 0 }
+    updateFacing(f, { x: -3, z: 2 })
+    expect(f).toEqual({ x: -1, z: 0 })
+    updateFacing(f, { x: 0.5, z: 0 })
     expect(f).toEqual({ x: 1, z: 0 })
   })
 
+  it('keeps the last side when moving only in depth or stopped', () => {
+    const f = { x: -1, z: 0 }
+    updateFacing(f, { x: 0, z: 5 })
+    expect(f).toEqual({ x: -1, z: 0 })
+    updateFacing(f, { x: 0, z: 0 })
+    expect(f).toEqual({ x: -1, z: 0 })
+  })
+
   it('prefers an explicit face direction', () => {
-    const f = { x: 0, z: -1 }
-    updateFacing(f, { x: 1, z: 0 }, { x: 0, z: 2 })
-    expect(f).toEqual({ x: 0, z: 1 })
+    const f = { x: 1, z: 0 }
+    updateFacing(f, { x: 1, z: 0 }, { x: -2, z: 1 })
+    expect(f).toEqual({ x: -1, z: 0 })
   })
 
   it('maps facing to model yaw (models face -Z)', () => {

@@ -9,6 +9,7 @@ import { SYSTEM_ORDER } from '../sim/loop'
 import { stepPlayerAttack, type PlayerAttackState } from '../sim/timers'
 import { inputIntent } from '../sim/controllers'
 import { createFighterRuntime } from '../sim/fighter'
+import { screenBounds, type StageView } from '../sim/stage'
 import { FighterBody, type AttackVisual } from './FighterBody'
 
 const P = DEFAULT_CONFIG.player
@@ -24,11 +25,13 @@ interface PlayerProps {
   attack: PlayerAttackState
   /** Facing captured when a swing starts; CombatSystem reads it. */
   attackDirectionRef: React.RefObject<Vector3>
+  /** The scrolling view; the player stays on screen. */
+  view: StageView
 }
 
 /** The player: a FighterBody driven by the keyboard (InputController). */
 export const Player = forwardRef<RapierRigidBody, PlayerProps>(
-  ({ attack, attackDirectionRef }, ref) => {
+  ({ attack, attackDirectionRef, view }, ref) => {
     const controls = useControls()
     const [runtime] = useState(createFighterRuntime)
     // Visual only; gameplay reads the shared `attack` state.
@@ -65,6 +68,9 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(
         getIntent={() => inputIntent(controls)}
         isAttackingNow={() => attack.active}
         isDead={() => useGameStore.getState().playerHealth <= 0}
+        getBounds={() =>
+          screenBounds(view, DEFAULT_CONFIG.stage.depthBand, DEFAULT_CONFIG.camera.edgeMargin)
+        }
         runtime={runtime}
       />
     )

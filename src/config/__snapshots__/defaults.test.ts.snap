@@ -2,12 +2,6 @@
 
 exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retuning) 1`] = `
 {
-  "arena": {
-    "floorThickness": 0.5,
-    "size": 30,
-    "wallHeight": 4,
-    "wallThickness": 0.5,
-  },
   "body": {
     "colliderHalfExtents": [
       0.25,
@@ -19,19 +13,14 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "stopSpeed": 0.1,
   },
   "camera": {
-    "followOffset": [
-      0,
-      15,
-      20,
-    ],
-    "initialPosition": [
-      0,
-      17,
-      20,
-    ],
-    "maxDistance": 30,
-    "maxPolarAngle": 1.427996660722633,
-    "minDistance": 10,
+    "allowBacktrack": false,
+    "deadZone": 2,
+    "distance": 12,
+    "edgeMargin": 0.75,
+    "fov": 50,
+    "height": 6,
+    "lookAtDepth": -3,
+    "lookAtHeight": 2.5,
   },
   "enemy": {
     "aggroRange": 10,
@@ -44,6 +33,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "damage": 10,
     "damageCooldown": 1,
     "deceleration": 0,
+    "depthTolerance": 0.5,
     "hitRange": 2,
     "linearDamping": 2,
     "minSpacing": 2.5,
@@ -195,7 +185,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "url": "/models/robot-expressive.glb",
     },
     "spawnPosition": [
-      0,
+      3,
       2,
       0,
     ],
@@ -205,38 +195,48 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "enemyKill": 100,
   },
   "spawning": {
-    "distance": 10,
     "height": 2,
     "initialPositions": [
       [
-        5,
+        8,
         2,
-        5,
+        -1.5,
       ],
       [
-        -5,
+        10,
         2,
-        5,
+        1.5,
       ],
       [
-        5,
+        14,
         2,
-        -5,
+        -2,
       ],
       [
-        -5,
+        16,
         2,
-        -5,
+        2,
       ],
     ],
     "initialType": "BASIC",
     "interval": 5,
     "maxEnemies": 8,
+    "offscreenMargin": 2,
     "types": [
       "BASIC",
       "FAST",
       "HEAVY",
     ],
+  },
+  "stage": {
+    "depthBand": [
+      -3,
+      3,
+    ],
+    "floorThickness": 0.5,
+    "length": 200,
+    "wallHeight": 4,
+    "wallThickness": 0.5,
   },
 }
 `;

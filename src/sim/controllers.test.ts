@@ -47,8 +47,17 @@ describe('brawlerIntent', () => {
     const i = brawlerIntent(ctx({ x: 5, z: 0 }), createBrawlerMemory(), AI, SIM_STEP)
     expect(i.move.x).toBeCloseTo(-1)
     expect(i.move.z).toBeCloseTo(0)
-    expect(i.face).toEqual({ x: -1, z: 0 })
+    expect(i.face?.x).toBeLessThan(0)
+    expect(i.face?.z).toBe(0)
     expect(i.attack).toBe(false)
+  })
+
+  it('lines up in depth instead of attacking from above or below', () => {
+    const i = brawlerIntent(ctx({ x: 0.2, z: 2 }), createBrawlerMemory(), AI, SIM_STEP)
+    expect(i.attack).toBe(false)
+    // Heads for the spot beside the target: right (its side) and toward z = 0.
+    expect(i.move.x).toBeGreaterThan(0)
+    expect(i.move.z).toBeLessThan(0)
   })
 
   it('stands and asks to attack in attack range', () => {

@@ -1,12 +1,12 @@
 import { useRef, useState, useEffect, createRef, RefObject } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import { Physics, RapierRigidBody } from '@react-three/rapier'
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
-import { Vector3 } from 'three'
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+import { PerspectiveCamera } from '@react-three/drei'
+import { DirectionalLight, Vector3 } from 'three'
 import { Player } from './Player'
 import { Enemy } from './Enemy'
-import { Arena } from './Arena'
+import { Stage } from './Stage'
+import { CameraRig } from './CameraRig'
 import { HUD } from './HUD'
 import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
@@ -16,50 +16,19 @@ import { SimLoopDriver } from '../sim/SimLoopDriver'
 import { useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { createPlayerAttackState, stepIntervalClock } from '../sim/timers'
+import { createStageView, offscreenSpawn, type StageView } from '../sim/stage'
 
-const _cameraTarget = new Vector3()
-
-const { spawning: SPAWN, enemyTypes: ENEMY_TYPES, camera: CAMERA } = DEFAULT_CONFIG
+const { spawning: SPAWN, enemyTypes: ENEMY_TYPES, stage: STAGE } = DEFAULT_CONFIG
 
 // The timestamp prefix keeps ids unique even if a dev hot reload resets the counter.
 let enemyIdCounter = 0
 const nextEnemyId = () => `enemy-${Date.now().toString(36)}-${++enemyIdCounter}`
 
-interface CameraRigProps {
-  playerPositionRef: RefObject<Vector3>
-  controlsRef: RefObject<OrbitControlsImpl>
-}
-
-const CameraRig = ({ playerPositionRef, controlsRef }: CameraRigProps) => {
-  const { camera } = useThree()
-
-  useFrame(() => {
-    const p = playerPositionRef.current
-    if (!p) return
-
-    // After game over, OrbitControls rotation is enabled; stop forcing the camera
-    // position so the player can actually orbit around the final scene.
-    if (!useGameStore.getState().isGameOver) {
-      camera.position.set(
-        p.x + CAMERA.followOffset[0],
-        p.y + CAMERA.followOffset[1],
-        p.z + CAMERA.followOffset[2]
-      )
-    }
-
-    if (controlsRef.current) {
-      _cameraTarget.set(p.x, p.y, p.z)
-      controlsRef.current.target.copy(_cameraTarget)
-      controlsRef.current.update()
-    }
-  })
-
-  return null
-}
-
 // Periodic spawner, as a sim system: frozen while paused or game over, and the
 // clamped frame step means returning to a hidden tab can't pay out a burst.
-const EnemySpawner = () => {
+// Enemies walk in from just off a screen edge (the right one when the left
+// edge is the stage start).
+const EnemySpawner = ({ view }: { view: StageView }) => {
   const spawnEnemy = useGameStore((state) => state.spawnEnemy)
   const clock = useRef({ elapsed: 0 })
 
@@ -67,19 +36,24 @@ const EnemySpawner = () => {
     if (!stepIntervalClock(clock.current, dt, SPAWN.interval)) return
     if (useGameStore.getState().enemies.length >= SPAWN.maxEnemies) return
 
-    const angle = Math.random() * Math.PI * 2
     const randomType = SPAWN.types[Math.floor(Math.random() * SPAWN.types.length)]
+    const leftIsOffStage = view.cameraX - view.halfWidth - SPAWN.offscreenMargin < 0
+    const side = leftIsOffStage || Math.random() < 0.5 ? 1 : -1
+    const at = offscreenSpawn(
+      view,
+      side,
+      SPAWN.offscreenMargin,
+      Math.random(),
+      STAGE.length,
+      STAGE.depthBand
+    )
 
     spawnEnemy({
       id: nextEnemyId(),
       type: randomType,
       health: ENEMY_TYPES[randomType].maxHealth,
       maxHealth: ENEMY_TYPES[randomType].maxHealth,
-      position: [
-        Math.cos(angle) * SPAWN.distance,
-        SPAWN.height,
-        Math.sin(angle) * SPAWN.distance,
-      ],
+      position: [at.x, SPAWN.height, at.z],
     })
   })
 
@@ -90,8 +64,10 @@ export const GameScene = () => {
   const playerRef = useRef<RapierRigidBody>(null)
   const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
   const playerPositionRef = useRef(new Vector3(...DEFAULT_CONFIG.player.spawnPosition))
-  const controlsRef = useRef<OrbitControlsImpl>(null)
-  const attackDirectionRef = useRef(new Vector3(0, 0, -1))
+  const lightRef = useRef<DirectionalLight>(null)
+  const attackDirectionRef = useRef(new Vector3(1, 0, 0))
+  // Horizontal camera state, shared by the camera, the player's screen bounds, and the spawner.
+  const [view] = useState(() => createStageView(DEFAULT_CONFIG.player.spawnPosition[0]))
   // Mutable swing state shared by Player (writes) and CombatSystem (reads) inside
   // the fixed-step sim, so no React re-render sits between a swing and its hit.
   const [playerAttack] = useState(createPlayerAttackState)
@@ -141,21 +117,11 @@ export const GameScene = () => {
         {/* Without an explicit background the canvas is transparent over a white page,
             which made the white HUD text unreadable. */}
         <color attach="background" args={['#1a1a2e']} />
-        <PerspectiveCamera makeDefault position={CAMERA.initialPosition} />
-        <OrbitControls
-          ref={controlsRef}
-          minDistance={CAMERA.minDistance}
-          maxDistance={CAMERA.maxDistance}
-          maxPolarAngle={CAMERA.maxPolarAngle}
-          enableRotate={isGameOver}
-          enablePan={false}
-          enableZoom={false}
-        />
-
-        <CameraRig playerPositionRef={playerPositionRef} controlsRef={controlsRef} />
+        <PerspectiveCamera makeDefault fov={DEFAULT_CONFIG.camera.fov} />
 
         <ambientLight intensity={0.5} />
         <directionalLight
+          ref={lightRef}
           position={[10, 20, 10]}
           intensity={1}
           castShadow
@@ -165,13 +131,19 @@ export const GameScene = () => {
           shadow-camera-top={20}
           shadow-camera-bottom={-20}
         />
-        <pointLight position={[-10, 10, -10]} intensity={0.5} />
+        <hemisphereLight args={['#b8c4ff', '#30303a', 0.4]} />
 
         <SimLoopDriver>
-        <EnemySpawner />
+        <CameraRig view={view} playerPositionRef={playerPositionRef} lightRef={lightRef} />
+        <EnemySpawner view={view} />
         <Physics gravity={DEFAULT_CONFIG.physics.gravity} paused={isPaused || isGameOver}>
-          <Arena />
-          <Player ref={playerRef} attack={playerAttack} attackDirectionRef={attackDirectionRef} />
+          <Stage />
+          <Player
+            ref={playerRef}
+            attack={playerAttack}
+            attackDirectionRef={attackDirectionRef}
+            view={view}
+          />
 
           {enemies.map((enemy) => {
             if (!enemyRefs.current.has(enemy.id)) {
