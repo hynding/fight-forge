@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { EnemyType } from '../types/game'
+import { DEFAULT_CONFIG } from '../config/defaults'
 
-export const ENEMY_KILL_SCORE = 100
+export const ENEMY_KILL_SCORE = DEFAULT_CONFIG.scoring.enemyKill
 
 export interface Enemy {
   id: string
@@ -39,8 +40,8 @@ interface GameState {
 }
 
 export const useGameStore = create<GameState>((set) => ({
-  playerHealth: 100,
-  playerMaxHealth: 100,
+  playerHealth: DEFAULT_CONFIG.player.maxHealth,
+  playerMaxHealth: DEFAULT_CONFIG.player.maxHealth,
   score: 0,
   enemies: [],
   isGameOver: false,

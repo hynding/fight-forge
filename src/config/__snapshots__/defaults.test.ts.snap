@@ -1,0 +1,146 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retuning) 1`] = `
+{
+  "arena": {
+    "floorThickness": 0.5,
+    "size": 30,
+    "wallHeight": 4,
+    "wallThickness": 0.5,
+  },
+  "body": {
+    "colliderHalfExtents": [
+      0.25,
+      1,
+      0.25,
+    ],
+    "modelYOffset": -0.35,
+    "stopSpeed": 0.1,
+  },
+  "camera": {
+    "followOffset": [
+      0,
+      15,
+      20,
+    ],
+    "initialPosition": [
+      0,
+      17,
+      20,
+    ],
+    "maxDistance": 30,
+    "maxPolarAngle": 1.427996660722633,
+    "minDistance": 10,
+  },
+  "enemy": {
+    "aggroRange": 10,
+    "attackRange": 1.5,
+    "attackSlotDuration": 1,
+    "attackSlotRecovery": 1,
+    "avoidanceWeight": 0.7,
+    "circleSpeedFactor": 0.5,
+    "crowdedThreshold": 0.1,
+    "damage": 10,
+    "damageCooldown": 1,
+    "hitRange": 2,
+    "linearDamping": 2,
+    "minSpacing": 2.5,
+    "patrol": {
+      "arriveDistance": 0.5,
+      "maxDistance": 8,
+      "minDistance": 3,
+      "retargetInterval": 3,
+      "speedFactor": 0.3,
+    },
+  },
+  "enemyTypes": {
+    "BASIC": {
+      "aggression": 1,
+      "color": "#00ff00",
+      "maxHealth": 50,
+      "scale": 1,
+      "speed": 2,
+    },
+    "FAST": {
+      "aggression": 1.2,
+      "color": "#ffff00",
+      "maxHealth": 30,
+      "scale": 0.8,
+      "speed": 3,
+    },
+    "HEAVY": {
+      "aggression": 0.8,
+      "color": "#ff0000",
+      "maxHealth": 100,
+      "scale": 1.3,
+      "speed": 1.5,
+    },
+  },
+  "physics": {
+    "gravity": [
+      0,
+      -20,
+      0,
+    ],
+  },
+  "player": {
+    "attack": {
+      "cone": 0.5,
+      "cooldown": 0.5,
+      "damage": 20,
+      "duration": 0.2,
+      "range": 3,
+    },
+    "color": "#4444ff",
+    "deceleration": 0.85,
+    "groundRayLength": 1.1,
+    "groundedMaxVelY": 0.5,
+    "jumpVelocity": 8,
+    "linearDamping": 0,
+    "maxHealth": 100,
+    "spawnPosition": [
+      0,
+      2,
+      0,
+    ],
+    "walkSpeed": 5,
+  },
+  "scoring": {
+    "enemyKill": 100,
+  },
+  "spawning": {
+    "distance": 10,
+    "height": 2,
+    "initialPositions": [
+      [
+        5,
+        2,
+        5,
+      ],
+      [
+        -5,
+        2,
+        5,
+      ],
+      [
+        5,
+        2,
+        -5,
+      ],
+      [
+        -5,
+        2,
+        -5,
+      ],
+    ],
+    "initialType": "BASIC",
+    "interval": 5,
+    "maxEnemies": 8,
+    "types": [
+      "BASIC",
+      "FAST",
+      "HEAVY",
+    ],
+  },
+}
+`;

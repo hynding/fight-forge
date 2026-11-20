@@ -11,19 +11,12 @@ import { HUD } from './HUD'
 import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
 import { useGameStore } from '../store/gameStore'
-import { EnemyType } from '../types/game'
 import { gameStep } from '../utils/gameTime'
+import { DEFAULT_CONFIG } from '../config/defaults'
 
 const _cameraTarget = new Vector3()
 
-const MAX_ENEMIES = 8
-const SPAWN_INTERVAL_MS = 5000
-const SPAWN_DISTANCE = 10
-const ENEMY_HEALTH: Record<EnemyType, number> = {
-  [EnemyType.BASIC]: 50,
-  [EnemyType.FAST]: 30,
-  [EnemyType.HEAVY]: 100,
-}
+const { spawning: SPAWN, enemyTypes: ENEMY_TYPES, camera: CAMERA } = DEFAULT_CONFIG
 
 // The timestamp prefix keeps ids unique even if a dev hot reload resets the counter.
 let enemyIdCounter = 0
@@ -44,7 +37,11 @@ const CameraRig = ({ playerPositionRef, controlsRef }: CameraRigProps) => {
     // After game over, OrbitControls rotation is enabled; stop forcing the camera
     // position so the player can actually orbit around the final scene.
     if (!useGameStore.getState().isGameOver) {
-      camera.position.set(p.x, p.y + 15, p.z + 20)
+      camera.position.set(
+        p.x + CAMERA.followOffset[0],
+        p.y + CAMERA.followOffset[1],
+        p.z + CAMERA.followOffset[2]
+      )
     }
 
     if (controlsRef.current) {
@@ -67,21 +64,24 @@ const EnemySpawner = () => {
     const { isPaused, isGameOver, enemies } = useGameStore.getState()
     if (isPaused || isGameOver) return
 
-    elapsed.current += gameStep(delta) * 1000
-    if (elapsed.current < SPAWN_INTERVAL_MS) return
-    elapsed.current -= SPAWN_INTERVAL_MS
-    if (enemies.length >= MAX_ENEMIES) return
+    elapsed.current += gameStep(delta)
+    if (elapsed.current < SPAWN.interval) return
+    elapsed.current -= SPAWN.interval
+    if (enemies.length >= SPAWN.maxEnemies) return
 
     const angle = Math.random() * Math.PI * 2
-    const types = [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY]
-    const randomType = types[Math.floor(Math.random() * types.length)]
+    const randomType = SPAWN.types[Math.floor(Math.random() * SPAWN.types.length)]
 
     spawnEnemy({
       id: nextEnemyId(),
       type: randomType,
-      health: ENEMY_HEALTH[randomType],
-      maxHealth: ENEMY_HEALTH[randomType],
-      position: [Math.cos(angle) * SPAWN_DISTANCE, 2, Math.sin(angle) * SPAWN_DISTANCE],
+      health: ENEMY_TYPES[randomType].maxHealth,
+      maxHealth: ENEMY_TYPES[randomType].maxHealth,
+      position: [
+        Math.cos(angle) * SPAWN.distance,
+        SPAWN.height,
+        Math.sin(angle) * SPAWN.distance,
+      ],
     })
   })
 
@@ -91,7 +91,7 @@ const EnemySpawner = () => {
 export const GameScene = () => {
   const playerRef = useRef<RapierRigidBody>(null)
   const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
-  const playerPositionRef = useRef(new Vector3(0, 2, 0))
+  const playerPositionRef = useRef(new Vector3(...DEFAULT_CONFIG.player.spawnPosition))
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const attackDirectionRef = useRef(new Vector3(0, 0, -1))
   // `playerAttacking` stays as React state because CombatSystem reads it as a prop
@@ -111,20 +111,14 @@ export const GameScene = () => {
     if (hasSpawnedInitial.current) return
     hasSpawnedInitial.current = true
 
-    const positions: [number, number, number][] = [
-      [5, 2, 5],
-      [-5, 2, 5],
-      [5, 2, -5],
-      [-5, 2, -5],
-    ]
-
-    positions.forEach((pos) => {
+    const type = SPAWN.initialType
+    SPAWN.initialPositions.forEach((pos) => {
       spawnEnemy({
         id: nextEnemyId(),
-        type: EnemyType.BASIC,
-        health: ENEMY_HEALTH[EnemyType.BASIC],
-        maxHealth: ENEMY_HEALTH[EnemyType.BASIC],
-        position: pos,
+        type,
+        health: ENEMY_TYPES[type].maxHealth,
+        maxHealth: ENEMY_TYPES[type].maxHealth,
+        position: [...pos],
       })
     })
   }, [spawnEnemy])
@@ -158,12 +152,12 @@ export const GameScene = () => {
         {/* Without an explicit background the canvas is transparent over a white page,
             which made the white HUD text unreadable. */}
         <color attach="background" args={['#1a1a2e']} />
-        <PerspectiveCamera makeDefault position={[0, 17, 20]} />
+        <PerspectiveCamera makeDefault position={CAMERA.initialPosition} />
         <OrbitControls
           ref={controlsRef}
-          minDistance={10}
-          maxDistance={30}
-          maxPolarAngle={Math.PI / 2.2}
+          minDistance={CAMERA.minDistance}
+          maxDistance={CAMERA.maxDistance}
+          maxPolarAngle={CAMERA.maxPolarAngle}
           enableRotate={isGameOver}
           enablePan={false}
           enableZoom={false}
@@ -185,7 +179,7 @@ export const GameScene = () => {
         />
         <pointLight position={[-10, 10, -10]} intensity={0.5} />
 
-        <Physics gravity={[0, -20, 0]} paused={isPaused || isGameOver}>
+        <Physics gravity={DEFAULT_CONFIG.physics.gravity} paused={isPaused || isGameOver}>
           <Arena />
           <Player ref={playerRef} onAttackChange={handleAttackChange} />
 
