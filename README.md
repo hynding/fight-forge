@@ -19,9 +19,13 @@ Then open the URL Vite prints (usually http://localhost:5173).
 
 | Key | Action |
 | --- | --- |
-| W A S D | Move |
+| A / D | Walk left / right (double-tap and hold to run) |
+| W / S | Move in depth |
 | Space | Jump |
-| J | Attack |
+| J | Attack (combo; jump kick in the air, dash punch while running) |
+| K | Block (hold) |
+| Shift | Dodge |
+| H | Toggle hitbox overlay |
 | Esc | Pause |
 
 ## Scripts
