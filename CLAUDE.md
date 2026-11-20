@@ -36,7 +36,7 @@ Only **one** enemy can damage the player at a time. [src/components/CombatSystem
 - **State (zustand)**: health, score, enemy list, screen — anything UIs read.
 - **Refs (`RapierRigidBody`)**: positions and velocities — anything updated per-frame. Reading `translation()`/`linvel()` from a rigid body ref is the canonical way to get a current position. Do not mirror positions into React state for per-frame logic; it causes re-renders and lags physics.
 - [src/components/GameScene.tsx](src/components/GameScene.tsx) owns the `playerRef` and an `enemyRefs: Map<string, RefObject<RapierRigidBody>>`. Refs are created with `createRef()` keyed by enemy id, and stale entries are pruned in a `useEffect` watching `enemies`.
-- `playerPosition` is mirrored to React state only so that `OrbitControls`/`PerspectiveCamera` can follow the player declaratively. `CombatSystem` writes it via `onPlayerPositionUpdate` once per frame.
+- `playerPositionRef` (a shared `Vector3`) is copied from the player body by `CombatSystem` once per frame; `CameraRig` and `Enemy` read it in their own `useFrame`s. Nothing mirrors it into React state.
 
 ### Combat
 [src/components/CombatSystem.tsx](src/components/CombatSystem.tsx) runs in `useFrame` and reads positions from the ref Map. Player attacks use a directional cone check (`attackDirection.dot(toEnemy) > 0.5`, range 3). `damageEnemy` in the store removes the enemy and adds the kill score in one update when health reaches 0 (enemies don't handle their own death). `damagedEnemiesThisAttack` (a ref-held `Set`) ensures one attack swing hits a given enemy at most once; it's cleared when the player's attack ends. Enemy damage to the player is rate-limited per enemy via `lastEnemyDamageTime` (1s cooldown).
