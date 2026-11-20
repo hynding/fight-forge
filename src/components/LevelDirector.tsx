@@ -3,8 +3,8 @@ import { Vector3 } from 'three'
 import { useGameStore } from '../store/gameStore'
 import { DEFAULT_CONFIG } from '../config/defaults'
 import { SYSTEM_ORDER } from '../sim/loop'
-import { useSimSystem } from '../sim/simContext'
-import { createLevelRuntime, stepLevel, type Level, type SpawnDef } from '../sim/level'
+import { useSimLoop, useSimSystem } from '../sim/simContext'
+import { createLevelRuntime, placeItems, stepLevel, type Level, type SpawnDef } from '../sim/level'
 import { offscreenSpawn, type StageView } from '../sim/stage'
 
 const { spawning: SPAWN, stage: STAGE, enemyTypes: ENEMY_TYPES } = DEFAULT_CONFIG
@@ -37,6 +37,8 @@ export const LevelDirector = ({
 }: LevelDirectorProps) => {
   const [rt] = useState(() => createLevelRuntime(level))
   const go = useRef<{ fromX: number; timeLeft: number } | null>(null)
+  // The loop starts at 0 with each level (the scene remounts), so its time is the level time.
+  const loop = useSimLoop()
 
   const spawn = (def: SpawnDef, triggerX: number): string => {
     const depth = def.depth ?? Math.random()
@@ -65,8 +67,14 @@ export const LevelDirector = ({
   }
 
   useEffect(() => {
-    useGameStore.getState().setLevelProgress({ levelName: level.name })
-  }, [level.name])
+    const store = useGameStore.getState()
+    store.setLevelProgress({ levelName: level.name })
+    // Level items lie on the stage from the start (stable ids, so a re-run doesn't duplicate them).
+    const [z0, z1] = STAGE.depthBand
+    for (const it of placeItems(level)) {
+      store.spawnPickup({ id: it.id, pickup: it.pickup, x: it.x, z: z0 + it.depth * (z1 - z0) })
+    }
+  }, [level])
 
   useSimSystem('level', SYSTEM_ORDER.level, (dt) => {
     const player = playerPositionRef.current
@@ -90,7 +98,7 @@ export const LevelDirector = ({
         go.current = { fromX: player.x, timeLeft: GO_PROMPT_SECONDS }
         store.setLevelProgress({ goPrompt: true })
       } else if (e.kind === 'complete') {
-        store.completeLevel()
+        store.completeLevel(loop.time)
         return
       }
     }

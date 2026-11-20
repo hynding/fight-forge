@@ -1,11 +1,11 @@
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState, type RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
 import { useControls } from '../hooks/useControls'
 import { useGameStore } from '../store/gameStore'
 import { DEFAULT_CONFIG } from '../config/defaults'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
-import { stepMoveRunner } from '../sim/moves'
+import { interruptMove, stepMoveRunner } from '../sim/moves'
 import { createRunDetector, stepRunDetector } from '../sim/defense'
 import { inputIntent } from '../sim/controllers'
 import { createFighterRuntime, type FighterRuntime } from '../sim/fighter'
@@ -37,6 +37,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   const [runDetector] = useState(createRunDetector)
   // One air attack per jump.
   const airAttackUsed = useRef(false)
+  const respawnSeen = useRef(useGameStore.getState().respawnCount)
   const playerHealth = useGameStore((state) => state.playerHealth)
 
   useEffect(() => {
@@ -50,6 +51,23 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   // facing) and before combat (so combat sees a move on the step it starts).
   // A hit reaction blocks starting moves; combat interrupts a move on hit.
   useSimSystem('playerAttack', SYSTEM_ORDER.playerAttack, (dt) => {
+    // Lost a life (or continued): drop back in at the middle of the screen,
+    // briefly invulnerable (the body blinks).
+    const { respawnCount } = useGameStore.getState()
+    if (respawnCount !== respawnSeen.current) {
+      respawnSeen.current = respawnCount
+      interruptMove(runtime.move)
+      runtime.reaction.kind = null
+      runtime.reaction.timeLeft = 0
+      runtime.reaction.invulnerableLeft = DEFAULT_CONFIG.rules.respawnInvulnerability
+      runtime.velocity = { x: 0, z: 0 }
+      const body = (ref as RefObject<RapierRigidBody> | null)?.current
+      if (body) {
+        body.setTranslation({ x: view.cameraX, y: P.spawnPosition[1], z: 0 }, true)
+        body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      }
+      return
+    }
     const intent = runtime.intent
     if (runtime.grounded) airAttackUsed.current = false
     const inAir = !runtime.grounded

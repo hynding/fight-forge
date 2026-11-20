@@ -10,6 +10,7 @@ import { boxesOverlap, hitboxWorld, knockbackDirection } from '../sim/combat'
 import { interruptMove, movePhase } from '../sim/moves'
 import { applyBlockstun, applyHit, isInvulnerable } from '../sim/reactions'
 import { blockedHit, facesAttacker, isDodging } from '../sim/defense'
+import { rollDrop } from '../sim/pickups'
 import type { FighterRuntime } from '../sim/fighter'
 
 const { moves: MOVES, reactions: REACTIONS, actions: ACTIONS } = DEFAULT_CONFIG
@@ -113,8 +114,22 @@ export const CombatSystem = ({
         // Otherwise super armor: the target takes the damage without flinching.
 
         if (damage <= 0) continue
-        if (targetName === PLAYER) store.damagePlayer(damage)
-        else store.damageEnemy(targetName, damage)
+        if (targetName === PLAYER) {
+          store.damagePlayer(damage)
+        } else {
+          const enemy = store.enemies.find((e) => e.id === targetName)
+          store.damageEnemy(targetName, damage)
+          // Defeated: maybe drop a pickup where it fell.
+          const dropped =
+            enemy && !useGameStore.getState().enemies.some((e) => e.id === targetName)
+              ? rollDrop(DEFAULT_CONFIG.enemyTypes[enemy.type].drop)
+              : null
+          if (dropped) {
+            useGameStore
+              .getState()
+              .spawnPickup({ id: `drop-${targetName}`, pickup: dropped, x: t.x, z: t.z })
+          }
+        }
       }
     })
   })

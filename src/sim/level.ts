@@ -39,15 +39,39 @@ export type Trigger =
       at: number
     }
 
+/** A pickup lying on the stage from the start. */
+export interface LevelItem {
+  /** X offset inside the segment. */
+  at: number
+  /** Name in `DEFAULT_CONFIG.pickups`. */
+  pickup: string
+  /** Position across the depth lane: 0 = back, 1 = front (default middle). */
+  depth?: number
+}
+
 export interface Segment {
   length: number
   triggers: Trigger[]
+  items?: LevelItem[]
 }
 
 export interface Level {
   id: string
   name: string
   segments: Segment[]
+}
+
+/** Every level item with its absolute X, and a stable id (so placing twice doesn't duplicate). */
+export const placeItems = (level: Level): { id: string; pickup: string; x: number; depth: number }[] => {
+  const out: { id: string; pickup: string; x: number; depth: number }[] = []
+  let start = 0
+  level.segments.forEach((seg, si) => {
+    seg.items?.forEach((it, ii) =>
+      out.push({ id: `item-${si}-${ii}`, pickup: it.pickup, x: start + it.at, depth: it.depth ?? 0.5 })
+    )
+    start += seg.length
+  })
+  return out
 }
 
 /** A trigger with its absolute X on the level. */
@@ -74,6 +98,9 @@ export const validateLevel = (level: Level): string[] => {
   if (level.segments.length === 0) errors.push('Level has no segments.')
   level.segments.forEach((seg, si) => {
     if (!(seg.length > 0)) errors.push(`Segment ${si + 1} needs a positive length.`)
+    seg.items?.forEach((it, ii) => {
+      if (it.at < 0 || it.at > seg.length) errors.push(`Segment ${si + 1}, item ${ii + 1} is outside its segment.`)
+    })
     seg.triggers.forEach((t, ti) => {
       const where = `Segment ${si + 1}, trigger ${ti + 1}`
       if (t.at < 0 || t.at > seg.length) errors.push(`${where} is outside its segment.`)

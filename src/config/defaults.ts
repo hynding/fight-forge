@@ -4,6 +4,7 @@ import type { MoveSet } from '../sim/moves'
 import type { ReactionConfig } from '../sim/reactions'
 import type { ActionsConfig } from '../sim/defense'
 import type { AiBehavior, AiKind } from '../sim/controllers'
+import type { DropDef, PickupDef } from '../sim/pickups'
 
 /**
  * Every gameplay tuning value in one typed object.
@@ -53,6 +54,8 @@ export interface EnemyTypeDef {
   attackMove?: string
   /** Super armor: hits with at most this much hitstun (and no knockdown) don't stagger it. */
   armor?: number
+  /** What it may drop when defeated. */
+  drop?: DropDef
   color: string
   model: ModelRef
   /** Collider half extents before `scale`; defaults to `body.colliderHalfExtents`. */
@@ -164,6 +167,18 @@ export interface GameConfig {
   scoring: {
     enemyKill: number
   }
+  /** Game flow rules. */
+  rules: {
+    lives: number
+    /** Continues per run after a game over. */
+    continues: number
+    /** Seconds of invulnerability after respawning. */
+    respawnInvulnerability: number
+    /** The player collects a pickup within this planar distance. */
+    pickupRadius: number
+  }
+  /** Items by name, placed by levels or dropped by enemies. */
+  pickups: Record<string, PickupDef>
 }
 
 /** The box humanoid: its feet sit 0.65 below its origin, so drop it 0.35 onto the collider bottom. */
@@ -241,7 +256,7 @@ export const DEFAULT_CONFIG: GameConfig = {
     },
   },
   enemyTypes: {
-    [EnemyType.BASIC]: { maxHealth: 50, scale: 1, speed: 2, aggression: 1, ai: 'brawler', color: '#00ff00', model: ROBOT_MODEL },
+    [EnemyType.BASIC]: { maxHealth: 50, scale: 1, speed: 2, aggression: 1, ai: 'brawler', drop: { pickup: 'coin', chance: 0.2 }, color: '#00ff00', model: ROBOT_MODEL },
     [EnemyType.FAST]: {
       maxHealth: 30,
       scale: 0.8,
@@ -259,6 +274,7 @@ export const DEFAULT_CONFIG: GameConfig = {
       aggression: 0.8,
       ai: 'tank',
       armor: 0.4,
+      drop: { pickup: 'food', chance: 0.5 },
       color: '#ff0000',
       model: ROBOT_MODEL,
     },
@@ -390,5 +406,16 @@ export const DEFAULT_CONFIG: GameConfig = {
   },
   scoring: {
     enemyKill: 100,
+  },
+  rules: {
+    lives: 3,
+    continues: 2,
+    respawnInvulnerability: 2,
+    pickupRadius: 0.9,
+  },
+  pickups: {
+    food: { effect: 'heal', amount: 30, color: '#ff8833', size: 0.35 },
+    feast: { effect: 'heal', amount: 100, color: '#ff3366', size: 0.5 },
+    coin: { effect: 'score', amount: 500, color: '#ffdd33', size: 0.3 },
   },
 }
