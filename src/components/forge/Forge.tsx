@@ -17,7 +17,9 @@ import {
 } from '../../forge/workspace'
 import { downloadBytes } from '../../utils/download'
 import { Field } from './SchemaForm'
-import { ui } from './ui'
+import { FighterTools } from './FighterTools'
+import { MoveTools } from './MoveTools'
+import { sectionHeading, ui } from './ui'
 
 const panel: CSSProperties = {
   background: 'rgba(8, 10, 18, 0.7)',
@@ -313,6 +315,17 @@ export const Forge = () => {
                 ))}
               </div>
             )}
+            {(node.key === 'settings/player' || node.group === 'enemyTypes') && (
+              <div style={{ marginTop: '10px' }}>
+                <FighterTools key={node.key} pack={pack} node={node} save={(wp) => put(wp, false)} onError={(text) => setMessage({ text, error: true })} />
+              </div>
+            )}
+            {node.group === 'moves' && (
+              <div style={{ marginTop: '10px' }}>
+                <MoveTools key={node.key} pack={pack} node={node} save={(wp) => put(wp, false)} />
+              </div>
+            )}
+            {node.group !== 'pack' && <div style={sectionHeading}>ALL FIELDS</div>}
             <div style={{ marginTop: '10px' }}>
               <Field
                 schema={node.schema}

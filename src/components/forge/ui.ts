@@ -23,3 +23,5 @@ export const ui = {
   } satisfies CSSProperties,
   error: { color: '#ff7a7a', fontSize: '11px' } satisfies CSSProperties,
 }
+
+export const sectionHeading = { fontSize: '11px', letterSpacing: '2px', color: '#8890a8', margin: '12px 0 4px' } as const
