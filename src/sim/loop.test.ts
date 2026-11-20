@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_STEPS_PER_FRAME, SIM_STEP, SimLoop, SYSTEM_ORDER } from './loop'
 import { MAX_FRAME_STEP } from '../utils/gameTime'
-import { createPlayerAttackState, stepPlayerAttack } from './timers'
-import { isInAttackCone } from './combat'
+import { createMoveRunner, isMoveActive, stepMoveRunner, type MoveSet } from './moves'
 
 describe('SimLoop', () => {
   it('runs one step per 1/60s frame', () => {
@@ -89,27 +88,32 @@ describe('system order', () => {
     expect(SYSTEM_ORDER.combat).toBeLessThan(SYSTEM_ORDER.level)
   })
 
-  it('lets combat see a swing on the step it starts', () => {
+  it('lets combat see a zero-startup move on the step it starts', () => {
     const loop = new SimLoop()
-    const attack = createPlayerAttackState()
-    const player = { x: 0, y: 0, z: 0 }
-    const facing = { x: 0, y: 0, z: -1 }
-    const enemy = { x: 0, y: 0, z: -1 }
+    const runner = createMoveRunner()
+    const moves: MoveSet = {
+      jab: {
+        startup: 0,
+        active: 0.1,
+        recovery: 0.1,
+        damage: 1,
+        hitbox: { forward: 1, up: 0, halfX: 0.5, halfY: 0.5, halfZ: 0.5 },
+        reaction: { hitstun: 0.1, knockback: { x: 0, y: 0 } },
+      },
+    }
     const hitsOnStep: number[] = []
-    let wantsAttack = false
+    let held = false
 
     // Registered in the "wrong" order on purpose: SYSTEM_ORDER decides.
     loop.add('combat', SYSTEM_ORDER.combat, () => {
-      if (attack.active && isInAttackCone(player, facing, enemy, { range: 3, cone: 0.5 })) {
-        hitsOnStep.push(loop.tick)
-      }
+      if (isMoveActive(runner, moves)) hitsOnStep.push(loop.tick)
     })
     loop.add('playerAttack', SYSTEM_ORDER.playerAttack, (dt) => {
-      stepPlayerAttack(attack, wantsAttack, dt, { duration: 0.2, cooldown: 0.5 })
+      stepMoveRunner(runner, held, dt, moves, 'jab')
     })
 
     loop.advance(SIM_STEP)
-    wantsAttack = true
+    held = true
     loop.advance(SIM_STEP)
     expect(hitsOnStep[0]).toBe(1)
   })

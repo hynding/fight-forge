@@ -1,4 +1,7 @@
-// Pure hit-detection math for the combat system.
+// Pure hit-detection math for the combat system: an attacker's hitbox against
+// a target's hurtbox, as axis-aligned boxes (fighters face only left or right).
+
+import type { Hitbox } from './moves'
 
 export interface Vec3Like {
   x: number
@@ -6,50 +9,24 @@ export interface Vec3Like {
   z: number
 }
 
-export interface PlayerHitConfig {
-  range: number
-  /** Minimum dot(facing, direction to target). */
-  cone: number
+export interface Box {
+  center: Vec3Like
+  half: Vec3Like
 }
 
-const distance = (a: Vec3Like, b: Vec3Like) =>
-  Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)
+/** The hitbox in world space for an attacker at `pos` facing `facingX` (±1), scaled by `scale`. */
+export const hitboxWorld = (pos: Vec3Like, facingX: number, hb: Hitbox, scale: number): Box => ({
+  center: { x: pos.x + facingX * hb.forward * scale, y: pos.y + hb.up * scale, z: pos.z },
+  half: { x: hb.halfX * scale, y: hb.halfY * scale, z: hb.halfZ * scale },
+})
 
-/**
- * Whether a player swing facing `facing` (unit vector) hits a target at
- * `target`: within range and inside the facing cone.
- */
-export const isInAttackCone = (
-  attacker: Vec3Like,
-  facing: Vec3Like,
-  target: Vec3Like,
-  cfg: PlayerHitConfig
-): boolean => {
-  const d = distance(attacker, target)
-  if (d >= cfg.range) return false
-  if (d === 0) return false
-  const dot =
-    (facing.x * (target.x - attacker.x) +
-      facing.y * (target.y - attacker.y) +
-      facing.z * (target.z - attacker.z)) /
-    d
-  return dot > cfg.cone
+export const boxesOverlap = (a: Box, b: Box): boolean =>
+  Math.abs(a.center.x - b.center.x) < a.half.x + b.half.x &&
+  Math.abs(a.center.y - b.center.y) < a.half.y + b.half.y &&
+  Math.abs(a.center.z - b.center.z) < a.half.z + b.half.z
+
+/** Knockback direction along X: away from the attacker, or along its facing when level. */
+export const knockbackDirection = (attackerX: number, targetX: number, facingX: number): number => {
+  const d = targetX - attackerX
+  return Math.abs(d) > 1e-6 ? Math.sign(d) : facingX
 }
-
-export interface EnemyHitConfig {
-  hitRange: number
-  damageCooldown: number
-}
-
-/**
- * Whether the enemy holding the attack slot lands a hit now: within range,
- * and its per-enemy cooldown (game time since its last hit) has passed.
- */
-export const enemyCanHitPlayer = (
-  enemy: Vec3Like,
-  player: Vec3Like,
-  now: number,
-  lastHitTime: number | undefined,
-  cfg: EnemyHitConfig
-): boolean =>
-  distance(enemy, player) < cfg.hitRange && now - (lastHitTime ?? -Infinity) > cfg.damageCooldown

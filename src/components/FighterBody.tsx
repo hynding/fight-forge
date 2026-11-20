@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CuboidCollider, RigidBody, RapierRigidBody, useRapier } from '@react-three/rapier'
-import { Group } from 'three'
+import { Group, Mesh } from 'three'
 import { FighterModel } from './FighterModel'
 import { DEFAULT_CONFIG, type ModelRef, type Vec3 } from '../config/defaults'
 import { isFrozen, useGameStore } from '../store/gameStore'
@@ -9,8 +9,11 @@ import { gameStep } from '../utils/gameTime'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { clampToBounds, type Bounds } from '../sim/stage'
 import { useSimSystem } from '../sim/simContext'
+import { movePhase } from '../sim/moves'
+import { stepReaction } from '../sim/reactions'
 import {
   facingToYaw,
+  isBusy,
   isMoving,
   nextFighterState,
   stepVelocity,
@@ -20,15 +23,8 @@ import {
   type MovementConfig,
 } from '../sim/fighter'
 
-const BODY = DEFAULT_CONFIG.body
+const { body: BODY, moves: MOVES, reactions: REACTIONS } = DEFAULT_CONFIG
 const HURT_FLASH_MS = 200
-
-export interface AttackVisual {
-  /** Unscaled offset and box size; both are multiplied by the fighter's scale. */
-  position: Vec3
-  size: Vec3
-  opacity: number
-}
 
 interface FighterBodyProps {
   /** Unique per fighter; names its sim system. */
@@ -43,15 +39,12 @@ interface FighterBodyProps {
   colliderHalfExtents?: Vec3
   color: string
   attackingColor: string
-  attackVisual: AttackVisual
   /** Flashes red when this drops. */
   health: number
-  /** Drives visuals only (attack tint and box). */
+  /** Drives the attack tint only. */
   isAttacking: boolean
   /** The controller: asked once per sim step for this fighter's intent. */
   getIntent: (body: RapierRigidBody, dt: number) => Intent
-  /** Sim-time attack flag for the state machine. */
-  isAttackingNow: () => boolean
   isDead?: () => boolean
   /** Where this fighter may stand (screen for the player, stage for enemies). */
   getBounds?: () => Bounds
@@ -62,9 +55,10 @@ interface FighterBodyProps {
 
 /**
  * The shared body of every fighter: rigid body and collider, movement and
- * jumping from a controller's Intent, facing, the fighter state machine, the
- * model, and the hurt flash. Player and Enemy differ only in their controller
- * and what they do with `intent.attack`.
+ * jumping from a controller's Intent, facing, hit reactions (stun, knockback,
+ * knockdown), the fighter state machine, the model, the hurt flash, and the
+ * hitbox debug overlay. Player and Enemy differ only in their controller and
+ * how they start moves (`runtime.move`).
  */
 export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
   (
@@ -79,11 +73,9 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       colliderHalfExtents = BODY.colliderHalfExtents,
       color,
       attackingColor,
-      attackVisual,
       health,
       isAttacking,
       getIntent,
-      isAttackingNow,
       isDead,
       getBounds,
       runtime,
@@ -98,6 +90,9 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
     const isMovingRef = useRef(false)
     const { world, rapier } = useRapier()
     const groundRay = useRef<InstanceType<typeof rapier.Ray> | null>(null)
+    const hitboxRef = useRef<Mesh>(null)
+    const showHitboxes = useGameStore((state) => state.showHitboxes)
+    const [hx, hy, hz] = colliderHalfExtents
 
     const [isHurt, setIsHurt] = useState(false)
     const prevHealth = useRef(health)
@@ -113,11 +108,25 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
     useSimSystem(`fighter:${name}`, SYSTEM_ORDER.fighters, (dt) => {
       const body = bodyRef.current
       if (!body) return
+      runtime.scale = scale
+      runtime.hurtbox = { x: hx * scale, y: hy * scale, z: hz * scale }
+      stepReaction(runtime.reaction, dt, REACTIONS)
+
       const intent = getIntent(body, dt)
       runtime.intent = intent
+      // During a move or a hit reaction the controller can't walk, jump or turn.
+      const busy = isBusy(runtime)
+      const reacting = runtime.reaction.kind !== null
 
       const vel = body.linvel()
-      const next = stepVelocity({ x: vel.x, z: vel.z }, intent.move, movement, dt)
+      let next
+      if (reacting) {
+        // Slide with the knockback that combat set on the runtime.
+        const f = Math.pow(REACTIONS.knockbackFriction, dt * 60)
+        next = { x: runtime.velocity.x * f, z: runtime.velocity.z * f }
+      } else {
+        next = stepVelocity({ x: vel.x, z: vel.z }, busy ? { x: 0, z: 0 } : intent.move, movement, dt)
+      }
       let velY = vel.y
 
       // Grounded: a short downward ray that ignores this fighter's own body, so
@@ -138,7 +147,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       )
       let grounded = hit !== null && Math.abs(vel.y) < BODY.groundedMaxVelY
 
-      if (intent.jump && grounded) {
+      if (intent.jump && grounded && !busy) {
         velY = jumpVelocity
         grounded = false
       }
@@ -158,10 +167,11 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
 
       runtime.velocity = next
       runtime.grounded = grounded
-      updateFacing(runtime.facing, next, intent.face)
+      if (!busy) updateFacing(runtime.facing, next, intent.face)
       runtime.state = nextFighterState({
         dead: isDead?.() ?? false,
-        attacking: isAttackingNow(),
+        reaction: runtime.reaction.kind,
+        attacking: runtime.move.move !== null,
         grounded,
         moving: isMoving(next, movement.stopSpeed),
       })
@@ -177,11 +187,22 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       }
     })
 
+    // Debug overlay: place the active hitbox (the body doesn't rotate, so body
+    // space is world axes).
+    useFrame(() => {
+      const mesh = hitboxRef.current
+      if (!mesh) return
+      const name = runtime.move.move
+      const move = name ? MOVES[name] : null
+      mesh.visible = !!move && movePhase(move, runtime.move.time) === 'active'
+      if (!move || !mesh.visible) return
+      const hb = move.hitbox
+      mesh.position.set(runtime.facing.x * hb.forward * scale, hb.up * scale, 0)
+      mesh.scale.set(hb.halfX * 2 * scale, hb.halfY * 2 * scale, hb.halfZ * 2 * scale)
+    })
+
     const tint = isHurt ? '#ff0000' : isAttacking ? attackingColor : color
     const glowing = isHurt || isAttacking
-    const [hx, hy, hz] = colliderHalfExtents
-    const [ax, ay, az] = attackVisual.position
-    const [sx, sy, sz] = attackVisual.size
 
     return (
       <RigidBody
@@ -205,19 +226,20 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
             animationTimeRef={animationTimeRef}
             isMovingRef={isMovingRef}
           />
-
-          {isAttacking && (
-            <mesh position={[ax * scale, ay * scale, az * scale]}>
-              <boxGeometry args={[sx * scale, sy * scale, sz * scale]} />
-              <meshBasicMaterial
-                color="#ff0000"
-                transparent
-                opacity={attackVisual.opacity}
-                depthWrite={false}
-              />
-            </mesh>
-          )}
         </group>
+
+        {showHitboxes && (
+          <>
+            <mesh>
+              <boxGeometry args={[hx * 2 * scale, hy * 2 * scale, hz * 2 * scale]} />
+              <meshBasicMaterial color="#44ff88" wireframe />
+            </mesh>
+            <mesh ref={hitboxRef} visible={false}>
+              <boxGeometry args={[1, 1, 1]} />
+              <meshBasicMaterial color="#ff3344" transparent opacity={0.45} depthWrite={false} />
+            </mesh>
+          </>
+        )}
 
         {children}
       </RigidBody>

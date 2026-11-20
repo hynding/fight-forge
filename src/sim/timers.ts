@@ -4,59 +4,6 @@
 // Float slack so a 0.2s timer ends after exactly 12 steps of 1/60s, not 13.
 const EPSILON = 1e-9
 
-export interface PlayerAttackConfig {
-  duration: number
-  cooldown: number
-}
-
-/** Shared between the player (who starts swings) and combat (which resolves them). */
-export interface PlayerAttackState {
-  active: boolean
-  timeLeft: number
-  cooldownLeft: number
-  /** Increments each time a swing starts; combat uses it for one-hit-per-swing. */
-  swing: number
-}
-
-export const createPlayerAttackState = (): PlayerAttackState => ({
-  active: false,
-  timeLeft: 0,
-  cooldownLeft: 0,
-  swing: 0,
-})
-
-export type PlayerAttackEvent = 'started' | 'ended' | null
-
-/**
- * Advances the swing and cooldown timers and starts a swing if requested.
- * The cooldown runs from the start of a swing, as before.
- */
-export const stepPlayerAttack = (
-  s: PlayerAttackState,
-  wantsAttack: boolean,
-  dt: number,
-  cfg: PlayerAttackConfig
-): PlayerAttackEvent => {
-  s.cooldownLeft = s.cooldownLeft - dt <= EPSILON ? 0 : s.cooldownLeft - dt
-  if (s.active) {
-    s.timeLeft -= dt
-    if (s.timeLeft <= EPSILON) {
-      s.timeLeft = 0
-      s.active = false
-      return 'ended'
-    }
-    return null
-  }
-  if (wantsAttack && s.cooldownLeft === 0) {
-    s.active = true
-    s.timeLeft = cfg.duration
-    s.cooldownLeft = cfg.cooldown
-    s.swing++
-    return 'started'
-  }
-  return null
-}
-
 export interface AttackSlotConfig {
   /** How long an enemy holds the attacker slot. */
   attackSlotDuration: number
@@ -95,6 +42,13 @@ export const stepAttackSlot = (t: AttackSlotTimer, dt: number, cfg: AttackSlotCo
     }
   }
   return false
+}
+
+/** Gives up the slot early (e.g. the holder was hit) and starts the recovery wait. */
+export const releaseAttackSlotEarly = (t: AttackSlotTimer, cfg: AttackSlotConfig): void => {
+  if (t.holdLeft === 0) return
+  t.holdLeft = 0
+  t.recoveryLeft = cfg.attackSlotRecovery
 }
 
 /** Interval clock: returns true each time `interval` seconds have accumulated. */

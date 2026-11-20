@@ -2,6 +2,9 @@
 // for (Intent), how that turns into velocity and facing, and the state machine.
 // Pure TS so it is testable without React, Rapier, or WebGL.
 
+import { createMoveRunner, type MoveRunner } from './moves'
+import { createReactionState, type ReactionKind, type ReactionState } from './reactions'
+
 /** Planar vector on the ground (X right, Z toward the camera). */
 export interface Vec2 {
   x: number
@@ -23,8 +26,7 @@ export interface Intent {
 export const idleIntent = (): Intent => ({ move: { x: 0, z: 0 }, jump: false, attack: false })
 
 /**
- * Fighter states. M1.1 drives idle / walk / jump / attack / dead; the rest are
- * reserved for later milestones (block and dodge in M1.6, hit reactions in M1.5).
+ * Fighter states. Block and dodge are reserved for M1.6.
  */
 export type FighterStateName =
   | 'idle'
@@ -40,6 +42,8 @@ export type FighterStateName =
 
 export interface FighterStateInputs {
   dead: boolean
+  /** The current hit reaction, if any. */
+  reaction?: ReactionKind | null
   attacking: boolean
   grounded: boolean
   moving: boolean
@@ -48,11 +52,13 @@ export interface FighterStateInputs {
 /** Picks the state from this step's facts, highest priority first. */
 export const nextFighterState = ({
   dead,
+  reaction,
   attacking,
   grounded,
   moving,
 }: FighterStateInputs): FighterStateName => {
   if (dead) return 'dead'
+  if (reaction) return reaction
   if (attacking) return 'attack'
   if (!grounded) return 'jump'
   if (moving) return 'walk'
@@ -113,6 +119,14 @@ export interface FighterRuntime {
   velocity: Vec2
   grounded: boolean
   intent: Intent | null
+  /** The current move (attacks). */
+  move: MoveRunner
+  /** The current hit reaction. */
+  reaction: ReactionState
+  /** Uniform scale; hitboxes scale with it. Set by the body. */
+  scale: number
+  /** Hurtbox half extents (the collider's, scaled). Set by the body. */
+  hurtbox: { x: number; y: number; z: number }
 }
 
 export const createFighterRuntime = (): FighterRuntime => ({
@@ -121,4 +135,11 @@ export const createFighterRuntime = (): FighterRuntime => ({
   velocity: { x: 0, z: 0 },
   grounded: false,
   intent: null,
+  move: createMoveRunner(),
+  reaction: createReactionState(),
+  scale: 1,
+  hurtbox: { x: 0.25, y: 1, z: 0.25 },
 })
+
+/** Busy with a move or a hit reaction: the controller's movement and jumps are ignored. */
+export const isBusy = (rt: FighterRuntime): boolean => rt.move.move !== null || rt.reaction.kind !== null

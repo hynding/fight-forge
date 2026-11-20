@@ -32,9 +32,15 @@ describe('nextFighterState', () => {
     expect(nextFighterState({ ...base, attacking: true, grounded: false })).toBe('attack')
   })
 
+  it('hit reactions win over attacking and moving', () => {
+    expect(nextFighterState({ ...base, reaction: 'hitstun', attacking: true, moving: true })).toBe('hitstun')
+    expect(nextFighterState({ ...base, reaction: 'knockdown', grounded: false })).toBe('knockdown')
+    expect(nextFighterState({ ...base, reaction: 'getup' })).toBe('getup')
+  })
+
   it('dead wins over everything', () => {
     expect(
-      nextFighterState({ dead: true, attacking: true, grounded: false, moving: true })
+      nextFighterState({ dead: true, reaction: 'hitstun', attacking: true, grounded: false, moving: true })
     ).toBe('dead')
   })
 })

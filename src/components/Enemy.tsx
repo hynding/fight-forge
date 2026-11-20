@@ -1,4 +1,4 @@
-import { forwardRef, useRef, useState, RefObject } from 'react'
+import { forwardRef, useEffect, useRef, useState, RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
 import { Billboard } from '@react-three/drei'
 import { Vector3 } from 'three'
@@ -10,17 +10,19 @@ import { useSimSystem } from '../sim/simContext'
 import {
   canClaimAttackSlot,
   createAttackSlotTimer,
+  releaseAttackSlotEarly,
   startAttackSlotHold,
   stepAttackSlot,
 } from '../sim/timers'
+import { startMove, stepMoveRunner } from '../sim/moves'
 import { brawlerIntent, createBrawlerMemory, type BrawlerConfig } from '../sim/controllers'
-import { createFighterRuntime, idleIntent, type Vec2 } from '../sim/fighter'
+import { createFighterRuntime, idleIntent, isBusy, type FighterRuntime, type Vec2 } from '../sim/fighter'
 import { stageBounds, type StageView } from '../sim/stage'
-import { FighterBody, type AttackVisual } from './FighterBody'
+import { FighterBody } from './FighterBody'
 
 const E = DEFAULT_CONFIG.enemy
 const BODY = DEFAULT_CONFIG.body
-const ATTACK_VISUAL: AttackVisual = { position: [0, -0.35, -0.5], size: [1.5, 1.5, 1], opacity: 0.3 }
+const MOVES = DEFAULT_CONFIG.moves
 const HEALTH_BAR_WIDTH = 1.2
 
 interface EnemyProps {
@@ -31,16 +33,20 @@ interface EnemyProps {
   enemyRefs: Map<string, RefObject<RapierRigidBody>>
   stageLength: number
   view: StageView
+  /** Every fighter's live runtime by name; the enemy registers under its id. */
+  runtimes: Map<string, FighterRuntime>
 }
 
 /** An enemy: a FighterBody driven by the `brawler` AI controller. */
 export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
-  ({ id, type, position, playerPositionRef, enemyRefs, stageLength, view }, ref) => {
+  ({ id, type, position, playerPositionRef, enemyRefs, stageLength, view, runtimes }, ref) => {
     const def = DEFAULT_CONFIG.enemyTypes[type]
     const [runtime] = useState(createFighterRuntime)
     const memory = useRef(createBrawlerMemory())
     // Attack-slot hold/recovery countdowns, stepped by the sim (game time).
     const slotTimer = useRef(createAttackSlotTimer())
+    // Set by the AI when it's in reach and wants to hit; acted on by the slot system.
+    const wantsAttack = useRef(false)
     const [ai] = useState<BrawlerConfig>(() => ({ ...E, aggroRange: E.aggroRange * def.aggression }))
     const [movement] = useState(() => ({
       walkSpeed: def.speed,
@@ -56,9 +62,14 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       (state) => state.enemies.find((e) => e.id === id)?.maxHealth ?? def.maxHealth
     )
 
-    // AIController: decide, then claim the single attacker slot if asking to attack.
-    // Read live store state; the render-time selector can be frames stale and
-    // let two enemies claim the slot at once.
+    useEffect(() => {
+      runtimes.set(id, runtime)
+      return () => {
+        runtimes.delete(id)
+      }
+    }, [runtimes, id, runtime])
+
+    // AIController: decide where to go and whether to attack.
     const getIntent = (body: RapierRigidBody, dt: number) => {
       const self = body.translation()
       const target = playerPositionRef.current
@@ -71,7 +82,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         others.push({ x: o.x, z: o.z })
       })
 
-      const { attackingEnemyId, setAttackingEnemy } = useGameStore.getState()
+      const { attackingEnemyId } = useGameStore.getState()
       const intent = brawlerIntent(
         {
           self: { x: self.x, z: self.z },
@@ -86,20 +97,41 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         dt
       )
 
-      if (intent.attack && attackingEnemyId === null && canClaimAttackSlot(slotTimer.current)) {
-        setAttackingEnemy(id)
-        startAttackSlotHold(slotTimer.current, E)
-      }
+      wantsAttack.current = intent.attack
       return intent
     }
 
-    // When the hold ends, back off (recovery) so other enemies get a turn, and
-    // release the slot only if we still hold it. Death and unmount are handled
-    // by the store, which clears the slot when the holder is removed.
+    // The single attacker slot and the enemy's move, after the fighter step and
+    // before combat. Taking the slot throws one `enemy.attackMove`. When the
+    // hold ends (or the enemy is hit), back off (recovery) so other enemies get
+    // a turn, and release the slot only if we still hold it. Death and unmount
+    // are handled by the store, which clears the slot when the holder is removed.
+    // Read live store state; the render-time selector can be frames stale and
+    // let two enemies claim the slot at once.
     useSimSystem(`enemyAttackSlot:${id}`, SYSTEM_ORDER.enemyAttackSlot, (dt) => {
-      if (!stepAttackSlot(slotTimer.current, dt, E)) return
+      stepMoveRunner(runtime.move, false, dt, MOVES, E.attackMove)
       const { attackingEnemyId, setAttackingEnemy } = useGameStore.getState()
-      if (attackingEnemyId === id) setAttackingEnemy(null)
+      const holding = attackingEnemyId === id
+
+      if (runtime.reaction.kind !== null && holding) {
+        releaseAttackSlotEarly(slotTimer.current, E)
+        setAttackingEnemy(null)
+        return
+      }
+      if (stepAttackSlot(slotTimer.current, dt, E)) {
+        if (holding) setAttackingEnemy(null)
+        return
+      }
+      if (
+        wantsAttack.current &&
+        !isBusy(runtime) &&
+        attackingEnemyId === null &&
+        canClaimAttackSlot(slotTimer.current)
+      ) {
+        setAttackingEnemy(id)
+        startAttackSlotHold(slotTimer.current, E)
+        startMove(runtime.move, E.attackMove)
+      }
     })
 
     const scale = def.scale
@@ -119,11 +151,9 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         colliderHalfExtents={def.colliderHalfExtents}
         color={def.color}
         attackingColor="#ffffff"
-        attackVisual={ATTACK_VISUAL}
         health={health}
         isAttacking={isAttacking}
         getIntent={getIntent}
-        isAttackingNow={() => useGameStore.getState().attackingEnemyId === id}
         getBounds={() => stageBounds(stageLength, DEFAULT_CONFIG.stage.depthBand)}
         runtime={runtime}
       >
