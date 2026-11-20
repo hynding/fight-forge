@@ -14,7 +14,7 @@ export interface Enemy {
   position: [number, number, number]
 }
 
-type GameScreen = 'menu' | 'loading' | 'playing'
+type GameScreen = 'menu' | 'loading' | 'playing' | 'forge'
 
 /** What the HUD shows about the level. Per-frame level state lives in the level runtime. */
 export interface LevelProgress {

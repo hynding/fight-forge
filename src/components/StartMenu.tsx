@@ -8,6 +8,7 @@ import { controlsHelp } from '../sim/input'
 
 export const StartMenu = () => {
   const startRun = useGameStore((state) => state.startRun)
+  const setGameScreen = useGameStore((state) => state.setGameScreen)
   // Re-render when packs change: the level list comes from the active content.
   useGameStore((state) => state.packs)
   const contentError = useGameStore((state) => state.contentError)
@@ -83,6 +84,24 @@ export const StartMenu = () => {
         }}
       >
         START GAME
+      </button>
+
+      <button
+        onClick={() => setGameScreen('forge')}
+        style={{
+          marginTop: '18px',
+          padding: '8px 24px',
+          fontSize: '14px',
+          fontFamily: 'monospace',
+          letterSpacing: '3px',
+          backgroundColor: 'transparent',
+          color: '#ffd27a',
+          border: '1px solid #ffd27a',
+          borderRadius: '6px',
+          cursor: 'pointer',
+        }}
+      >
+        FORGE: MAKE A PACK
       </button>
 
       {/* Level select */}
