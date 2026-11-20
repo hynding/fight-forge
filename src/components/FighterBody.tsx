@@ -4,7 +4,7 @@ import { CuboidCollider, RigidBody, RapierRigidBody, useRapier } from '@react-th
 import { Group } from 'three'
 import { FighterModel } from './FighterModel'
 import { DEFAULT_CONFIG, type ModelRef, type Vec3 } from '../config/defaults'
-import { useGameStore } from '../store/gameStore'
+import { isFrozen, useGameStore } from '../store/gameStore'
 import { gameStep } from '../utils/gameTime'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { clampToBounds, type Bounds } from '../sim/stage'
@@ -169,8 +169,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
 
     // Visuals at render rate: animation clock, walk cycle flag, and facing.
     useFrame((_, frameDelta) => {
-      const { isPaused, isGameOver } = useGameStore.getState()
-      if (isPaused || isGameOver) return
+      if (isFrozen(useGameStore.getState())) return
       animationTimeRef.current += gameStep(frameDelta)
       isMovingRef.current = isMoving(runtime.velocity, movement.stopSpeed)
       if (visualGroupRef.current) {

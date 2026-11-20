@@ -49,6 +49,16 @@ describe('stepCamera', () => {
     expect(v.cameraX).toBe(190)
   })
 
+  it('holds still while locked, then follows again', () => {
+    const v = createStageView(20, 10)
+    v.lockX = 20
+    stepCamera(v, 40, LENGTH, NO_BACK)
+    expect(v.cameraX).toBe(20)
+    v.lockX = null
+    stepCamera(v, 40, LENGTH, NO_BACK)
+    expect(v.cameraX).toBe(38)
+  })
+
   it('handles a stage narrower than the screen', () => {
     expect(cameraLimits(10, 12)).toEqual([10, 10])
   })

@@ -23,8 +23,8 @@ export const SYSTEM_ORDER = {
   enemyAttackSlot: 200,
   /** Hit detection and damage. */
   combat: 300,
-  /** Periodic enemy spawning. */
-  spawner: 400,
+  /** Level script: triggers, waves, screen locks, goal (after combat, so kills count this step). */
+  level: 400,
 } as const
 
 export type SystemStep = (dt: number) => void

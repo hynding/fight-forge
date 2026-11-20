@@ -105,6 +105,20 @@ describe('brawlerIntent', () => {
     for (let i = 0; i < steps; i++) brawlerIntent(ctx({ x: 50, z: 0 }), mem, AI, SIM_STEP, random)
     expect(mem.patrolTarget).not.toEqual(first)
   })
+
+  it('chases from any distance when forced to engage (off screen)', () => {
+    const i = brawlerIntent({ ...ctx({ x: 50, z: 0 }), forceEngage: true }, createBrawlerMemory(), AI, SIM_STEP)
+    expect(i.move.x).toBeLessThan(-0.9)
+  })
+
+  it('stays engaged after leaving aggro range', () => {
+    const mem = createBrawlerMemory()
+    brawlerIntent(ctx({ x: 5, z: 0 }), mem, AI, SIM_STEP)
+    const i = brawlerIntent(ctx({ x: 50, z: 0 }), mem, AI, SIM_STEP, () => 0)
+    expect(mem.engaged).toBe(true)
+    expect(mem.patrolTarget).toBeNull()
+    expect(i.move.x).toBeLessThan(-0.9)
+  })
 })
 
 describe('spacingPush', () => {

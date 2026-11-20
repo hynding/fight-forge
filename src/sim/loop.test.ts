@@ -83,10 +83,10 @@ describe('SimLoop', () => {
 })
 
 describe('system order', () => {
-  it('lists player attack before combat before spawning', () => {
+  it('lists player attack before combat before the level script', () => {
     expect(SYSTEM_ORDER.playerAttack).toBeLessThan(SYSTEM_ORDER.combat)
     expect(SYSTEM_ORDER.enemyAttackSlot).toBeLessThan(SYSTEM_ORDER.combat)
-    expect(SYSTEM_ORDER.combat).toBeLessThan(SYSTEM_ORDER.spawner)
+    expect(SYSTEM_ORDER.combat).toBeLessThan(SYSTEM_ORDER.level)
   })
 
   it('lets combat see a swing on the step it starts', () => {

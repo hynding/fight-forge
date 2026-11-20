@@ -10,55 +10,17 @@ import { CameraRig } from './CameraRig'
 import { HUD } from './HUD'
 import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
-import { useGameStore } from '../store/gameStore'
+import { isFrozen, useGameStore } from '../store/gameStore'
 import { DEFAULT_CONFIG } from '../config/defaults'
 import { SimLoopDriver } from '../sim/SimLoopDriver'
-import { useSimSystem } from '../sim/simContext'
-import { SYSTEM_ORDER } from '../sim/loop'
-import { createPlayerAttackState, stepIntervalClock } from '../sim/timers'
-import { createStageView, offscreenSpawn, type StageView } from '../sim/stage'
+import { createPlayerAttackState } from '../sim/timers'
+import { createStageView } from '../sim/stage'
+import { levelLength } from '../sim/level'
+import { DEFAULT_LEVEL } from '../config/levels'
+import { LevelDirector } from './LevelDirector'
 
-const { spawning: SPAWN, enemyTypes: ENEMY_TYPES, stage: STAGE } = DEFAULT_CONFIG
-
-// The timestamp prefix keeps ids unique even if a dev hot reload resets the counter.
-let enemyIdCounter = 0
-const nextEnemyId = () => `enemy-${Date.now().toString(36)}-${++enemyIdCounter}`
-
-// Periodic spawner, as a sim system: frozen while paused or game over, and the
-// clamped frame step means returning to a hidden tab can't pay out a burst.
-// Enemies walk in from just off a screen edge (the right one when the left
-// edge is the stage start).
-const EnemySpawner = ({ view }: { view: StageView }) => {
-  const spawnEnemy = useGameStore((state) => state.spawnEnemy)
-  const clock = useRef({ elapsed: 0 })
-
-  useSimSystem('spawner', SYSTEM_ORDER.spawner, (dt) => {
-    if (!stepIntervalClock(clock.current, dt, SPAWN.interval)) return
-    if (useGameStore.getState().enemies.length >= SPAWN.maxEnemies) return
-
-    const randomType = SPAWN.types[Math.floor(Math.random() * SPAWN.types.length)]
-    const leftIsOffStage = view.cameraX - view.halfWidth - SPAWN.offscreenMargin < 0
-    const side = leftIsOffStage || Math.random() < 0.5 ? 1 : -1
-    const at = offscreenSpawn(
-      view,
-      side,
-      SPAWN.offscreenMargin,
-      Math.random(),
-      STAGE.length,
-      STAGE.depthBand
-    )
-
-    spawnEnemy({
-      id: nextEnemyId(),
-      type: randomType,
-      health: ENEMY_TYPES[randomType].maxHealth,
-      maxHealth: ENEMY_TYPES[randomType].maxHealth,
-      position: [at.x, SPAWN.height, at.z],
-    })
-  })
-
-  return null
-}
+const LEVEL = DEFAULT_LEVEL
+const STAGE_LENGTH = levelLength(LEVEL)
 
 export const GameScene = () => {
   const playerRef = useRef<RapierRigidBody>(null)
@@ -73,28 +35,7 @@ export const GameScene = () => {
   const [playerAttack] = useState(createPlayerAttackState)
 
   const enemies = useGameStore((state) => state.enemies)
-  const spawnEnemy = useGameStore((state) => state.spawnEnemy)
-  const isGameOver = useGameStore((state) => state.isGameOver)
-  const isPaused = useGameStore((state) => state.isPaused)
-  const hasSpawnedInitial = useRef(false)
-
-  // Spawn initial enemies once
-  useEffect(() => {
-    if (hasSpawnedInitial.current) return
-    hasSpawnedInitial.current = true
-
-    const type = SPAWN.initialType
-    SPAWN.initialPositions.forEach((pos) => {
-      spawnEnemy({
-        id: nextEnemyId(),
-        type,
-        health: ENEMY_TYPES[type].maxHealth,
-        maxHealth: ENEMY_TYPES[type].maxHealth,
-        position: [...pos],
-      })
-    })
-  }, [spawnEnemy])
-
+  const frozen = useGameStore(isFrozen)
   // Clean up enemy refs when enemies are removed
   useEffect(() => {
     const currentEnemyIds = new Set(enemies.map((e) => e.id))
@@ -134,10 +75,20 @@ export const GameScene = () => {
         <hemisphereLight args={['#b8c4ff', '#30303a', 0.4]} />
 
         <SimLoopDriver>
-        <CameraRig view={view} playerPositionRef={playerPositionRef} lightRef={lightRef} />
-        <EnemySpawner view={view} />
-        <Physics gravity={DEFAULT_CONFIG.physics.gravity} paused={isPaused || isGameOver}>
-          <Stage />
+        <CameraRig
+          view={view}
+          stageLength={STAGE_LENGTH}
+          playerPositionRef={playerPositionRef}
+          lightRef={lightRef}
+        />
+        <LevelDirector
+          level={LEVEL}
+          stageLength={STAGE_LENGTH}
+          view={view}
+          playerPositionRef={playerPositionRef}
+        />
+        <Physics gravity={DEFAULT_CONFIG.physics.gravity} paused={frozen}>
+          <Stage length={STAGE_LENGTH} />
           <Player
             ref={playerRef}
             attack={playerAttack}
@@ -159,6 +110,8 @@ export const GameScene = () => {
                 position={enemy.position}
                 playerPositionRef={playerPositionRef}
                 enemyRefs={enemyRefs.current}
+                stageLength={STAGE_LENGTH}
+                view={view}
               />
             )
           })}

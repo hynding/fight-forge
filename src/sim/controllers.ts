@@ -40,15 +40,23 @@ export interface BrawlerContext {
   others: Iterable<Vec2>
   /** True when someone else holds the attack slot. */
   slotTakenByOther: boolean
+  /** Engage regardless of distance (e.g. the enemy is off screen, walking in or left behind). */
+  forceEngage?: boolean
 }
 
 /** Per-enemy AI memory, kept between steps. */
 export interface BrawlerMemory {
   patrolTarget: Vec2 | null
   patrolTimer: number
+  /** Once engaged, an enemy keeps coming at the target instead of drifting back to patrol. */
+  engaged: boolean
 }
 
-export const createBrawlerMemory = (): BrawlerMemory => ({ patrolTarget: null, patrolTimer: 0 })
+export const createBrawlerMemory = (): BrawlerMemory => ({
+  patrolTarget: null,
+  patrolTimer: 0,
+  engaged: false,
+})
 
 const len = (v: Vec2) => Math.hypot(v.x, v.z)
 const normalize = (v: Vec2): Vec2 => {
@@ -81,8 +89,9 @@ const STAND_OFF = 0.8
  * target in depth and just beside it (on the side the enemy is already on),
  * keeping spacing from other enemies. Lined up and in reach, circle if crowded
  * and someone else is attacking, otherwise stand and ask to attack (claim the
- * slot). Outside aggro range, patrol to random nearby points. Always faces the
- * target horizontally.
+ * slot). Until it first comes within aggro range (or is forced to engage, as
+ * off-screen enemies are), patrol to random nearby points; after that it stays
+ * engaged. Always faces the target horizontally.
  *
  * `move` is the walk-speed fraction, so patrol and circling are slower.
  */
@@ -96,7 +105,9 @@ export const brawlerIntent = (
   const toTarget = { x: ctx.target.x - ctx.self.x, z: ctx.target.z - ctx.self.z }
   const distance = len(toTarget)
 
-  if (distance < cfg.aggroRange) {
+  if (ctx.forceEngage || distance < cfg.aggroRange) mem.engaged = true
+
+  if (mem.engaged) {
     const dir = normalize(toTarget)
     const face = { x: toTarget.x, z: 0 }
     const push = spacingPush(ctx.self, ctx.others, cfg.minSpacing)

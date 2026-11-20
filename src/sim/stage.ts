@@ -15,12 +15,15 @@ export interface StageView {
   maxCameraX: number
   /** Half the visible width at the depth lane's centre (set from the viewport). */
   halfWidth: number
+  /** While set (a level's screen lock), the camera holds at this X. */
+  lockX: number | null
 }
 
 export const createStageView = (cameraX: number, halfWidth = 10): StageView => ({
   cameraX,
   maxCameraX: cameraX,
   halfWidth,
+  lockX: null,
 })
 
 /** Camera X range that keeps the view inside the stage [0, length]. */
@@ -33,7 +36,8 @@ export const cameraLimits = (halfWidth: number, stageLength: number): [number, n
 /**
  * Moves the camera only when the target leaves the dead zone around screen
  * centre, clamps to the stage, and (unless backtracking is allowed) never
- * scrolls back left of the farthest point reached. Mutates and returns `view`.
+ * scrolls back left of the farthest point reached. A screen lock holds it
+ * still. Mutates and returns `view`.
  */
 export const stepCamera = (
   view: StageView,
@@ -41,6 +45,10 @@ export const stepCamera = (
   stageLength: number,
   cfg: CameraFollowConfig
 ): StageView => {
+  if (view.lockX !== null) {
+    view.cameraX = view.lockX
+    return view
+  }
   let x = view.cameraX
   if (targetX > x + cfg.deadZone) x = targetX - cfg.deadZone
   else if (targetX < x - cfg.deadZone) x = targetX + cfg.deadZone

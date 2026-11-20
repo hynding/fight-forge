@@ -1,5 +1,5 @@
 import { Suspense, type RefObject } from 'react'
-import { useGameStore } from '../store/gameStore'
+import { isFrozen, useGameStore } from '../store/gameStore'
 import { PROCEDURAL_MODEL, type ModelRef } from '../config/defaults'
 import type { FighterRuntime } from '../sim/fighter'
 import { HumanoidModel } from './HumanoidModel'
@@ -18,10 +18,7 @@ interface FighterModelProps {
   isMovingRef: RefObject<boolean>
 }
 
-const isFrozen = () => {
-  const { isPaused, isGameOver } = useGameStore.getState()
-  return isPaused || isGameOver
-}
+const frozenNow = () => isFrozen(useGameStore.getState())
 
 /**
  * A fighter's look: an imported glTF when configured, else the box humanoid.
@@ -42,7 +39,7 @@ export const FighterModel = ({ model, ...props }: FighterModelProps) => {
           emissiveIntensity={props.emissiveIntensity}
           scale={props.scale}
           runtime={props.runtime}
-          paused={isFrozen}
+          paused={frozenNow}
         />
       </Suspense>
     </ModelErrorBoundary>
