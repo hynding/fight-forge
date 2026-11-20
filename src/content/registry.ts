@@ -3,6 +3,7 @@
 // every cross-reference, returning a readable list of errors instead of
 // throwing. Pure TS, so it runs the same in the game, the editor and tests.
 
+import { siteUrl } from './siteUrl'
 import type { ZodIssue } from 'zod'
 import type { GameConfig, ModelRef } from '../config/defaults'
 import type { Level } from '../sim/level'
@@ -193,7 +194,7 @@ export class ContentRegistry {
     const model = (m: ModelRefDef): ModelRef => {
       if (m.kind === 'procedural') return m
       const { asset, url, ...rest } = m
-      return { ...rest, url: url ?? assetUrl(this.resolve(`asset:${asset ?? ''}`)) }
+      return { ...rest, url: url !== undefined ? siteUrl(url) : assetUrl(this.resolve(`asset:${asset ?? ''}`)) }
     }
     const s = this.settings
     const config: GameConfig = {

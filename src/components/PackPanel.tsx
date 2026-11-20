@@ -1,3 +1,4 @@
+import { siteUrl } from '../content/siteUrl'
 import { useRef, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import {
@@ -13,7 +14,7 @@ import type { Result } from '../content/registry'
 import { downloadBytes as download } from '../utils/download'
 
 /** The sample remix pack shipped with the game (public/packs). */
-const SAMPLE_PACK_URL = '/packs/skeleton-remix.zip'
+const SAMPLE_PACK_URL = siteUrl('/packs/skeleton-remix.zip')
 
 const small = {
   padding: '4px 8px',
