@@ -120,6 +120,14 @@ export const readBundle = async (zip: Uint8Array): Promise<Result<Bundle>> => {
   return { ok: true, value: { pack, json, files: assetFiles } }
 }
 
+/** The image format of a file from its first bytes: PNG, JPEG or WebP, or null for anything else. */
+export const imageType = (b: Uint8Array): 'png' | 'jpeg' | 'webp' | null => {
+  if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'png'
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpeg'
+  if (b.length >= 12 && String.fromCharCode(...b.slice(0, 4)) === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP') return 'webp'
+  return null
+}
+
 const assetErrors = async (asset: AssetDef, bytes: Uint8Array | undefined): Promise<string[]> => {
   if (!SAFE_PATH.test(asset.path)) return [`path "${asset.path}" must be relative, without ".."`]
   if (!bytes) return [`file "${asset.path}" is missing from the bundle`]
@@ -132,6 +140,7 @@ const assetErrors = async (asset: AssetDef, bytes: Uint8Array | undefined): Prom
     else if ((await sha256(bytes)) !== asset.hash) problems.push(`"${asset.path}" doesn't match its hash (corrupted or changed)`)
   }
   if (asset.kind === 'model' && !isGlb(bytes)) problems.push(`"${asset.path}" isn't a binary glTF (.glb)`)
+  if (asset.kind === 'texture' && !imageType(bytes)) problems.push(`"${asset.path}" isn't a PNG, JPEG or WebP image`)
   return problems
 }
 

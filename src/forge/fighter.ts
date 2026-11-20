@@ -11,16 +11,16 @@ type Json = Record<string, unknown>
 const isGlb = (b: Uint8Array) => b.length >= 12 && b[0] === 0x67 && b[1] === 0x6c && b[2] === 0x54 && b[3] === 0x46
 
 /** "Hero Model (v2).glb" → "hero-model-v2" (a valid id). */
-const fileStem = (name: string) => {
+export const fileStem = (name: string, prefix = 'model') => {
   const s = name
     .replace(/\.[^.]*$/, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-  return /^[a-z]/.test(s) ? s : `model-${s}`.replace(/-$/, '')
+  return /^[a-z]/.test(s) ? s : `${prefix}-${s}`.replace(/-$/, '')
 }
 
-const assetsOf = (json: PackJson): Json[] => (Array.isArray(json.assets) ? (json.assets as Json[]) : [])
+export const assetsOf = (json: PackJson): Json[] => (Array.isArray(json.assets) ? (json.assets as Json[]) : [])
 
 /**
  * Add a .glb model file to the pack as an asset. Returns the new pack and the
