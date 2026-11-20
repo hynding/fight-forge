@@ -2,16 +2,15 @@ import { useEffect, useState } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useGameStore } from '../store/gameStore'
 import { setActiveContent } from '../content/active'
-import { defaultPack } from '../content/defaultPack'
-import { loadContent } from '../content/load'
+import { loadActivePacks } from '../content/library'
 import { gltfModelUrls } from '../config/models'
 
 // Keep the screen up at least this long so it doesn't just flash.
 const MIN_DURATION_MS = 600
 
 /**
- * Loads the run's content: validates the packs (just the default pack for
- * now; M2.3 adds pack selection), installs them as the active content, and
+ * Loads the run's content: validates the packs chosen on the menu (the
+ * default pack plus any enabled imports), installs them as the active content, and
  * fetches every glTF model they use, then starts the game. Invalid content
  * stops here with the error list instead of starting a broken run.
  */
@@ -28,7 +27,7 @@ export const LoadingScreen = () => {
     let timer: ReturnType<typeof setTimeout> | undefined
     const started = Date.now()
     const run = async () => {
-      const result = loadContent([defaultPack()])
+      const result = loadActivePacks()
       if (cancelled) return
       if (!result.ok) {
         setError(result.error)

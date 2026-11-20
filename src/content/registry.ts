@@ -7,6 +7,7 @@ import type { ZodIssue } from 'zod'
 import type { GameConfig, ModelRef } from '../config/defaults'
 import type { Level } from '../sim/level'
 import { cancelTime, moveDuration } from '../sim/moves'
+import { migratePack } from './migrations'
 import {
   packSchema,
   type AiBehaviorDef,
@@ -66,14 +67,16 @@ const issuePath = (path: (string | number)[]): string =>
 const issueErrors = (issues: ZodIssue[], pack?: string): ContentError[] =>
   issues.map((i) => ({ ...(pack ? { pack } : {}), path: issuePath(i.path), message: i.message }))
 
-/** Validate one pack's shape (no cross-references; see `buildRegistry`). */
+/** Upgrade an older pack, then validate its shape (no cross-references; see `buildRegistry`). */
 export const parsePack = (input: unknown): Result<Pack> => {
-  const result = packSchema.safeParse(input)
-  if (result.success) return { ok: true, value: result.data }
   const id =
     typeof input === 'object' && input !== null && typeof (input as { id?: unknown }).id === 'string'
       ? (input as { id: string }).id
       : undefined
+  const migrated = migratePack(input)
+  if (!migrated.ok) return { ok: false, errors: [{ ...(id ? { pack: id } : {}), path: 'schemaVersion', message: migrated.message }] }
+  const result = packSchema.safeParse(migrated.value)
+  if (result.success) return { ok: true, value: result.data }
   return { ok: false, errors: issueErrors(result.error.issues, id) }
 }
 

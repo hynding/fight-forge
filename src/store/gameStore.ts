@@ -64,6 +64,10 @@ interface GameState {
   runKos: number
   /** Items on the ground. */
   pickups: PickupInstance[]
+  /** Imported content packs, in load order after the default pack (see src/content/library.ts). */
+  packs: PackSummary[]
+  /** Why the chosen packs can't be played together, if they can't; the menu won't start a run meanwhile. */
+  contentError: string | null
 
   // Actions
   damagePlayer: (damage: number) => void
@@ -91,6 +95,18 @@ interface GameState {
   setLevelProgress: (patch: Partial<LevelProgress>) => void
   completeLevel: (time: number) => void
   toggleHitboxes: () => void
+  /** Called by the pack library after installing, toggling or removing packs. */
+  setPacks: (packs: PackSummary[], contentError: string | null) => void
+}
+
+/** What the menu shows about an imported pack. */
+export interface PackSummary {
+  id: string
+  name: string
+  version: string
+  author: string
+  description: string
+  enabled: boolean
 }
 
 /** True while the game shouldn't advance: paused, game over, or level complete. */
@@ -131,6 +147,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   gameId: 0,
   levelProgress: INITIAL_LEVEL_PROGRESS,
   showHitboxes: false,
+  packs: [],
+  contentError: null,
   levelIndex: 0,
   lives: getConfig().rules.lives,
   continuesLeft: getConfig().rules.continues,
@@ -140,6 +158,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   pickups: [],
 
   toggleHitboxes: () => set((state) => ({ showHitboxes: !state.showHitboxes })),
+  setPacks: (packs, contentError) => set({ packs, contentError }),
 
   damagePlayer: (damage) =>
     set((state) => {
