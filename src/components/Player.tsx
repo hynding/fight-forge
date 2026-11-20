@@ -5,6 +5,7 @@ import { Group, Vector3 } from 'three'
 import { useControls } from '../hooks/useControls'
 import { HumanoidModel } from './HumanoidModel'
 import { useGameStore } from '../store/gameStore'
+import { gameStep } from '../utils/gameTime'
 
 interface PlayerProps {
   onAttackChange?: (isAttacking: boolean, direction: Vector3) => void
@@ -56,10 +57,11 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     prevHealth.current = playerHealth
   }, [playerHealth])
 
-  useFrame((_, delta) => {
+  useFrame((_, frameDelta) => {
     if (!playerRef.current) return
     const { isPaused, isGameOver } = useGameStore.getState()
     if (isPaused || isGameOver) return
+    const delta = gameStep(frameDelta)
 
     animationTimeRef.current += delta
 

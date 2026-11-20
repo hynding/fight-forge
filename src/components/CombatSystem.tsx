@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { RapierRigidBody } from '@react-three/rapier'
 import { Vector3 } from 'three'
 import { useGameStore } from '../store/gameStore'
+import { gameStep } from '../utils/gameTime'
 
 const _playerVec = new Vector3()
 const _enemyVec = new Vector3()
@@ -53,13 +54,18 @@ export const CombatSystem = ({
 
     // Game-time clock (seconds of unpaused frames), so the per-enemy damage
     // cooldown freezes with the enemy's attack-slot timer during a pause.
-    gameTime.current += delta
+    gameTime.current += gameStep(delta)
     const now = gameTime.current
 
     if (!playerAttacking && lastAttackState.current) {
       damagedEnemiesThisAttack.current.clear()
     }
     lastAttackState.current = playerAttacking
+
+    // Forget cooldowns for enemies that no longer exist.
+    lastEnemyDamageTime.current.forEach((_, enemyId) => {
+      if (!enemyRefs.has(enemyId)) lastEnemyDamageTime.current.delete(enemyId)
+    })
 
     enemyRefs.forEach((enemyRef, enemyId) => {
       if (!enemyRef.current) return

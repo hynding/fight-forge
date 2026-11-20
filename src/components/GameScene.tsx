@@ -12,6 +12,7 @@ import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
 import { useGameStore } from '../store/gameStore'
 import { EnemyType } from '../types/game'
+import { gameStep } from '../utils/gameTime'
 
 const _cameraTarget = new Vector3()
 
@@ -56,8 +57,8 @@ const CameraRig = ({ playerPositionRef, controlsRef }: CameraRigProps) => {
   return null
 }
 
-// Periodic spawner. Counts game time in useFrame (frozen while paused or game
-// over, and while the tab is hidden), so spawns never pile up off-screen.
+// Periodic spawner. Counts game time in useFrame: frozen while paused or game
+// over, and the clamped step means returning to a hidden tab can't pay out a burst.
 const EnemySpawner = () => {
   const spawnEnemy = useGameStore((state) => state.spawnEnemy)
   const elapsed = useRef(0)
@@ -66,7 +67,7 @@ const EnemySpawner = () => {
     const { isPaused, isGameOver, enemies } = useGameStore.getState()
     if (isPaused || isGameOver) return
 
-    elapsed.current += delta * 1000
+    elapsed.current += gameStep(delta) * 1000
     if (elapsed.current < SPAWN_INTERVAL_MS) return
     elapsed.current -= SPAWN_INTERVAL_MS
     if (enemies.length >= MAX_ENEMIES) return

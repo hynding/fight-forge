@@ -6,6 +6,7 @@ import { Group, Vector3 } from 'three'
 import { EnemyType } from '../types/game'
 import { useGameStore } from '../store/gameStore'
 import { HumanoidModel } from './HumanoidModel'
+import { gameStep } from '../utils/gameTime'
 
 // Module-scoped temp vectors — reused every frame to avoid allocations.
 // Safe because Enemy.useFrame is single-threaded per renderer.
@@ -86,13 +87,14 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
 
     // Death (removal + score) is handled atomically by `damageEnemy` in the store.
 
-    useFrame((_, delta) => {
+    useFrame((_, frameDelta) => {
       if (!enemyRef.current || !playerPositionRef.current) return
       // Read live store state: the render-time `attackingEnemyId` can be several
       // frames stale, which let multiple enemies claim the attacker slot at once.
       const { isPaused, isGameOver, attackingEnemyId: currentAttackerId } =
         useGameStore.getState()
       if (isPaused || isGameOver) return
+      const delta = gameStep(frameDelta)
 
       animationTimeRef.current += delta
 
