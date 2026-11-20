@@ -13,4 +13,9 @@ describe('gameStep', () => {
   it('never goes negative', () => {
     expect(gameStep(-1)).toBe(0)
   })
+
+  it('treats non-finite deltas as no time passing', () => {
+    expect(gameStep(NaN)).toBe(0)
+    expect(gameStep(Infinity)).toBe(0)
+  })
 })

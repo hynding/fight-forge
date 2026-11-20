@@ -83,8 +83,11 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
       newVelX = targetVelX
       newVelZ = targetVelZ
     } else {
-      newVelX *= DECELERATION
-      newVelZ *= DECELERATION
+      // DECELERATION is tuned per 60 Hz frame; scale by elapsed time so the
+      // slide distance is the same on 30, 60 and 144 Hz displays.
+      const decel = Math.pow(DECELERATION, delta * 60)
+      newVelX *= decel
+      newVelZ *= decel
       if (Math.abs(newVelX) < 0.1) newVelX = 0
       if (Math.abs(newVelZ) < 0.1) newVelZ = 0
     }
