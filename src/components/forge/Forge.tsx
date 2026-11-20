@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { describeErrors, installBundle } from '../../content/library'
 import type { ContentError } from '../../content/registry'
+import { blankLevel } from '../../forge/level'
 import { pathString, setIn } from '../../forge/paths'
 import { workspaceStore } from '../../forge/storage'
 import { GROUPS, addNode, buildTree, nodeValue, overrideNode, removeNode, type TreeNode } from '../../forge/tree'
@@ -18,6 +19,7 @@ import {
 import { downloadBytes } from '../../utils/download'
 import { Field } from './SchemaForm'
 import { EnemyTools } from './EnemyTools'
+import { LevelTools } from './LevelTools'
 import { FighterTools } from './FighterTools'
 import { MoveTools } from './MoveTools'
 import { sectionHeading, ui } from './ui'
@@ -278,6 +280,19 @@ export const Forge = () => {
                   + new {g.item}
                 </button>
               )}
+              {g.id === 'levels' && (
+                <button
+                  style={{ ...ui.button, marginTop: '2px', marginLeft: '4px', fontSize: '11px' }}
+                  title="An empty level with just a goal, to build from scratch"
+                  onClick={() => {
+                    const r = addNode(pack.json, 'levels', blankLevel())
+                    edit(r.json)
+                    setNodeKey(r.key)
+                  }}
+                >
+                  + blank level
+                </button>
+              )}
             </div>
           ))}
       </div>
@@ -342,6 +357,19 @@ export const Forge = () => {
             {node.group === 'moves' && (
               <div style={{ marginTop: '10px' }}>
                 <MoveTools key={node.key} pack={pack} node={node} save={(wp) => put(wp, false)} />
+              </div>
+            )}
+            {node.group === 'levels' && (
+              <div style={{ marginTop: '10px' }}>
+                <LevelTools
+                  key={`level:${node.key}`}
+                  pack={pack}
+                  node={node}
+                  save={(wp) => put(wp, false)}
+                  onError={(text) => setMessage({ text, error: true })}
+                  invalid={errors.length > 0}
+                  errors={errorMap}
+                />
               </div>
             )}
             {node.group !== 'pack' && <div style={sectionHeading}>ALL FIELDS</div>}
