@@ -29,18 +29,19 @@ What stands between it and the goal:
 | Creator tooling | None | An in-browser editor ("Forge mode") with live preview and import/export |
 | Project hygiene | No CI | CI running lint, test, and build on every PR |
 
-There is also an unmerged `copilot/create-brawler-engine-framework` branch. It is a separate 2D, DOM-rendered engine on a different stack and shares no code with `main`. This plan does not build on it, and Steve has agreed to close it (section 6).
+There is also an unmerged `copilot/create-brawler-engine-framework` branch. It is a separate 2D, DOM-rendered engine on a different stack and shares no code with `main`. This plan does not build on it, and Steve has decided to delete it (section 6).
 
 ---
 
 ## 2. Product shape (the assumptions this plan makes)
 
 - **Genre:** a 2.5D side-scrolling beat 'em up. The camera looks at the action from the side and slightly above. Fighters move freely left/right along the level (X) and within a shallow depth band (Z, e.g. 6 units). The level scrolls as the player advances, and "screen locks" hold the camera until a wave is cleared.
-- **Creators:** people who want to make their own brawler without writing code. They edit data (characters, moves, enemies, levels, rules) in an in-browser editor and share a **content pack** (a JSON bundle, later with assets).
+- **Creators:** people who want to make their own brawler without writing code. They edit data (characters, moves, enemies, levels, rules) in an in-browser editor and share a **content pack** (JSON plus assets such as imported 3D models) online, where other players can browse, play, and remix it.
+- **Art:** imported 3D character models (glTF) come in early, in Phase 1. The procedural box humanoid stays as a fallback and placeholder.
 - **Developers** can still extend the engine in code (new AI behaviors, new move effects), and those extensions become new options in the data.
 - **Single player first.** Local co-op is a stretch goal, but the architecture below keeps it possible (no "the player" singletons in combat code).
 
-The genre and creator assumptions are confirmed (section 6). The remaining open questions there only affect later phases.
+All of these were confirmed by Steve (section 6).
 
 ---
 
@@ -70,11 +71,16 @@ Key changes from today:
 5. **Attack tokens.** The `attackingEnemyId` invariant generalizes to an attack-token pool with `rules.maxSimultaneousAttackers`, **defaulting to 1**, so today's balance rule stays the default and becomes a creator setting. The live-read rule (read current state per frame, not a stale selector) carries over, and CLAUDE.md is updated in the same PR.
 6. **Level runtime.** A level is an ordered list of segments, each with a length, environment props, and triggers (`onEnter`, `onCameraReach`, `onWaveCleared`) that spawn waves or lock the camera. The camera follows the player with a dead zone and is clamped by the active segment / lock bounds.
 7. **Store split into slices.** `session` (screen, pause, active pack), `run` (score, lives, level index), `combat` (fighter HUD data keyed by id with a `defId`), `forge` (editor workspace). Per-frame data still never goes into the store.
+8. **Asset pipeline.** A `ModelRef` is either the procedural humanoid or a glTF/GLB file with a clip map from fighter states and moves to animation clip names. Fighter states drive animation (via drei `useAnimations`), never the other way round: hitboxes stay data, not mesh-derived, so gameplay doesn't depend on the art. Models load through Suspense behind the loading screen.
+9. **Online pack service.** Sharing needs a small backend: accounts, pack storage (JSON + assets), and a catalog API. Packs are **data only** (no scripts), and the same schema validation runs on upload and on download, so a shared pack can't run code in a player's browser. The service lives in its own folder (e.g. `server/`) with its own deploy, and the game stays a static site that works offline with local packs.
 
 ### 3.2 Content model (first draft)
 
 ```ts
-Pack      { id, name, version, schemaVersion, fighters[], moves[], enemies[], levels[], rules, theme? }
+Pack      { id, name, version, schemaVersion, meta: { author, description, cover?, license },
+            fighters[], moves[], enemies[], levels[], rules, theme?, assets: AssetRef[] }
+AssetRef  { id, kind: 'model'|'texture'|'audio', path /* inside the pack bundle */, hash, bytes }
+ModelRef  { kind: 'procedural', color } | { kind: 'gltf', asset: AssetId, scale, offset, clips: Record<StateOrMoveId, ClipName> }
 Fighter   { id, name, model: ModelRef, scale, stats: { maxHealth, walkSpeed, depthSpeed, jumpVelocity, weight },
             moveset: { light: MoveId[] /* combo chain */, heavy?, jumpAttack?, dashAttack?, special? }, colors? }
 Move      { id, animation, startup, active, recovery /* frames @60Hz */, hitboxes: Hitbox[], damage, knockback: [x,y],
@@ -88,7 +94,7 @@ Rules     { lives, continues, maxSimultaneousAttackers, friendlyFire, difficulty
             camera: { height, distance, fov, deadZone }, scoring, inputBindings }
 ```
 
-`schemaVersion` plus a small migration table means packs made with older versions keep loading.
+`schemaVersion` plus a small migration table means packs made with older versions keep loading. A shared pack is a bundle (zip) of the JSON plus its asset files, referenced by relative path and checked by hash.
 
 ---
 
@@ -120,38 +126,45 @@ Each milestone below is one PR. "Done when" is the acceptance bar. Every PR keep
 - One `<FighterBody>` component replaces the duplicated parts of `Player.tsx` and `Enemy.tsx` (rigid body, facing, model, hurt flash).
 - Done when: player and enemies run through the same code path; state-machine transitions are unit-tested; play feel unchanged.
 
-**M1.2 2.5D movement plane and scrolling camera**
+**M1.2 Imported 3D character models**
+- `ModelRef` (section 3.2) with glTF/GLB loading via drei `useGLTF` / `useAnimations`; the fighter state machine from M1.1 selects clips (idle, walk, jump, hurt, knockdown, attack) through the clip map, with crossfades.
+- Ship one permissively licensed (e.g. CC0) rigged sample character for the player and one for enemies under `public/models/`, with the license recorded next to them. The box humanoid stays as the fallback when a model is missing or fails to load.
+- Collider size and model offset come from the fighter definition rather than the hard-coded `-0.35` offset.
+- Done when: the player and enemies render as imported animated models that follow fighter state; a missing model falls back cleanly; clip-map resolution is unit-tested.
+
+**M1.3 2.5D movement plane and scrolling camera**
 - Movement: X free, Z clamped to the level's depth band. Facing flips left/right (with depth movement keeping the last horizontal facing).
 - Camera: side-on follow with a configurable height, distance, and horizontal dead zone; never scrolls backward past the left bound.
 - Replace the walled arena with a long ground strip; enemies enter from off-screen edges.
 - Update controls (A/D horizontal, W/S depth) and the on-screen hints.
 - Done when: you can walk a long strip with the camera scrolling; camera math is tested as a pure function.
 
-**M1.3 Level runtime: segments, waves, screen locks, goal**
+**M1.4 Level runtime: segments, waves, screen locks, goal**
 - `src/sim/level.ts`: segments, triggers, wave spawning (replacing the timer spawner), camera locks that release on wave clear, a "GO →" prompt, and a goal trigger.
 - Store gets `levelProgress`; new `levelComplete` screen.
 - Ship one hand-written level as a TS data object shaped like the future schema.
 - Done when: a level can be played start to finish; trigger and wave logic are tested headless.
 
-**M1.4 Moves with frame data, hitboxes, and hit reactions**
+**M1.5 Moves with frame data, hitboxes, and hit reactions**
 - Move definitions with startup / active / recovery; hitbox checks against hurtboxes as pure math; one-hit-per-move-instance (generalizing `damagedEnemiesThisAttack`).
 - Reactions: hitstun, knockback, knockdown + getup, brief invulnerability on getup.
 - Light-attack combo chain (e.g. jab, jab, hook, finisher with launch) via cancel windows.
+- Each move names its animation clip; active frames line up with the clip so hits read correctly on imported models.
 - Hitbox debug overlay (toggle) for tuning.
 - Done when: the cone check is gone; combo timing and hit detection are covered by tests.
 
-**M1.5 Block, dodge, jump and dash attacks**
+**M1.6 Block, dodge, jump and dash attacks**
 - Implement the already-mapped K (block) and Shift (dodge): block reduces damage and causes blockstun; dodge is a short invulnerable sidestep in depth.
 - Jump attack and dash (double-tap) attack as moves.
 - Restore block/dodge to the on-screen hints.
 - Done when: each new action is a move/state in data, not a special case.
 
-**M1.6 Enemy AI archetypes and attack tokens**
+**M1.7 Enemy AI archetypes and attack tokens**
 - Replace `attackingEnemyId` with an attack-token pool (`maxSimultaneousAttackers`, default 1) keeping the "release only if you still hold it" and recovery rules; update CLAUDE.md.
 - AI behaviors as small composable strategies: `brawler` (today), `rusher` (dash-in hits), `tank` (slow, armored, ignores light hitstun), `flanker` (circles behind). Parameters come from enemy definitions.
 - Done when: behaviors are selectable per enemy definition; token fairness is tested.
 
-**M1.7 Game flow: lives, pickups, results**
+**M1.8 Game flow: lives, pickups, results**
 - Lives and continues from rules; respawn with invulnerability.
 - Pickups (health food, score items) placed by level triggers or dropped by enemies.
 - Results screen (score, time, KOs) and a level select listing the pack's levels.
@@ -170,11 +183,12 @@ Each milestone below is one PR. "Done when" is the acceptance bar. Every PR keep
 - Move `src/config/defaults.ts` and the Phase 1 TS content into `content/default/*.json`, loaded and validated at boot (the loading screen becomes real).
 - Done when: no gameplay definitions remain in TS code; the game plays identically from JSON.
 
-**M2.3 Content packs: load, override, version**
+**M2.3 Pack bundles: load, override, version**
 - Load an extra pack from a file picker or URL; a pack can add content or override defaults by id.
 - `schemaVersion` with a migration table.
+- Pack bundles: zip import / export of the JSON plus asset files (models, textures), with per-type size limits and hash checks. This is the same format the online service will store.
 - Start menu: choose a pack.
-- Done when: a sample "remix" pack that changes stats and adds a level loads and plays.
+- Done when: a sample "remix" pack that changes stats, swaps in a different character model, and adds a level loads and plays from a single bundle file.
 
 **M2.4 Rules and input configuration**
 - All `Rules` fields wired in (lives, difficulty multipliers, attackers, friendly fire, camera, scoring).
@@ -194,11 +208,12 @@ An in-app editor reachable from the start menu, as a new `gameScreen: 'forge'`. 
 
 **M3.1 Forge shell and pack workspace**
 - Forge screen layout (asset list, inspector panel, preview viewport); create / duplicate / rename packs.
-- Persist the workspace in IndexedDB; import and export a pack as `.json`.
+- Persist the workspace (JSON and asset files) in IndexedDB; import and export pack bundles.
 - Schema-driven form generation for any definition, with inline validation errors from the registry.
 - Done when: you can create a pack, edit a fighter's stats in a form, export it, and load it in the game.
 
-**M3.2 Fighter and move editor**
+**M3.2 Fighter, model, and move editor**
+- Import a glTF/GLB model for a fighter, preview it, and map its animation clips to states and moves from dropdowns.
 - Preview viewport showing the fighter; play any move with a frame scrubber; hitboxes drawn and draggable per active frame.
 - Combo-chain editor for the moveset.
 - Done when: a creator can author a new move and see its hitbox and timing without leaving the editor.
@@ -220,33 +235,54 @@ An in-app editor reachable from the start menu, as a new `gameScreen: 'forge'`. 
 - Toggle between Forge and play with the edited pack, keeping the camera position; edits apply on return without a full reload where possible.
 - Done when: the edit, play, adjust loop has no export/import step.
 
-**Phase 3 exit:** a non-programmer can make and share a brawler.
+**Phase 3 exit:** a non-programmer can make a complete brawler, with their own models, and export it as a bundle.
 
-### Phase 4: Assets, feel, and polish
+### Phase 4: Online sharing
 
-**M4.1 Imported character models**
-- `ModelRef` supports glTF/GLB (drei `useGLTF` / `useAnimations`) with a mapping from fighter states and moves to animation clips; the box humanoid stays as the fallback and default.
-- Packs can include assets (zip export / import, or assets stored alongside the pack in IndexedDB).
+Packs become shareable online. This is the first phase with a server, so it starts with a decision record.
 
-**M4.2 Audio**
-- SFX per move / hit / block / KO and music per level, configured in the pack; master / music / SFX volume settings.
+**M4.1 Backend decision and public deploy**
+- ADR choosing the backend. Recommend a managed backend-as-a-service (for example Supabase: Postgres, auth, and object storage in one) over a custom server, to keep cost and upkeep low; record the alternatives considered.
+- Deploy the game itself as a static site (e.g. GitHub Pages or Vercel) from CI, so a shared link has somewhere to open.
+- Done when: the ADR is merged and the game is live at a public URL.
 
-**M4.3 Game feel**
+**M4.2 Accounts and publishing**
+- Sign-in; publish a pack from Forge (bundle upload with server-side schema validation, asset type and size limits, and a declared license for its assets); versioned updates of your own packs; public, unlisted, or private visibility.
+- Done when: a creator can publish a pack from Forge and update it to a new version.
+
+**M4.3 Browse, play, and share links**
+- An in-game gallery (search, sort, cover images, author pages); play a pack directly with local caching; deep links (`?pack=<id>`) that open straight into a pack.
+- Done when: a second account can find a published pack, play it, and share a link that opens it.
+
+**M4.4 Remix and community basics**
+- "Remix" copies a published pack into your Forge workspace with attribution back to the original; likes or ratings; "updated" badges for packs you've played.
+- Done when: remixing keeps attribution and the original is unaffected.
+
+**M4.5 Safety and moderation**
+- Report a pack, owner and admin takedown, upload rate limits, and checks on uploaded assets (file types, size, glTF validation).
+- Done when: a reported pack can be hidden by an admin, and limits are enforced server-side.
+
+### Phase 5: Feel and polish
+
+**M5.1 Audio**
+- SFX per move / hit / block / KO and music per level, configured in the pack and bundled as assets; master / music / SFX volume settings.
+
+**M5.2 Game feel**
 - Hit-stop, screen shake, hit sparks and dust particles, damage numbers; each configurable (and turn-off-able) in rules.
 
-**M4.4 Gamepad support**
+**M5.3 Gamepad support**
 - Gamepad API in `InputController`, rebindable like the keyboard.
 
-**M4.5 Performance pass**
-- Instanced rendering for crowds, a stress level (30+ enemies), and a frame-time budget check.
+**M5.4 Performance pass**
+- Instanced rendering for crowds, skinned-mesh budgets for imported models, a stress level (30+ enemies), and a frame-time budget check.
 
-### Phase 5: Stretch goals
+### Phase 6: Stretch goals
 
 - **Local co-op**: a second `InputController` and HUD; camera framing for two players.
 - **Weapons and throwables**: pickup items with their own movesets.
 - **Bosses**: scripted phases and health-bar UI driven by level triggers.
 - **Grabs and throws**, and **specials** with a meter.
-- **Pack sharing**: share via URL or a hosted gallery (needs a backend decision; see section 6).
+- **Online co-op**: much larger than local co-op (netcode); only worth planning once the fixed-step sim has proven deterministic.
 
 ---
 
@@ -259,18 +295,15 @@ An in-app editor reachable from the start menu, as a new `gameScreen: 'forge'`. 
 
 ---
 
-## 6. Decisions and open questions
+## 6. Decisions
 
-Settled by Steve on 2026-11-20:
+All settled by Steve on 2026-11-20:
 
-1. **Camera and movement:** a classic 2.5D beat 'em up. Fighters move left/right along the level plus a shallow depth lane, and the camera scrolls as the player advances. (Settled; this is what Phase 1 builds.)
-2. **Who are the creators?** Non-programmers using the in-app Forge editor. Phase 3 stays in scope as planned. (Settled.)
-3. **The `copilot/create-brawler-engine-framework` branch:** close it; this plan does not build on it. (Settled.)
-
-Still open (neither blocks Phase 0 or Phase 1):
-
-4. **Sharing:** are local file import / export enough, or should packs be shareable online? Online sharing needs a backend and accounts. The plan assumes local files until this is decided (needed by M2.3).
-5. **Art direction:** keep the procedural low-poly look as the house style, or plan for imported models early (pulling M4.1 forward)? The plan assumes procedural first.
+1. **Camera and movement:** a classic 2.5D beat 'em up. Fighters move left/right along the level plus a shallow depth lane, and the camera scrolls as the player advances.
+2. **Who are the creators?** Non-programmers using the in-app Forge editor.
+3. **Sharing:** packs are shareable online. This adds Phase 4 (backend, accounts, gallery, moderation).
+4. **Art direction:** imported 3D models early. This moves model support into Phase 1 (M1.2) and makes assets part of the pack format from Phase 2.
+5. **The `copilot/create-brawler-engine-framework` branch:** delete it. It is an unrelated 2D DOM engine that this plan doesn't build on.
 
 ---
 
@@ -282,23 +315,29 @@ Still open (neither blocks Phase 0 or Phase 1):
 | 2 | M0.2 Tuning into typed defaults | 0 |
 | 3 | M0.3 Fixed-step simulation loop | 0 |
 | 4 | M1.1 Unified Fighter + controllers | 1 |
-| 5 | M1.2 2.5D plane + scrolling camera | 1 |
-| 6 | M1.3 Level runtime | 1 |
-| 7 | M1.4 Moves, hitboxes, reactions | 1 |
-| 8 | M1.5 Block, dodge, air/dash attacks | 1 |
-| 9 | M1.6 AI archetypes + attack tokens | 1 |
-| 10 | M1.7 Lives, pickups, results | 1 |
-| 11 | M2.1 Schemas + registry | 2 |
-| 12 | M2.2 Default pack as JSON | 2 |
-| 13 | M2.3 Pack loading + versioning | 2 |
-| 14 | M2.4 Rules + input config | 2 |
-| 15 | M2.5 Themes + props | 2 |
-| 16 | M3.1 Forge shell + workspace | 3 |
-| 17 | M3.2 Fighter / move editor | 3 |
-| 18 | M3.3 Enemy editor + sandbox | 3 |
-| 19 | M3.4 Level editor | 3 |
-| 20 | M3.5 Rules / metadata editors | 3 |
-| 21 | M3.6 Live playtest loop | 3 |
-| 22+ | Phase 4 and 5 | 4–5 |
+| 5 | M1.2 Imported 3D character models | 1 |
+| 6 | M1.3 2.5D plane + scrolling camera | 1 |
+| 7 | M1.4 Level runtime | 1 |
+| 8 | M1.5 Moves, hitboxes, reactions | 1 |
+| 9 | M1.6 Block, dodge, air/dash attacks | 1 |
+| 10 | M1.7 AI archetypes + attack tokens | 1 |
+| 11 | M1.8 Lives, pickups, results | 1 |
+| 12 | M2.1 Schemas + registry | 2 |
+| 13 | M2.2 Default pack as JSON | 2 |
+| 14 | M2.3 Pack bundles, loading, versioning | 2 |
+| 15 | M2.4 Rules + input config | 2 |
+| 16 | M2.5 Themes + props | 2 |
+| 17 | M3.1 Forge shell + workspace | 3 |
+| 18 | M3.2 Fighter / move / model editor | 3 |
+| 19 | M3.3 Enemy editor + sandbox | 3 |
+| 20 | M3.4 Level editor | 3 |
+| 21 | M3.5 Rules / metadata editors | 3 |
+| 22 | M3.6 Live playtest loop | 3 |
+| 23 | M4.1 Backend ADR + public deploy | 4 |
+| 24 | M4.2 Accounts + publishing | 4 |
+| 25 | M4.3 Gallery, play, share links | 4 |
+| 26 | M4.4 Remix + community basics | 4 |
+| 27 | M4.5 Safety + moderation | 4 |
+| 28+ | Phase 5 and 6 | 5–6 |
 
-Phases 2 and 3 can partly overlap with late Phase 1 work: M2.1 (schemas) only needs the shapes settled in M1.3 and M1.4, so it can start once those land.
+Phases 2 and 3 can partly overlap with late Phase 1 work: M2.1 (schemas) only needs the shapes settled in M1.4 and M1.5, so it can start once those land. M4.1 (the backend decision) can be written any time after M2.3 fixes the bundle format.
