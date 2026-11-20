@@ -10,18 +10,10 @@ import {
   setPackEnabled,
 } from '../content/library'
 import type { Result } from '../content/registry'
+import { downloadBytes as download } from '../utils/download'
 
 /** The sample remix pack shipped with the game (public/packs). */
 const SAMPLE_PACK_URL = '/packs/skeleton-remix.zip'
-
-const download = (bytes: Uint8Array, filename: string) => {
-  const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/zip' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
 
 const small = {
   padding: '4px 8px',

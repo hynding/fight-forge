@@ -50,7 +50,7 @@ interface KindMap {
 
 export type ContentRef<K extends ContentKind = ContentKind> = `${K}:${string}`
 
-const SETTINGS_SECTIONS = [
+export const SETTINGS_SECTIONS = [
   'physics',
   'body',
   'player',

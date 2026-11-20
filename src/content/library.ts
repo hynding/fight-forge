@@ -1,7 +1,8 @@
 // The pack library: imported pack bundles, which of them are enabled, and
 // turning the enabled set (on top of the default pack) into the active
 // content. Bundle bytes live here; the store only holds the summaries the
-// menu shows. Packs last for the session (saving them is M3.1's workspace).
+// menu shows. Packs last for the session; the Forge workspace (src/forge) is
+// where a creator's packs are saved.
 
 import { useGameStore, type PackSummary } from '../store/gameStore'
 import { setActiveContent } from './active'
