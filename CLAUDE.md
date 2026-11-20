@@ -41,10 +41,13 @@ Only **one** enemy can damage the player at a time. [src/components/CombatSystem
 ### Combat
 [src/components/CombatSystem.tsx](src/components/CombatSystem.tsx) runs in `useFrame` and reads positions from the ref Map. Player attacks use a directional cone check (`attackDirection.dot(toEnemy) > 0.5`, range 3). `damageEnemy` in the store removes the enemy and adds the kill score in one update when health reaches 0 (enemies don't handle their own death). `damagedEnemiesThisAttack` (a ref-held `Set`) ensures one attack swing hits a given enemy at most once; it's cleared when the player's attack ends. Enemy damage to the player is rate-limited per enemy via `lastEnemyDamageTime` (1s of game time).
 
+### Tuning config
+Every gameplay tuning value (speeds, jump, attack range/cone/damage/timings, enemy stats per `EnemyType`, spawning, camera, arena size, scoring) lives in `DEFAULT_CONFIG` in [src/config/defaults.ts](src/config/defaults.ts), typed by `GameConfig`. Components read from it; don't add gameplay literals to components. Times there are seconds of game time. A snapshot test guards it, so retuning means updating the snapshot deliberately (`npx vitest run -u`). Later this becomes the default content pack.
+
 ### Player and Enemy components
 Both [src/components/Player.tsx](src/components/Player.tsx) and [src/components/Enemy.tsx](src/components/Enemy.tsx) use `forwardRef<RapierRigidBody, …>` so the parent (`GameScene`) can hold refs to their physics bodies. They share [src/components/HumanoidModel.tsx](src/components/HumanoidModel.tsx) for the visual mesh and animation time. Movement is applied via `setLinvel`, not forces — instant accel + manual deceleration (`* 0.85` per 60 Hz frame, scaled by `delta`) gives the desired arcade feel; don't replace with damping without checking responsiveness.
 
-Enemy AI in `Enemy.tsx` uses a `personalityTimer` and per-instance `aggressionLevel` (varies by `EnemyType`) plus a `MIN_ENEMY_SPACING` repulsion computed each frame by reading the other bodies directly from the shared `enemyRefs` Map.
+Enemy AI in `Enemy.tsx` scales its aggro range by the type's `aggression` and applies an `enemy.minSpacing` repulsion computed each frame by reading the other bodies directly from the shared `enemyRefs` Map.
 
 The player's grounded check is a short downward Rapier ray (`world.castRay`, excluding the player's own body) plus near-zero vertical velocity. Character models are offset down 0.35 (× scale) so their feet meet the collider bottom.
 
@@ -52,4 +55,4 @@ The player's grounded check is a short downward Rapier ray (`world.castRay`, exc
 [src/hooks/useControls.ts](src/hooks/useControls.ts) maps WASD (move), Space (jump), J (attack), K (block), Shift (dodge) to a boolean state object via window key listeners; lookups are lowercased, so map keys must be lowercase. It calls `e.preventDefault()` on mapped keys and clears all keys on window blur. Block and dodge are mapped but not implemented yet, so the on-screen hints leave them out. Escape (pause) is handled separately in `PauseMenu`.
 
 ### Enemy spawning
-`GameScene` spawns 4 initial enemies once (guarded by a `hasSpawnedInitial` ref to survive StrictMode double-invocation), then an `EnemySpawner` (inside the `Canvas`) spawns one random-type enemy every 5s of game time up to a cap of 8. Health scales by type: BASIC 50, FAST 30, HEAVY 100.
+`GameScene` spawns 4 initial enemies once (guarded by a `hasSpawnedInitial` ref to survive StrictMode double-invocation), then an `EnemySpawner` (inside the `Canvas`) spawns one random-type enemy every `spawning.interval` seconds of game time up to `spawning.maxEnemies`. Per-type health, scale, speed, aggression and color come from `DEFAULT_CONFIG.enemyTypes`.

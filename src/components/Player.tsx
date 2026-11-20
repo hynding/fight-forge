@@ -6,24 +6,14 @@ import { useControls } from '../hooks/useControls'
 import { HumanoidModel } from './HumanoidModel'
 import { useGameStore } from '../store/gameStore'
 import { gameStep } from '../utils/gameTime'
+import { DEFAULT_CONFIG } from '../config/defaults'
 
 interface PlayerProps {
   onAttackChange?: (isAttacking: boolean, direction: Vector3) => void
 }
 
-const SPEED = 5
-const JUMP_FORCE = 8
-// Attack timings are in game time (seconds of unpaused frames), so pausing
-// mid-swing resumes the swing instead of silently consuming it.
-const ATTACK_COOLDOWN = 0.5
-const ATTACK_DURATION = 0.2
-const DECELERATION = 0.85
-// Grounded = something solid within this distance below the body centre.
-// The collider's half-height is 1, so this allows 0.1 of slack for contact jitter.
-const GROUND_RAY_LENGTH = 1.1
-const GROUNDED_MAX_VEL_Y = 0.5
-// HumanoidModel's feet sit 0.65 below its origin; drop it so they meet the collider bottom.
-const MODEL_Y_OFFSET = -0.35
+const P = DEFAULT_CONFIG.player
+const BODY = DEFAULT_CONFIG.body
 
 export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange }, ref) => {
   const rigidBodyRef = useRef<RapierRigidBody>(null)
@@ -70,11 +60,11 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     let targetVelX = 0
     let targetVelZ = 0
 
-    if (controls.forward) targetVelZ = -SPEED
-    else if (controls.backward) targetVelZ = SPEED
+    if (controls.forward) targetVelZ = -P.walkSpeed
+    else if (controls.backward) targetVelZ = P.walkSpeed
 
-    if (controls.left) targetVelX = -SPEED
-    else if (controls.right) targetVelX = SPEED
+    if (controls.left) targetVelX = -P.walkSpeed
+    else if (controls.right) targetVelX = P.walkSpeed
 
     let newVelX = velocity.x
     let newVelZ = velocity.z
@@ -83,16 +73,17 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
       newVelX = targetVelX
       newVelZ = targetVelZ
     } else {
-      // DECELERATION is tuned per 60 Hz frame; scale by elapsed time so the
+      // Deceleration is tuned per 60 Hz frame; scale by elapsed time so the
       // slide is roughly the same across refresh rates (not exact).
-      const decel = Math.pow(DECELERATION, delta * 60)
+      const decel = Math.pow(P.deceleration, delta * 60)
       newVelX *= decel
       newVelZ *= decel
-      if (Math.abs(newVelX) < 0.1) newVelX = 0
-      if (Math.abs(newVelZ) < 0.1) newVelZ = 0
+      if (Math.abs(newVelX) < BODY.stopSpeed) newVelX = 0
+      if (Math.abs(newVelZ) < BODY.stopSpeed) newVelZ = 0
     }
 
-    const isCurrentlyMoving = Math.abs(newVelX) > 0.1 || Math.abs(newVelZ) > 0.1
+    const isCurrentlyMoving =
+      Math.abs(newVelX) > BODY.stopSpeed || Math.abs(newVelZ) > BODY.stopSpeed
     isMovingRef.current = isCurrentlyMoving
 
     if (newVelX !== 0 || newVelZ !== 0) {
@@ -110,18 +101,18 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     groundRay.current.origin = { x: position.x, y: position.y, z: position.z }
     const groundHit = world.castRay(
       groundRay.current,
-      GROUND_RAY_LENGTH,
+      P.groundRayLength,
       true,
       undefined,
       undefined,
       undefined,
       playerRef.current
     )
-    isGroundedRef.current = groundHit !== null && Math.abs(velocity.y) < GROUNDED_MAX_VEL_Y
+    isGroundedRef.current = groundHit !== null && Math.abs(velocity.y) < P.groundedMaxVelY
 
     // Jump
     if (controls.jump && isGroundedRef.current) {
-      playerRef.current.setLinvel({ x: newVelX, y: JUMP_FORCE, z: newVelZ }, true)
+      playerRef.current.setLinvel({ x: newVelX, y: P.jumpVelocity, z: newVelZ }, true)
       isGroundedRef.current = false
     }
 
@@ -135,8 +126,8 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
         onAttackChange?.(false, new Vector3())
       }
     } else if (controls.attack && cooldownTimeLeft.current === 0) {
-      attackTimeLeft.current = ATTACK_DURATION
-      cooldownTimeLeft.current = ATTACK_COOLDOWN
+      attackTimeLeft.current = P.attack.duration
+      cooldownTimeLeft.current = P.attack.cooldown
       setIsAttacking(true)
       onAttackChange?.(true, lastDirection.current.clone())
     }
@@ -154,16 +145,16 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     <RigidBody
       ref={playerRef}
       colliders={false}
-      position={[0, 2, 0]}
+      position={P.spawnPosition}
       enabledRotations={[false, false, false]}
-      linearDamping={0}
+      linearDamping={P.linearDamping}
       angularDamping={1}
     >
-      <CuboidCollider args={[0.25, 1, 0.25]} />
+      <CuboidCollider args={BODY.colliderHalfExtents} />
 
-      <group ref={visualGroupRef} position={[0, MODEL_Y_OFFSET, 0]}>
+      <group ref={visualGroupRef} position={[0, BODY.modelYOffset, 0]}>
         <HumanoidModel
-          color={isHurt ? '#ff0000' : isAttacking ? '#ff4444' : '#4444ff'}
+          color={isHurt ? '#ff0000' : isAttacking ? '#ff4444' : P.color}
           emissive={isAttacking || isHurt ? '#ff0000' : '#000000'}
           emissiveIntensity={isAttacking || isHurt ? 0.5 : 0}
           animationTimeRef={animationTimeRef}

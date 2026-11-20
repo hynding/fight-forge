@@ -7,6 +7,7 @@ import { EnemyType } from '../types/game'
 import { useGameStore } from '../store/gameStore'
 import { HumanoidModel } from './HumanoidModel'
 import { gameStep } from '../utils/gameTime'
+import { DEFAULT_CONFIG } from '../config/defaults'
 
 // Module-scoped temp vectors — reused every frame to avoid allocations.
 // Safe because Enemy.useFrame is single-threaded per renderer.
@@ -19,10 +20,8 @@ const _circleDir = new Vector3()
 const _otherPos = new Vector3()
 const _patrolDelta = new Vector3()
 
-// How long an enemy holds the single attacker slot, then how long it waits
-// before it may claim the slot again.
-const ENEMY_ATTACK_DURATION_MS = 1000
-const ENEMY_ATTACK_RECOVERY_MS = 1000
+const E = DEFAULT_CONFIG.enemy
+const BODY = DEFAULT_CONFIG.body
 
 interface EnemyProps {
   id: string
@@ -40,50 +39,33 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const facingDirection = useRef(new Vector3(0, 0, -1))
     const patrolTarget = useRef<Vector3 | null>(null)
     const patrolTimer = useRef(0)
-    const personalityTimer = useRef(Math.random() * 1000)
+    const personalityTimer = useRef(Math.random())
     const animationTimeRef = useRef(0)
     const isMovingRef = useRef(false)
-    // Game-time (ms) countdowns; they only advance on unpaused frames.
+    // Game-time (seconds) countdowns; they only advance on unpaused frames.
     const attackTimeLeft = useRef(0)
     const attackRecoveryLeft = useRef(0)
 
     const attackingEnemyId = useGameStore((state) => state.attackingEnemyId)
     const setAttackingEnemy = useGameStore((state) => state.setAttackingEnemy)
 
-    const aggressionLevel = useRef(
-      type === EnemyType.FAST ? 1.2 : type === EnemyType.HEAVY ? 0.8 : 1.0
-    )
+    const def = DEFAULT_CONFIG.enemyTypes[type]
 
     const health = useGameStore((state) => {
       const enemy = state.enemies.find((e) => e.id === id)
-      return enemy?.health ?? 50
+      return enemy?.health ?? def.maxHealth
     })
     const maxHealth = useGameStore((state) => {
       const enemy = state.enemies.find((e) => e.id === id)
-      return enemy?.maxHealth ?? 50
+      return enemy?.maxHealth ?? def.maxHealth
     })
 
     const isAttacking = attackingEnemyId === id
 
-    const getScale = (): number => {
-      switch (type) {
-        case EnemyType.HEAVY:
-          return 1.3
-        case EnemyType.FAST:
-          return 0.8
-        default:
-          return 1
-      }
-    }
-
-    const scale = getScale()
-
-    const AGGRO_RANGE = 10 * aggressionLevel.current
-    const ATTACK_RANGE = 1.5
-    const SPEED = type === EnemyType.FAST ? 3 : type === EnemyType.HEAVY ? 1.5 : 2
-    const MIN_ENEMY_SPACING = 2.5
-    // HumanoidModel's feet sit 0.65*scale below its origin; the collider bottom is at -1*scale.
-    const modelYOffset = -0.35 * scale
+    const scale = def.scale
+    const speed = def.speed
+    const aggroRange = E.aggroRange * def.aggression
+    const modelYOffset = BODY.modelYOffset * scale
 
     // Death (removal + score) is handled atomically by `damageEnemy` in the store.
 
@@ -103,18 +85,20 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       const distanceToPlayer = _enemyVec.distanceTo(playerPositionRef.current)
 
       const vel = enemyRef.current.linvel()
-      isMovingRef.current = Math.abs(vel.x) > 0.1 || Math.abs(vel.z) > 0.1
+      isMovingRef.current =
+        Math.abs(vel.x) > BODY.stopSpeed ||
+        Math.abs(vel.z) > BODY.stopSpeed
 
-      personalityTimer.current += delta * 1000
+      personalityTimer.current += delta
 
       // Attack slot bookkeeping. Removal on death/unmount is handled by the store.
-      attackRecoveryLeft.current = Math.max(0, attackRecoveryLeft.current - delta * 1000)
+      attackRecoveryLeft.current = Math.max(0, attackRecoveryLeft.current - delta)
       if (attackTimeLeft.current > 0) {
-        attackTimeLeft.current -= delta * 1000
+        attackTimeLeft.current -= delta
         if (attackTimeLeft.current <= 0) {
           attackTimeLeft.current = 0
           // Back off before trying again so other enemies get a turn.
-          attackRecoveryLeft.current = ENEMY_ATTACK_RECOVERY_MS
+          attackRecoveryLeft.current = E.attackSlotRecovery
           // Only release the slot if we still hold it.
           if (currentAttackerId === id) setAttackingEnemy(null)
         }
@@ -128,34 +112,34 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         _otherPos.set(op.x, op.y, op.z)
         _toOther.subVectors(_enemyVec, _otherPos)
         const distToOther = _toOther.length()
-        if (distToOther < MIN_ENEMY_SPACING && distToOther > 0) {
+        if (distToOther < E.minSpacing && distToOther > 0) {
           _toOther
             .normalize()
-            .multiplyScalar((MIN_ENEMY_SPACING - distToOther) / MIN_ENEMY_SPACING)
+            .multiplyScalar((E.minSpacing - distToOther) / E.minSpacing)
           _avoidanceForce.add(_toOther)
         }
       })
 
-      if (distanceToPlayer < AGGRO_RANGE) {
+      if (distanceToPlayer < aggroRange) {
         _direction.subVectors(playerPositionRef.current, _enemyVec).normalize()
         facingDirection.current.copy(_direction)
 
-        const hasAvoidance = _avoidanceForce.length() > 0.1
+        const hasAvoidance = _avoidanceForce.length() > E.crowdedThreshold
 
-        if (distanceToPlayer > ATTACK_RANGE) {
+        if (distanceToPlayer > E.attackRange) {
           _moveDirection.copy(_direction)
 
           if (hasAvoidance) {
-            _avoidanceForce.normalize().multiplyScalar(0.7)
-            _moveDirection.multiplyScalar(0.3)
+            _avoidanceForce.normalize().multiplyScalar(E.avoidanceWeight)
+            _moveDirection.multiplyScalar(1 - E.avoidanceWeight)
             _moveDirection.add(_avoidanceForce).normalize()
           }
 
           enemyRef.current.setLinvel(
             {
-              x: _moveDirection.x * SPEED,
+              x: _moveDirection.x * speed,
               y: enemyRef.current.linvel().y,
-              z: _moveDirection.z * SPEED,
+              z: _moveDirection.z * speed,
             },
             true
           )
@@ -167,9 +151,9 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
             _circleDir.set(-_direction.z, 0, _direction.x)
             enemyRef.current.setLinvel(
               {
-                x: _circleDir.x * SPEED * 0.5,
+                x: _circleDir.x * speed * E.circleSpeedFactor,
                 y: enemyRef.current.linvel().y,
-                z: _circleDir.z * SPEED * 0.5,
+                z: _circleDir.z * speed * E.circleSpeedFactor,
               },
               true
             )
@@ -181,17 +165,19 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
 
             if (currentAttackerId === null && attackRecoveryLeft.current === 0) {
               setAttackingEnemy(id)
-              attackTimeLeft.current = ENEMY_ATTACK_DURATION_MS
+              attackTimeLeft.current = E.attackSlotDuration
             }
           }
         }
       } else {
         // Patrol behavior
-        patrolTimer.current += delta * 1000
+        patrolTimer.current += delta
 
-        if (!patrolTarget.current || patrolTimer.current > 3000) {
+        if (!patrolTarget.current || patrolTimer.current > E.patrol.retargetInterval) {
           const angle = Math.random() * Math.PI * 2
-          const distance = 3 + Math.random() * 5
+          const distance =
+            E.patrol.minDistance +
+            Math.random() * (E.patrol.maxDistance - E.patrol.minDistance)
           patrolTarget.current = new Vector3(
             enemyPos.x + Math.cos(angle) * distance,
             enemyPos.y,
@@ -203,15 +189,15 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         _patrolDelta.subVectors(patrolTarget.current, _enemyVec)
         const distToPatrol = _patrolDelta.length()
 
-        if (distToPatrol > 0.5) {
+        if (distToPatrol > E.patrol.arriveDistance) {
           _patrolDelta.normalize()
           facingDirection.current.copy(_patrolDelta)
 
           enemyRef.current.setLinvel(
             {
-              x: _patrolDelta.x * SPEED * 0.3,
+              x: _patrolDelta.x * speed * E.patrol.speedFactor,
               y: enemyRef.current.linvel().y,
-              z: _patrolDelta.z * SPEED * 0.3,
+              z: _patrolDelta.z * speed * E.patrol.speedFactor,
             },
             true
           )
@@ -232,31 +218,25 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       }
     })
 
-    const getColor = () => {
-      switch (type) {
-        case EnemyType.FAST:
-          return '#ffff00'
-        case EnemyType.HEAVY:
-          return '#ff0000'
-        default:
-          return '#00ff00'
-      }
-    }
-
-
     return (
       <RigidBody
         ref={enemyRef}
         colliders={false}
         position={position}
         enabledRotations={[false, false, false]}
-        linearDamping={2}
+        linearDamping={E.linearDamping}
       >
-        <CuboidCollider args={[0.25 * scale, 1 * scale, 0.25 * scale]} />
+        <CuboidCollider
+          args={[
+            BODY.colliderHalfExtents[0] * scale,
+            BODY.colliderHalfExtents[1] * scale,
+            BODY.colliderHalfExtents[2] * scale,
+          ]}
+        />
 
         <group ref={visualGroupRef} position={[0, modelYOffset, 0]}>
           <HumanoidModel
-            color={isAttacking ? '#ffffff' : getColor()}
+            color={isAttacking ? '#ffffff' : def.color}
             emissive={isAttacking ? '#ff0000' : '#000000'}
             emissiveIntensity={isAttacking ? 0.5 : 0}
             scale={scale}

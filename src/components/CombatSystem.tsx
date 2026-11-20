@@ -4,16 +4,14 @@ import { RapierRigidBody } from '@react-three/rapier'
 import { Vector3 } from 'three'
 import { useGameStore } from '../store/gameStore'
 import { gameStep } from '../utils/gameTime'
+import { DEFAULT_CONFIG } from '../config/defaults'
 
 const _playerVec = new Vector3()
 const _enemyVec = new Vector3()
 const _toEnemy = new Vector3()
 
-const ATTACK_RANGE = 3
-const ATTACK_CONE = 0.5
-const ENEMY_HIT_RANGE = 2
-const ENEMY_DAMAGE = 10
-const ENEMY_DAMAGE_COOLDOWN = 1 // seconds of game time
+const PLAYER_ATTACK = DEFAULT_CONFIG.player.attack
+const E = DEFAULT_CONFIG.enemy
 
 interface CombatSystemProps {
   playerRef: React.RefObject<RapierRigidBody>
@@ -77,10 +75,10 @@ export const CombatSystem = ({
       const lastDmg = lastEnemyDamageTime.current.get(enemyId) ?? -Infinity
       if (
         attackingEnemyId === enemyId &&
-        distance < ENEMY_HIT_RANGE &&
-        now - lastDmg > ENEMY_DAMAGE_COOLDOWN
+        distance < E.hitRange &&
+        now - lastDmg > E.damageCooldown
       ) {
-        damagePlayer(ENEMY_DAMAGE)
+        damagePlayer(E.damage)
         lastEnemyDamageTime.current.set(enemyId, now)
       }
 
@@ -88,8 +86,8 @@ export const CombatSystem = ({
         _toEnemy.subVectors(_enemyVec, _playerVec).normalize()
         const dotProduct = attackDirectionRef.current?.dot(_toEnemy) ?? 0
 
-        if (distance < ATTACK_RANGE && dotProduct > ATTACK_CONE) {
-          damageEnemy(enemyId, 20)
+        if (distance < PLAYER_ATTACK.range && dotProduct > PLAYER_ATTACK.cone) {
+          damageEnemy(enemyId, PLAYER_ATTACK.damage)
           damagedEnemiesThisAttack.current.add(enemyId)
         }
       }
