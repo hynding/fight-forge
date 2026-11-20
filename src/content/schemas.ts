@@ -10,7 +10,7 @@ import { z } from 'zod'
 import { INPUT_ACTIONS, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 // ---------------------------------------------------------------- primitives
 
@@ -270,6 +270,54 @@ export const settingsSchema = z
   })
   .strict()
 
+// ------------------------------------------------------------ themes, props
+
+export const backdropLayerSchema = z
+  .object({
+    kind: z.enum(['skyline', 'hills', 'band']),
+    color,
+    height: positive,
+    distance: nonNegative,
+    parallax: fraction,
+    seed: z.number().int(),
+  })
+  .strict()
+
+export const themeSchema = z
+  .object({
+    sky: color,
+    fog: z
+      .object({ color, near: nonNegative, far: positive })
+      .strict()
+      .refine((f) => f.near < f.far, { message: 'near must be below far' })
+      .optional(),
+    lighting: z
+      .object({
+        ambient: nonNegative,
+        sun: z.object({ color, intensity: nonNegative }).strict(),
+        hemisphere: z.object({ sky: color, ground: color, intensity: nonNegative }).strict(),
+      })
+      .strict(),
+    ground: z.object({ color, tile: color, laneEdge: color }).strict(),
+    wall: z.object({ color, pillar: color, accent: color }).strict(),
+    backdrop: z.array(backdropLayerSchema).max(8),
+  })
+  .strict()
+
+export const propSchema = z
+  .object({
+    shape: z.enum(['box', 'cylinder']),
+    size: z.tuple([positive, positive, positive]),
+    color,
+    solid: z.boolean(),
+    breakable: z.object({ health: positive, drop: dropSchema.optional() }).strict().optional(),
+  })
+  .strict()
+
+export const propPlacementSchema = z
+  .object({ prop: idSchema, at: nonNegative, depth: fraction.optional(), y: nonNegative.optional() })
+  .strict()
+
 // ------------------------------------------------------------------- levels
 
 export const spawnSchema = z
@@ -296,11 +344,16 @@ export const triggerSchema = z.discriminatedUnion('kind', [
 export const levelItemSchema = z.object({ at: nonNegative, pickup: idSchema, depth: fraction.optional() }).strict()
 
 export const segmentSchema = z
-  .object({ length: positive, triggers: z.array(triggerSchema), items: z.array(levelItemSchema).optional() })
+  .object({
+    length: positive,
+    triggers: z.array(triggerSchema),
+    items: z.array(levelItemSchema).optional(),
+    props: z.array(propPlacementSchema).optional(),
+  })
   .strict()
 
 export const levelSchema = z
-  .object({ id: idSchema, name: z.string().min(1), segments: z.array(segmentSchema).min(1) })
+  .object({ id: idSchema, name: z.string().min(1), theme: idSchema, segments: z.array(segmentSchema).min(1) })
   .strict()
 
 // --------------------------------------------------------------------- pack
@@ -328,6 +381,8 @@ export const packSchema = z
     ai: z.record(idSchema, aiBehaviorSchema).default({}),
     enemyTypes: z.record(idSchema, enemyTypeSchema).default({}),
     pickups: z.record(idSchema, pickupSchema).default({}),
+    themes: z.record(idSchema, themeSchema).default({}),
+    props: z.record(idSchema, propSchema).default({}),
     /** In play order. A level with the same id as an earlier pack's replaces it in place. */
     levels: z.array(levelSchema).default([]),
   })
@@ -343,6 +398,8 @@ export type PickupDefData = z.infer<typeof pickupSchema>
 export type EnemyTypeData = z.infer<typeof enemyTypeSchema>
 export type Settings = z.infer<typeof settingsSchema>
 export type LevelDef = z.infer<typeof levelSchema>
+export type ThemeDefData = z.infer<typeof themeSchema>
+export type PropDefData = z.infer<typeof propSchema>
 export type PackMeta = z.infer<typeof packMetaSchema>
 /** A pack after parsing (defaults filled in). */
 export type Pack = z.infer<typeof packSchema>

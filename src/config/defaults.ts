@@ -6,6 +6,8 @@ import type { AiBehavior } from '../sim/controllers'
 import { DEFAULT_CONTENT } from '../content/defaultContent'
 import type { DropDef, PickupDef } from '../sim/pickups'
 import type { Bindings } from '../sim/input'
+import type { BackdropLayer } from '../sim/backdrop'
+import type { PropDef } from '../sim/props'
 
 /**
  * Every gameplay tuning value in one typed object. The values come from
@@ -59,6 +61,25 @@ export interface EnemyTypeDef {
   model: ModelRef
   /** Collider half extents before `scale`; defaults to `body.colliderHalfExtents`. */
   colliderHalfExtents?: Vec3
+}
+
+/** How a level's stage looks. Visual only: gameplay never reads it. */
+export interface ThemeDef {
+  /** Background colour above the backdrop. */
+  sky: string
+  /** Distance fog (world units from the camera). */
+  fog?: { color: string; near: number; far: number }
+  lighting: {
+    ambient: number
+    sun: { color: string; intensity: number }
+    hemisphere: { sky: string; ground: string; intensity: number }
+  }
+  /** Floor colour, the lighter alternate tiles in the lane, and the lane edge lines. */
+  ground: { color: string; tile: string; laneEdge: string }
+  /** Back wall, its pillars, and every fifth pillar. */
+  wall: { color: string; pillar: string; accent: string }
+  /** Silhouette layers behind the back wall, nearest first. */
+  backdrop: BackdropLayer[]
 }
 
 export interface GameConfig {
@@ -191,6 +212,10 @@ export interface GameConfig {
   }
   /** Items by name, placed by levels or dropped by enemies. */
   pickups: Record<string, PickupDef>
+  /** Stage looks by id; each level names one. */
+  themes: Record<string, ThemeDef>
+  /** Stage objects by id (crates, barrels, walls, platforms), placed by levels. */
+  props: Record<string, PropDef>
 }
 
 /** The box humanoid: its feet sit 0.65 below its origin, so drop it 0.35 onto the collider bottom. */

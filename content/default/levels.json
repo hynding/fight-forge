@@ -2,6 +2,7 @@
   {
     "id": "level-1",
     "name": "Back Alley",
+    "theme": "default",
     "segments": [
       {
         "length": 45,
@@ -71,6 +72,23 @@
               }
             ]
           }
+        ],
+        "props": [
+          {
+            "prop": "crate",
+            "at": 12,
+            "depth": 0.08
+          },
+          {
+            "prop": "crate",
+            "at": 13.1,
+            "depth": 0.08
+          },
+          {
+            "prop": "barrel",
+            "at": 24,
+            "depth": 0.92
+          }
         ]
       },
       {
@@ -131,6 +149,23 @@
                 ]
               }
             ]
+          }
+        ],
+        "props": [
+          {
+            "prop": "platform",
+            "at": 24,
+            "depth": 0.1
+          },
+          {
+            "prop": "wall",
+            "at": 44,
+            "depth": 0.95
+          },
+          {
+            "prop": "barrel",
+            "at": 10,
+            "depth": 0.08
           }
         ]
       },
@@ -197,6 +232,18 @@
             "kind": "goal",
             "at": 36
           }
+        ],
+        "props": [
+          {
+            "prop": "crate",
+            "at": 6,
+            "depth": 0.92
+          },
+          {
+            "prop": "barrel",
+            "at": 26,
+            "depth": 0.08
+          }
         ]
       }
     ]
@@ -204,6 +251,7 @@
   {
     "id": "level-2",
     "name": "The Docks",
+    "theme": "docks",
     "segments": [
       {
         "length": 40,
@@ -274,6 +322,33 @@
               }
             ]
           }
+        ],
+        "props": [
+          {
+            "prop": "bollard",
+            "at": 8,
+            "depth": 0.97
+          },
+          {
+            "prop": "bollard",
+            "at": 16,
+            "depth": 0.97
+          },
+          {
+            "prop": "bollard",
+            "at": 24,
+            "depth": 0.97
+          },
+          {
+            "prop": "crate",
+            "at": 34,
+            "depth": 0.08
+          },
+          {
+            "prop": "crate",
+            "at": 35.1,
+            "depth": 0.08
+          }
         ]
       },
       {
@@ -318,6 +393,23 @@
                 ]
               }
             ]
+          }
+        ],
+        "props": [
+          {
+            "prop": "platform",
+            "at": 12,
+            "depth": 0.1
+          },
+          {
+            "prop": "barrel",
+            "at": 28,
+            "depth": 0.92
+          },
+          {
+            "prop": "bollard",
+            "at": 40,
+            "depth": 0.97
           }
         ]
       },
@@ -383,6 +475,18 @@
           {
             "kind": "goal",
             "at": 31
+          }
+        ],
+        "props": [
+          {
+            "prop": "crate",
+            "at": 10,
+            "depth": 0.92
+          },
+          {
+            "prop": "barrel",
+            "at": 22,
+            "depth": 0.08
           }
         ]
       }

@@ -3,7 +3,8 @@
 // Pure TS so whole levels can be played headless in tests. The data shapes
 // here are the draft of the future content schema (roadmap M2.1).
 
-import { EnemyType } from '../types/game'
+import type { EnemyType } from '../types/game'
+import type { PropPlacement } from './props'
 
 export interface SpawnDef {
   type: EnemyType
@@ -53,11 +54,15 @@ export interface Segment {
   length: number
   triggers: Trigger[]
   items?: LevelItem[]
+  /** Stage objects from the content's prop library. */
+  props?: PropPlacement[]
 }
 
 export interface Level {
   id: string
   name: string
+  /** Theme id in the content's `themes`: how the stage looks. */
+  theme: string
   segments: Segment[]
 }
 
@@ -68,6 +73,19 @@ export const placeItems = (level: Level): { id: string; pickup: string; x: numbe
   level.segments.forEach((seg, si) => {
     seg.items?.forEach((it, ii) =>
       out.push({ id: `item-${si}-${ii}`, pickup: it.pickup, x: start + it.at, depth: it.depth ?? 0.5 })
+    )
+    start += seg.length
+  })
+  return out
+}
+
+/** Every placed prop with its absolute X and a stable id. */
+export const placeProps = (level: Level): { id: string; prop: string; x: number; y: number; depth: number }[] => {
+  const out: { id: string; prop: string; x: number; y: number; depth: number }[] = []
+  let start = 0
+  level.segments.forEach((seg, si) => {
+    seg.props?.forEach((p, pi) =>
+      out.push({ id: `prop-${si}-${pi}`, prop: p.prop, x: start + p.at, y: p.y ?? 0, depth: p.depth ?? 0.5 })
     )
     start += seg.length
   })

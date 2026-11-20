@@ -71,7 +71,7 @@ describe('pack library', () => {
   it('refuses the built-in id and packs that break with the current set', async () => {
     const own = await installBundle(await tiny('default'))
     expect(own.ok).toBe(false)
-    const broken = await installBundle(await tiny('broken', { enemyTypes: {} , levels: [{ id: 'x', name: 'X', segments: [{ length: 5, triggers: [] }] }] }))
+    const broken = await installBundle(await tiny('broken', { enemyTypes: {} , levels: [{ id: 'x', name: 'X', theme: 'default', segments: [{ length: 5, triggers: [] }] }] }))
     expect(broken.ok).toBe(false)
     if (!broken.ok) expect(broken.errors[0]).toMatchObject({ pack: 'broken', path: 'levels.x' })
     expect(useGameStore.getState().packs).toEqual([])

@@ -258,3 +258,35 @@ describe('pickups', () => {
     expect(useGameStore.getState().score).toBe(DEFAULT_CONFIG.pickups.coin.amount)
   })
 })
+
+describe('props', () => {
+  const crate = { id: 'c1', prop: 'crate', x: 1, y: 0, z: 0, health: 10 }
+  const wall = { id: 'w1', prop: 'wall', x: 2, y: 0, z: 0, health: Infinity }
+
+  it('places each prop once', () => {
+    const s = useGameStore.getState()
+    s.resetGame()
+    s.placeProps([crate, wall])
+    s.placeProps([crate])
+    expect(useGameStore.getState().props.map((p) => p.id)).toEqual(['c1', 'w1'])
+  })
+
+  it('breaks a breakable prop when its health runs out, and never an unbreakable one', () => {
+    const s = useGameStore.getState()
+    s.resetGame()
+    s.placeProps([crate, wall])
+    expect(s.damageProp('c1', 6)).toBe(false)
+    expect(useGameStore.getState().props.find((p) => p.id === 'c1')?.health).toBe(4)
+    expect(s.damageProp('c1', 6)).toBe(true)
+    expect(useGameStore.getState().props.map((p) => p.id)).toEqual(['w1'])
+    expect(s.damageProp('w1', 999)).toBe(false)
+    expect(s.damageProp('missing', 5)).toBe(false)
+  })
+
+  it('clears props when the level restarts', () => {
+    const s = useGameStore.getState()
+    s.placeProps([crate])
+    s.resetGame()
+    expect(useGameStore.getState().props).toEqual([])
+  })
+})

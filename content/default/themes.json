@@ -1,0 +1,98 @@
+{
+  "default": {
+    "sky": "#1a1a2e",
+    "fog": {
+      "color": "#1a1a2e",
+      "near": 30,
+      "far": 80
+    },
+    "lighting": {
+      "ambient": 0.5,
+      "sun": {
+        "color": "#ffffff",
+        "intensity": 1
+      },
+      "hemisphere": {
+        "sky": "#b8c4ff",
+        "ground": "#30303a",
+        "intensity": 0.4
+      }
+    },
+    "ground": {
+      "color": "#3a3a44",
+      "tile": "#474756",
+      "laneEdge": "#6a6a80"
+    },
+    "wall": {
+      "color": "#55556a",
+      "pillar": "#6c6c84",
+      "accent": "#8a6a3a"
+    },
+    "backdrop": [
+      {
+        "kind": "skyline",
+        "color": "#2a2a44",
+        "height": 9,
+        "distance": 4,
+        "parallax": 0.25,
+        "seed": 11
+      },
+      {
+        "kind": "skyline",
+        "color": "#222238",
+        "height": 14,
+        "distance": 14,
+        "parallax": 0.55,
+        "seed": 23
+      }
+    ]
+  },
+  "docks": {
+    "sky": "#8fb8d8",
+    "fog": {
+      "color": "#b6cfe2",
+      "near": 22,
+      "far": 75
+    },
+    "lighting": {
+      "ambient": 0.65,
+      "sun": {
+        "color": "#fff1d6",
+        "intensity": 1.25
+      },
+      "hemisphere": {
+        "sky": "#d6ecff",
+        "ground": "#6b5a44",
+        "intensity": 0.5
+      }
+    },
+    "ground": {
+      "color": "#6e5236",
+      "tile": "#7d5f40",
+      "laneEdge": "#d9c49a"
+    },
+    "wall": {
+      "color": "#5d6b78",
+      "pillar": "#44525e",
+      "accent": "#b03a2e"
+    },
+    "backdrop": [
+      {
+        "kind": "skyline",
+        "color": "#6f8399",
+        "height": 11,
+        "distance": 18,
+        "parallax": 0.45,
+        "seed": 5
+      },
+      {
+        "kind": "hills",
+        "color": "#7d95a8",
+        "height": 7,
+        "distance": 35,
+        "parallax": 0.75,
+        "seed": 9
+      }
+    ]
+  }
+}

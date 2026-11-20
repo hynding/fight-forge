@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { getConfig } from '../content/active'
+import type { ThemeDef } from '../config/defaults'
 
 // The floor runs a little past both ends and from the back wall to past the
 // front of the lane, so the camera never sees its edge.
@@ -30,9 +31,9 @@ const PILLAR_EVERY = 10
 /**
  * A long side-scrolling strip from x = 0 to the level's `length`: floor with
  * alternating tiles (so scrolling reads), a back wall with pillars, the depth
- * lane's edges marked, and solid walls at both ends.
+ * lane's edges marked, and solid walls at both ends, coloured by the level's theme.
  */
-export const Stage = ({ length }: { length: number }) => {
+export const Stage = ({ length, theme }: { length: number; theme: ThemeDef }) => {
   const { depthBand, floorThickness, wallHeight, wallThickness } = getConfig().stage
   const [minZ, maxZ] = depthBand
   const FLOOR_FRONT = maxZ + 8
@@ -54,7 +55,7 @@ export const Stage = ({ length }: { length: number }) => {
       <SolidBox
         position={[length / 2, 0, FLOOR_CENTER_Z]}
         size={[length + FLOOR_OVERHANG * 2, floorThickness, FLOOR_DEPTH]}
-        color="#3a3a44"
+        color={theme.ground.color}
       />
 
       {/* Every other tile slightly lighter, inside the lane. */}
@@ -63,7 +64,7 @@ export const Stage = ({ length }: { length: number }) => {
         .map((x) => (
           <mesh key={x} receiveShadow position={[x, top + 0.005, (minZ + maxZ) / 2]}>
             <boxGeometry args={[TILE, 0.01, maxZ - minZ]} />
-            <meshStandardMaterial color="#474756" />
+            <meshStandardMaterial color={theme.ground.tile} />
           </mesh>
         ))}
 
@@ -71,7 +72,7 @@ export const Stage = ({ length }: { length: number }) => {
       {[minZ, maxZ].map((z) => (
         <mesh key={z} position={[length / 2, top + 0.01, z]}>
           <boxGeometry args={[length, 0.01, 0.06]} />
-          <meshBasicMaterial color="#6a6a80" />
+          <meshBasicMaterial color={theme.ground.laneEdge} />
         </mesh>
       ))}
 
@@ -79,12 +80,12 @@ export const Stage = ({ length }: { length: number }) => {
       <SolidBox
         position={[length / 2, wallHeight / 2, BACK_Z]}
         size={[length + FLOOR_OVERHANG * 2, wallHeight, wallThickness]}
-        color="#55556a"
+        color={theme.wall.color}
       />
       {pillars.map((x) => (
         <mesh key={x} castShadow position={[x, wallHeight / 2, BACK_Z + wallThickness]}>
           <boxGeometry args={[0.8, wallHeight, 0.6]} />
-          <meshStandardMaterial color={x % (PILLAR_EVERY * 5) === 0 ? '#8a6a3a' : '#6c6c84'} />
+          <meshStandardMaterial color={x % (PILLAR_EVERY * 5) === 0 ? theme.wall.accent : theme.wall.pillar} />
         </mesh>
       ))}
 
@@ -94,7 +95,7 @@ export const Stage = ({ length }: { length: number }) => {
           key={x}
           position={[x, wallHeight / 2, FLOOR_CENTER_Z]}
           size={[wallThickness, wallHeight, FLOOR_DEPTH]}
-          color="#55556a"
+          color={theme.wall.color}
         />
       ))}
     </>

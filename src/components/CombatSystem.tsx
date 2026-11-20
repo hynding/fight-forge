@@ -12,6 +12,7 @@ import { applyBlockstun, applyHit, isInvulnerable } from '../sim/reactions'
 import { blockedHit, facesAttacker, isDodging } from '../sim/defense'
 import { rollDrop } from '../sim/pickups'
 import { combatTargets, scaledDamage } from '../sim/rules'
+import { propBox } from '../sim/props'
 import type { FighterRuntime } from '../sim/fighter'
 
 const PLAYER = 'player'
@@ -30,7 +31,8 @@ interface CombatSystemProps {
  * only while it holds an attack token. A move
  * instance hits each target at most once. Knocked-down, getting-up and
  * dodging targets are invulnerable. A target guarding toward the attacker
- * blocks: chip damage, blockstun, a short push. A target whose `armor` covers
+ * blocks: chip damage, blockstun, a short push. The player's attacks also
+ * break breakable props, which may drop a pickup. A target whose `armor` covers
  * the hit's hitstun takes the damage without flinching. Otherwise the hit deals damage,
  * applies the move's reaction (hitstun or knockdown) and knockback, and
  * interrupts the target's own move.
@@ -132,6 +134,21 @@ export const CombatSystem = ({
               .getState()
               .spawnPickup({ id: `drop-${targetName}`, pickup: dropped, x: t.x, z: t.z })
           }
+        }
+      }
+
+      // The player's attacks also break breakable props (once per move instance).
+      if (attackerName === PLAYER) {
+        const config = getConfig()
+        const floorTop = config.stage.floorThickness / 2
+        for (const prop of useGameStore.getState().props) {
+          const def = config.props[prop.prop]
+          if (!def?.breakable || record.targets.has(prop.id)) continue
+          if (!boxesOverlap(hitbox, propBox(prop, def, floorTop))) continue
+          record.targets.add(prop.id)
+          if (!useGameStore.getState().damageProp(prop.id, move.damage)) continue
+          const dropped = rollDrop(def.breakable.drop)
+          if (dropped) useGameStore.getState().spawnPickup({ id: `drop-${prop.id}`, pickup: dropped, x: prop.x, z: prop.z })
         }
       }
     })

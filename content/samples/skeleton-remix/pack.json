@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "meta": {
     "author": "Fight Forge samples",
-    "description": "Play as a skeleton warrior with a tougher combo, meet skeleton enemies, and fight through The Crypt.",
+    "description": "Play as a skeleton warrior with a tougher combo, meet skeleton enemies, and fight through The Crypt (its own theme and props).",
     "license": "CC0-1.0 (model by Kay Lousberg, KayKit)"
   },
   "assets": [
@@ -333,6 +333,7 @@
     {
       "id": "crypt",
       "name": "The Crypt",
+      "theme": "crypt",
       "segments": [
         {
           "length": 30,
@@ -363,6 +364,23 @@
                   ]
                 }
               ]
+            }
+          ],
+          "props": [
+            {
+              "prop": "tombstone",
+              "at": 5,
+              "depth": 0.05
+            },
+            {
+              "prop": "tombstone",
+              "at": 9,
+              "depth": 0.05
+            },
+            {
+              "prop": "urn",
+              "at": 18,
+              "depth": 0.92
             }
           ]
         },
@@ -405,9 +423,97 @@
               "kind": "goal",
               "at": 32
             }
+          ],
+          "props": [
+            {
+              "prop": "urn",
+              "at": 6,
+              "depth": 0.08
+            },
+            {
+              "prop": "tombstone",
+              "at": 20,
+              "depth": 0.95
+            },
+            {
+              "prop": "urn",
+              "at": 26,
+              "depth": 0.92
+            }
           ]
         }
       ]
     }
-  ]
+  ],
+  "themes": {
+    "crypt": {
+      "sky": "#140f1f",
+      "fog": {
+        "color": "#241a33",
+        "near": 14,
+        "far": 55
+      },
+      "lighting": {
+        "ambient": 0.55,
+        "sun": {
+          "color": "#b9a7ff",
+          "intensity": 1.1
+        },
+        "hemisphere": {
+          "sky": "#7b6bb0",
+          "ground": "#1a2a1a",
+          "intensity": 0.5
+        }
+      },
+      "ground": {
+        "color": "#3d3a46",
+        "tile": "#4a4655",
+        "laneEdge": "#6e8f5a"
+      },
+      "wall": {
+        "color": "#4a4459",
+        "pillar": "#5a526c",
+        "accent": "#6e8f5a"
+      },
+      "backdrop": [
+        {
+          "kind": "skyline",
+          "color": "#2a2238",
+          "height": 7,
+          "distance": 5,
+          "parallax": 0.3,
+          "seed": 66
+        },
+        {
+          "kind": "hills",
+          "color": "#1f1a2b",
+          "height": 9,
+          "distance": 25,
+          "parallax": 0.7,
+          "seed": 13
+        }
+      ]
+    }
+  },
+  "props": {
+    "tombstone": {
+      "shape": "box",
+      "size": [0.9, 1.3, 0.35],
+      "color": "#6b6b78",
+      "solid": true
+    },
+    "urn": {
+      "shape": "cylinder",
+      "size": [0.6, 0.9, 0.6],
+      "color": "#5a4a7a",
+      "solid": true,
+      "breakable": {
+        "health": 8,
+        "drop": {
+          "pickup": "bone",
+          "chance": 0.7
+        }
+      }
+    }
+  }
 }

@@ -34,6 +34,11 @@ export const MIGRATIONS: MigrationTable = {
       }
     return pack.settings === undefined ? pack : { ...pack, settings }
   },
+  // v3: every level names a theme. Older levels get the base pack's "default" theme.
+  2: (pack) =>
+    Array.isArray(pack.levels)
+      ? { ...pack, levels: pack.levels.map((l: unknown) => (typeof l === 'object' && l !== null && !('theme' in l) ? { ...l, theme: 'default' } : l)) }
+      : pack,
 }
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }
