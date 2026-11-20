@@ -8,10 +8,11 @@ import { SYSTEM_ORDER } from '../sim/loop'
 import { useSimSystem } from '../sim/simContext'
 import { boxesOverlap, hitboxWorld, knockbackDirection } from '../sim/combat'
 import { interruptMove, movePhase } from '../sim/moves'
-import { applyHit } from '../sim/reactions'
+import { applyBlockstun, applyHit, isInvulnerable } from '../sim/reactions'
+import { blockedHit, facesAttacker, isDodging } from '../sim/defense'
 import type { FighterRuntime } from '../sim/fighter'
 
-const { moves: MOVES, reactions: REACTIONS } = DEFAULT_CONFIG
+const { moves: MOVES, reactions: REACTIONS, actions: ACTIONS } = DEFAULT_CONFIG
 const PLAYER = 'player'
 
 interface CombatSystemProps {
@@ -25,9 +26,11 @@ interface CombatSystemProps {
  * The `combat` sim system: every fighter whose move is in its active frames
  * checks its hitbox against its targets' hurtboxes. The player hits enemies;
  * an enemy hits the player only while it holds the attacker slot. A move
- * instance hits each target at most once. A hit deals damage, applies the
- * move's reaction (hitstun or knockdown) and knockback, and interrupts the
- * target's own move.
+ * instance hits each target at most once. Knocked-down, getting-up and
+ * dodging targets are invulnerable. A target guarding toward the attacker
+ * blocks: chip damage, blockstun, a short push. Otherwise the hit deals damage,
+ * applies the move's reaction (hitstun or knockdown) and knockback, and
+ * interrupts the target's own move.
  */
 export const CombatSystem = ({
   playerRef,
@@ -87,17 +90,28 @@ export const CombatSystem = ({
         if (!boxesOverlap(hitbox, { center: t, half: target.hurtbox })) continue
 
         record.targets.add(targetName)
-        if (!applyHit(target.reaction, move.reaction, REACTIONS)) continue // invulnerable
+        if (isInvulnerable(target.reaction) || isDodging(target.dodge)) continue
 
-        interruptMove(target.move)
         const dir = knockbackDirection(a.x, t.x, attacker.facing.x)
-        const kb = move.reaction.knockback
-        target.velocity = { x: dir * kb.x, z: 0 }
         const v = targetBody.linvel()
-        targetBody.setLinvel({ x: dir * kb.x, y: kb.y > 0 ? kb.y : v.y, z: 0 }, true)
+        let damage = move.damage
+        if (target.blocking && facesAttacker(target.facing.x, t.x, a.x)) {
+          const blocked = blockedHit(move, ACTIONS.block)
+          damage = blocked.damage
+          applyBlockstun(target.reaction, blocked.blockstun)
+          target.velocity = { x: dir * blocked.knockbackX, z: 0 }
+          targetBody.setLinvel({ x: dir * blocked.knockbackX, y: v.y, z: 0 }, true)
+        } else {
+          applyHit(target.reaction, move.reaction, REACTIONS)
+          const kb = move.reaction.knockback
+          target.velocity = { x: dir * kb.x, z: 0 }
+          targetBody.setLinvel({ x: dir * kb.x, y: kb.y > 0 ? kb.y : v.y, z: 0 }, true)
+        }
+        interruptMove(target.move)
 
-        if (targetName === PLAYER) store.damagePlayer(move.damage)
-        else store.damageEnemy(targetName, move.damage)
+        if (damage <= 0) continue
+        if (targetName === PLAYER) store.damagePlayer(damage)
+        else store.damageEnemy(targetName, damage)
       }
     })
   })

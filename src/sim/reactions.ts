@@ -15,7 +15,7 @@ export interface ReactionConfig {
   knockbackFriction: number
 }
 
-export type ReactionKind = 'hitstun' | 'knockdown' | 'getup'
+export type ReactionKind = 'hitstun' | 'blockstun' | 'knockdown' | 'getup'
 
 export interface ReactionState {
   kind: ReactionKind | null
@@ -47,6 +47,12 @@ export const applyHit = (s: ReactionState, hit: HitReaction, cfg: ReactionConfig
     s.timeLeft = hit.hitstun
   }
   return true
+}
+
+/** A blocked hit: a short stun that keeps the guard up (see FighterBody). */
+export const applyBlockstun = (s: ReactionState, seconds: number): void => {
+  s.kind = 'blockstun'
+  s.timeLeft = seconds
 }
 
 /** Advances the reaction: hitstun ends, knockdown leads to getup, getup to invulnerability. */

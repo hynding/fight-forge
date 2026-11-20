@@ -44,6 +44,10 @@ export interface MoveDef {
    * up with the active phase; timing never depends on the clip.
    */
   clip?: ClipRef
+  /** An air move: started only while airborne, keeps the jump's momentum, and ends on landing. */
+  air?: boolean
+  /** Forward speed during startup and active (e.g. a dash attack's lunge). */
+  lunge?: number
   /** Combo: the move an attack press chains into. */
   next?: string
   /** Seconds into the move from which a buffered press cancels into `next`; defaults to the end of the active phase. */

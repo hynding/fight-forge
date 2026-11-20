@@ -96,7 +96,7 @@ export const HUD = () => {
 
       {/* Controls */}
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
-        A/D - Move | W/S - Depth | SPACE - Jump | J - Attack (tap for combo) | ESC - Pause
+        A/D - Move (double-tap to run) | W/S - Depth | SPACE - Jump | J - Attack (tap for combo) | K - Block | SHIFT - Dodge | ESC - Pause
         <br />H - Hitboxes{showHitboxes ? ' (ON)' : ''}
       </div>
 

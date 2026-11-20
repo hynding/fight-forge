@@ -3,9 +3,10 @@ import { RapierRigidBody } from '@react-three/rapier'
 import { useControls } from '../hooks/useControls'
 import { useGameStore } from '../store/gameStore'
 import { DEFAULT_CONFIG } from '../config/defaults'
-import { useSimSystem } from '../sim/simContext'
+import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { stepMoveRunner } from '../sim/moves'
+import { createRunDetector, stepRunDetector } from '../sim/defense'
 import { inputIntent } from '../sim/controllers'
 import { createFighterRuntime, type FighterRuntime } from '../sim/fighter'
 import { screenBounds, type StageView } from '../sim/stage'
@@ -32,6 +33,10 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   // Visual only (attack tint); gameplay reads `runtime.move`.
   const [isAttacking, setIsAttacking] = useState(false)
   const wasAttacking = useRef(false)
+  const loop = useSimLoop()
+  const [runDetector] = useState(createRunDetector)
+  // One air attack per jump.
+  const airAttackUsed = useRef(false)
   const playerHealth = useGameStore((state) => state.playerHealth)
 
   useEffect(() => {
@@ -45,8 +50,18 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   // facing) and before combat (so combat sees a move on the step it starts).
   // A hit reaction blocks starting moves; combat interrupts a move on hit.
   useSimSystem('playerAttack', SYSTEM_ORDER.playerAttack, (dt) => {
-    const wants = (runtime.intent?.attack ?? false) && runtime.reaction.kind === null
-    stepMoveRunner(runtime.move, wants, dt, DEFAULT_CONFIG.moves, P.lightAttack)
+    const intent = runtime.intent
+    if (runtime.grounded) airAttackUsed.current = false
+    const inAir = !runtime.grounded
+    // Which move a fresh press starts: in the air, running, or the light combo.
+    const first = inAir ? P.jumpAttack : intent?.run ? P.dashAttack : P.lightAttack
+    const wants =
+      (intent?.attack ?? false) &&
+      runtime.reaction.kind === null &&
+      !runtime.blocking &&
+      !(inAir && airAttackUsed.current)
+    const event = stepMoveRunner(runtime.move, wants, dt, DEFAULT_CONFIG.moves, first)
+    if (event === 'started' && inAir) airAttackUsed.current = true
     // Also catches a move that combat interrupted.
     const attacking = runtime.move.move !== null
     if (attacking !== wasAttacking.current) {
@@ -69,7 +84,11 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       attackingColor="#ff4444"
       health={playerHealth}
       isAttacking={isAttacking}
-      getIntent={() => inputIntent(controls)}
+      getIntent={() => {
+        const intent = inputIntent(controls)
+        intent.run = stepRunDetector(runDetector, intent.move.x, loop.time, DEFAULT_CONFIG.actions.run)
+        return intent
+      }}
       isDead={() => useGameStore.getState().playerHealth <= 0}
       getBounds={() =>
         screenBounds(view, DEFAULT_CONFIG.stage.depthBand, DEFAULT_CONFIG.camera.edgeMargin)

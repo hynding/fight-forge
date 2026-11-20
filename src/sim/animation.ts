@@ -13,6 +13,7 @@ export type ClipMap = Partial<Record<FighterStateName, ClipRef>>
 /** Where a state looks when the clip map has no usable clip for it. */
 export const STATE_FALLBACK: Partial<Record<FighterStateName, FighterStateName>> = {
   walk: 'idle',
+  run: 'walk',
   jump: 'idle',
   attack: 'idle',
   block: 'idle',
