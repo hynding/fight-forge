@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { getLevels } from '../content/active'
+import { PackPanel } from './PackPanel'
 
 export const StartMenu = () => {
   const startRun = useGameStore((state) => state.startRun)
+  // Re-render when packs change: the level list comes from the active content.
+  useGameStore((state) => state.packs)
+  const contentError = useGameStore((state) => state.contentError)
   const [isHovered, setIsHovered] = useState(false)
 
   // startRun goes to the loading screen, which advances to 'playing' when loaded.
@@ -49,9 +53,12 @@ export const StartMenu = () => {
         </p>
       </div>
 
+      <PackPanel />
+
       {/* Play Button */}
       <button
         onClick={handleStartGame}
+        disabled={contentError !== null}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{
@@ -82,6 +89,7 @@ export const StartMenu = () => {
             <button
               key={level.id}
               onClick={() => startRun(i)}
+              disabled={contentError !== null}
               style={{
                 padding: '10px 18px',
                 fontSize: '14px',
