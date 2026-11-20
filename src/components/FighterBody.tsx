@@ -2,8 +2,8 @@ import { forwardRef, useEffect, useRef, useState, type ReactNode, type RefObject
 import { useFrame } from '@react-three/fiber'
 import { CuboidCollider, RigidBody, RapierRigidBody, useRapier } from '@react-three/rapier'
 import { Group } from 'three'
-import { HumanoidModel } from './HumanoidModel'
-import { DEFAULT_CONFIG, type Vec3 } from '../config/defaults'
+import { FighterModel } from './FighterModel'
+import { DEFAULT_CONFIG, type ModelRef, type Vec3 } from '../config/defaults'
 import { useGameStore } from '../store/gameStore'
 import { gameStep } from '../utils/gameTime'
 import { SYSTEM_ORDER } from '../sim/loop'
@@ -37,6 +37,9 @@ interface FighterBodyProps {
   linearDamping: number
   movement: MovementConfig
   jumpVelocity: number
+  model: ModelRef
+  /** Before `scale`; defaults to `body.colliderHalfExtents`. */
+  colliderHalfExtents?: Vec3
   color: string
   attackingColor: string
   attackVisual: AttackVisual
@@ -69,6 +72,8 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       linearDamping,
       movement,
       jumpVelocity,
+      model,
+      colliderHalfExtents = BODY.colliderHalfExtents,
       color,
       attackingColor,
       attackVisual,
@@ -160,7 +165,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
 
     const tint = isHurt ? '#ff0000' : isAttacking ? attackingColor : color
     const glowing = isHurt || isAttacking
-    const [hx, hy, hz] = BODY.colliderHalfExtents
+    const [hx, hy, hz] = colliderHalfExtents
     const [ax, ay, az] = attackVisual.position
     const [sx, sy, sz] = attackVisual.size
 
@@ -175,12 +180,14 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       >
         <CuboidCollider args={[hx * scale, hy * scale, hz * scale]} />
 
-        <group ref={visualGroupRef} position={[0, BODY.modelYOffset * scale, 0]}>
-          <HumanoidModel
+        <group ref={visualGroupRef}>
+          <FighterModel
+            model={model}
             color={tint}
             emissive={glowing ? '#ff0000' : '#000000'}
             emissiveIntensity={glowing ? 0.5 : 0}
             scale={scale}
+            runtime={runtime}
             animationTimeRef={animationTimeRef}
             isMovingRef={isMovingRef}
           />

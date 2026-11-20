@@ -1,4 +1,5 @@
 import { EnemyType } from '../types/game'
+import type { ClipMap } from '../sim/animation'
 
 /**
  * Every gameplay tuning value in one typed object.
@@ -13,6 +14,27 @@ import { EnemyType } from '../types/game'
 
 export type Vec3 = [number, number, number]
 
+/**
+ * How a fighter looks. `offset` and `scale` are multiplied by the fighter's
+ * own scale. Either way, gameplay (collider, hit ranges) never depends on it.
+ */
+export type ModelRef =
+  /** The built-in box humanoid; also the fallback when a glTF is missing or fails. */
+  | { kind: 'procedural'; offset: Vec3 }
+  | {
+      kind: 'gltf'
+      /** URL of a .glb/.gltf (files in `public/` are served from the site root). */
+      url: string
+      scale: number
+      offset: Vec3
+      /** Radians; turns the model to face -Z (glTF models usually face +Z). */
+      rotationY: number
+      /** Material names recolored with the fighter's color. */
+      tintMaterials: string[]
+      /** Fighter state to animation clip. */
+      clips: ClipMap
+    }
+
 export interface EnemyTypeDef {
   maxHealth: number
   /** Uniform scale for the model and collider. */
@@ -22,6 +44,9 @@ export interface EnemyTypeDef {
   /** Multiplies `enemy.aggroRange`. */
   aggression: number
   color: string
+  model: ModelRef
+  /** Collider half extents before `scale`; defaults to `body.colliderHalfExtents`. */
+  colliderHalfExtents?: Vec3
 }
 
 export interface GameConfig {
@@ -30,9 +55,8 @@ export interface GameConfig {
   }
   /** Shared by player and enemies, multiplied by each fighter's scale. */
   body: {
+    /** Default collider half extents, before each fighter's scale. */
     colliderHalfExtents: Vec3
-    /** HumanoidModel's feet sit 0.65 below its origin; this drops them onto the collider bottom. */
-    modelYOffset: number
     /** Grounded = something solid within this distance below the body centre (half-height 1 + slack), × scale. */
     groundRayLength: number
     /** ...and vertical speed below this. */
@@ -43,6 +67,8 @@ export interface GameConfig {
   player: {
     maxHealth: number
     color: string
+    model: ModelRef
+    colliderHalfExtents?: Vec3
     spawnPosition: Vec3
     walkSpeed: number
     jumpVelocity: number
@@ -121,13 +147,37 @@ export interface GameConfig {
   }
 }
 
+/** The box humanoid: its feet sit 0.65 below its origin, so drop it 0.35 onto the collider bottom. */
+export const PROCEDURAL_MODEL: ModelRef = { kind: 'procedural', offset: [0, -0.35, 0] }
+
+const ROBOT_URL = '/models/robot-expressive.glb'
+// RobotExpressive is 4.46 units tall with its feet at y=0 and faces +Z.
+const robotModel = (attackSpeed: number): ModelRef => ({
+  kind: 'gltf',
+  url: ROBOT_URL,
+  scale: 0.4,
+  offset: [0, -1, 0],
+  rotationY: Math.PI,
+  tintMaterials: ['Main'],
+  clips: {
+    idle: 'Idle',
+    walk: 'Walking',
+    jump: 'Jump',
+    attack: { name: 'Punch', speed: attackSpeed },
+    dead: 'Death',
+  },
+})
+// The punch clip is 0.83s: the player's 0.2s swing plays it fast, an enemy's
+// 1s hold on the attack slot plays it at normal speed.
+const PLAYER_MODEL = robotModel(3.5)
+const ENEMY_MODEL = robotModel(1)
+
 export const DEFAULT_CONFIG: GameConfig = {
   physics: {
     gravity: [0, -20, 0],
   },
   body: {
     colliderHalfExtents: [0.25, 1, 0.25],
-    modelYOffset: -0.35,
     groundRayLength: 1.1,
     groundedMaxVelY: 0.5,
     stopSpeed: 0.1,
@@ -135,6 +185,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   player: {
     maxHealth: 100,
     color: '#4444ff',
+    model: PLAYER_MODEL,
     spawnPosition: [0, 2, 0],
     walkSpeed: 5,
     jumpVelocity: 8,
@@ -171,9 +222,9 @@ export const DEFAULT_CONFIG: GameConfig = {
     },
   },
   enemyTypes: {
-    [EnemyType.BASIC]: { maxHealth: 50, scale: 1, speed: 2, aggression: 1, color: '#00ff00' },
-    [EnemyType.FAST]: { maxHealth: 30, scale: 0.8, speed: 3, aggression: 1.2, color: '#ffff00' },
-    [EnemyType.HEAVY]: { maxHealth: 100, scale: 1.3, speed: 1.5, aggression: 0.8, color: '#ff0000' },
+    [EnemyType.BASIC]: { maxHealth: 50, scale: 1, speed: 2, aggression: 1, color: '#00ff00', model: ENEMY_MODEL },
+    [EnemyType.FAST]: { maxHealth: 30, scale: 0.8, speed: 3, aggression: 1.2, color: '#ffff00', model: ENEMY_MODEL },
+    [EnemyType.HEAVY]: { maxHealth: 100, scale: 1.3, speed: 1.5, aggression: 0.8, color: '#ff0000', model: ENEMY_MODEL },
   },
   spawning: {
     initialType: EnemyType.BASIC,

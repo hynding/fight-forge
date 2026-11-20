@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
+import { useGLTF } from '@react-three/drei'
 import { useGameStore } from '../store/gameStore'
+import { DEFAULT_CONFIG } from '../config/defaults'
+import { gltfModelUrls } from '../config/models'
 
 const LOADING_DURATION_MS = 2000
 
@@ -7,6 +10,12 @@ export const LoadingScreen = () => {
   const [progress, setProgress] = useState(0)
   const [loadingText, setLoadingText] = useState('Loading')
   const setGameScreen = useGameStore((state) => state.setGameScreen)
+
+  // Start fetching character models now so the scene usually finds them cached.
+  // The scene still suspends on any that aren't ready, showing the box humanoid.
+  useEffect(() => {
+    gltfModelUrls(DEFAULT_CONFIG).forEach((url) => useGLTF.preload(url))
+  }, [])
 
   useEffect(() => {
     // Simulated load: start the game once it "finishes". Cleared on unmount so a

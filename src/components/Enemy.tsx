@@ -19,7 +19,7 @@ import { FighterBody, type AttackVisual } from './FighterBody'
 
 const E = DEFAULT_CONFIG.enemy
 const BODY = DEFAULT_CONFIG.body
-const ATTACK_VISUAL: AttackVisual = { position: [0, 0, -0.5], size: [1.5, 1.5, 1], opacity: 0.3 }
+const ATTACK_VISUAL: AttackVisual = { position: [0, -0.35, -0.5], size: [1.5, 1.5, 1], opacity: 0.3 }
 const HEALTH_BAR_WIDTH = 1.2
 
 interface EnemyProps {
@@ -98,7 +98,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     })
 
     const scale = def.scale
-    const modelYOffset = BODY.modelYOffset * scale
+    const halfHeight = (def.colliderHalfExtents ?? BODY.colliderHalfExtents)[1] * scale
     const ratio = health / maxHealth
 
     return (
@@ -110,6 +110,8 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         linearDamping={E.linearDamping}
         movement={movement}
         jumpVelocity={0}
+        model={def.model}
+        colliderHalfExtents={def.colliderHalfExtents}
         color={def.color}
         attackingColor="#ffffff"
         attackVisual={ATTACK_VISUAL}
@@ -121,7 +123,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       >
         {/* Health bar: outside the rotating model and billboarded so it always
             faces the camera instead of going edge-on as the enemy turns. */}
-        <Billboard position={[0, 1.5 * scale + modelYOffset, 0]}>
+        <Billboard position={[0, halfHeight + 0.15 * scale, 0]}>
           <mesh renderOrder={1000}>
             <boxGeometry args={[HEALTH_BAR_WIDTH, 0.15, 0.02]} />
             <meshBasicMaterial color="#333333" depthTest={false} />

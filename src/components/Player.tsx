@@ -17,7 +17,7 @@ const MOVEMENT = {
   deceleration: P.deceleration,
   stopSpeed: DEFAULT_CONFIG.body.stopSpeed,
 }
-const ATTACK_VISUAL: AttackVisual = { position: [0, 0, -1.2], size: [1.2, 1.5, 0.8], opacity: 0.4 }
+const ATTACK_VISUAL: AttackVisual = { position: [0, -0.35, -1.2], size: [1.2, 1.5, 0.8], opacity: 0.4 }
 
 interface PlayerProps {
   /** Swing state shared with CombatSystem; the player's sim system writes it. */
@@ -55,6 +55,8 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(
         linearDamping={P.linearDamping}
         movement={MOVEMENT}
         jumpVelocity={P.jumpVelocity}
+        model={P.model}
+        colliderHalfExtents={P.colliderHalfExtents}
         color={P.color}
         attackingColor="#ff4444"
         attackVisual={ATTACK_VISUAL}
