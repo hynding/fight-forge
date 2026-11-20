@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, forwardRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { RigidBody, RapierRigidBody, CuboidCollider } from '@react-three/rapier'
+import { RigidBody, RapierRigidBody, CuboidCollider, useRapier } from '@react-three/rapier'
 import { Group, Vector3 } from 'three'
 import { useControls } from '../hooks/useControls'
 import { HumanoidModel } from './HumanoidModel'
@@ -12,12 +12,14 @@ interface PlayerProps {
 
 const SPEED = 5
 const JUMP_FORCE = 8
-const ATTACK_COOLDOWN = 500
-const ATTACK_DURATION = 200
+// Attack timings are in game time (seconds of unpaused frames), so pausing
+// mid-swing resumes the swing instead of silently consuming it.
+const ATTACK_COOLDOWN = 0.5
+const ATTACK_DURATION = 0.2
 const DECELERATION = 0.85
-// Collider half-height is 1 and the arena floor's top is y=0.25, so the body
-// rests at y≈1.25. Allow a little slack for contact jitter.
-const GROUNDED_MAX_Y = 1.3
+// Grounded = something solid within this distance below the body centre.
+// The collider's half-height is 1, so this allows 0.1 of slack for contact jitter.
+const GROUND_RAY_LENGTH = 1.1
 const GROUNDED_MAX_VEL_Y = 0.5
 // HumanoidModel's feet sit 0.65 below its origin; drop it so they meet the collider bottom.
 const MODEL_Y_OFFSET = -0.35
@@ -34,18 +36,14 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
   // `isAttacking` state drives visuals only. Per-frame gating uses refs so that
   // frames rendered before React re-renders can't start a second swing.
   const [isAttacking, setIsAttacking] = useState(false)
-  const isAttackingRef = useRef(false)
-  const nextAttackAllowedAt = useRef(0)
-  const attackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const attackTimeLeft = useRef(0)
+  const cooldownTimeLeft = useRef(0)
   const [isHurt, setIsHurt] = useState(false)
   const playerHealth = useGameStore((state) => state.playerHealth)
   const prevHealth = useRef(playerHealth)
 
-  useEffect(() => {
-    return () => {
-      if (attackTimeoutRef.current !== null) clearTimeout(attackTimeoutRef.current)
-    }
-  }, [])
+  const { world, rapier } = useRapier()
+  const groundRay = useRef<InstanceType<typeof rapier.Ray> | null>(null)
 
   // Flash red when taking damage
   useEffect(() => {
@@ -98,10 +96,23 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
 
     playerRef.current.setLinvel({ x: newVelX, y: velocity.y, z: newVelZ }, true)
 
-    // Grounded check
+    // Grounded check: short downward ray that ignores the player's own body,
+    // so standing on the floor, an enemy, or any future platform all count.
     const position = playerRef.current.translation()
-    isGroundedRef.current =
-      position.y < GROUNDED_MAX_Y && Math.abs(velocity.y) < GROUNDED_MAX_VEL_Y
+    if (!groundRay.current) {
+      groundRay.current = new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 })
+    }
+    groundRay.current.origin = { x: position.x, y: position.y, z: position.z }
+    const groundHit = world.castRay(
+      groundRay.current,
+      GROUND_RAY_LENGTH,
+      true,
+      undefined,
+      undefined,
+      undefined,
+      playerRef.current
+    )
+    isGroundedRef.current = groundHit !== null && Math.abs(velocity.y) < GROUNDED_MAX_VEL_Y
 
     // Jump
     if (controls.jump && isGroundedRef.current) {
@@ -110,18 +121,19 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     }
 
     // Attack
-    const now = performance.now()
-    if (controls.attack && !isAttackingRef.current && now >= nextAttackAllowedAt.current) {
-      isAttackingRef.current = true
-      nextAttackAllowedAt.current = now + ATTACK_COOLDOWN
-      setIsAttacking(true)
-      onAttackChange?.(true, lastDirection.current.clone())
-      attackTimeoutRef.current = setTimeout(() => {
-        attackTimeoutRef.current = null
-        isAttackingRef.current = false
+    cooldownTimeLeft.current = Math.max(0, cooldownTimeLeft.current - delta)
+    if (attackTimeLeft.current > 0) {
+      attackTimeLeft.current -= delta
+      if (attackTimeLeft.current <= 0) {
+        attackTimeLeft.current = 0
         setIsAttacking(false)
         onAttackChange?.(false, new Vector3())
-      }, ATTACK_DURATION)
+      }
+    } else if (controls.attack && cooldownTimeLeft.current === 0) {
+      attackTimeLeft.current = ATTACK_DURATION
+      cooldownTimeLeft.current = ATTACK_COOLDOWN
+      setIsAttacking(true)
+      onAttackChange?.(true, lastDirection.current.clone())
     }
 
     // Drive rotation imperatively from current facing direction

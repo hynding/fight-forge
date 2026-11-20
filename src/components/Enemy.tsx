@@ -1,4 +1,4 @@
-import { useRef, useEffect, forwardRef, RefObject } from 'react'
+import { useRef, forwardRef, RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { RigidBody, RapierRigidBody, CuboidCollider } from '@react-three/rapier'
 import { Billboard } from '@react-three/drei'
@@ -14,10 +14,14 @@ const _toOther = new Vector3()
 const _direction = new Vector3()
 const _avoidanceForce = new Vector3()
 const _moveDirection = new Vector3()
-const _toPlayer = new Vector3()
 const _circleDir = new Vector3()
 const _otherPos = new Vector3()
 const _patrolDelta = new Vector3()
+
+// How long an enemy holds the single attacker slot, then how long it waits
+// before it may claim the slot again.
+const ENEMY_ATTACK_DURATION_MS = 1000
+const ENEMY_ATTACK_RECOVERY_MS = 1000
 
 interface EnemyProps {
   id: string
@@ -38,7 +42,9 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const personalityTimer = useRef(Math.random() * 1000)
     const animationTimeRef = useRef(0)
     const isMovingRef = useRef(false)
-    const attackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Game-time (ms) countdowns; they only advance on unpaused frames.
+    const attackTimeLeft = useRef(0)
+    const attackRecoveryLeft = useRef(0)
 
     const attackingEnemyId = useGameStore((state) => state.attackingEnemyId)
     const setAttackingEnemy = useGameStore((state) => state.setAttackingEnemy)
@@ -80,14 +86,6 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
 
     // Death (removal + score) is handled atomically by `damageEnemy` in the store.
 
-    useEffect(() => {
-      return () => {
-        if (attackTimeoutRef.current !== null) {
-          clearTimeout(attackTimeoutRef.current)
-        }
-      }
-    }, [])
-
     useFrame((_, delta) => {
       if (!enemyRef.current || !playerPositionRef.current) return
       // Read live store state: the render-time `attackingEnemyId` can be several
@@ -106,6 +104,19 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       isMovingRef.current = Math.abs(vel.x) > 0.1 || Math.abs(vel.z) > 0.1
 
       personalityTimer.current += delta * 1000
+
+      // Attack slot bookkeeping. Removal on death/unmount is handled by the store.
+      attackRecoveryLeft.current = Math.max(0, attackRecoveryLeft.current - delta * 1000)
+      if (attackTimeLeft.current > 0) {
+        attackTimeLeft.current -= delta * 1000
+        if (attackTimeLeft.current <= 0) {
+          attackTimeLeft.current = 0
+          // Back off before trying again so other enemies get a turn.
+          attackRecoveryLeft.current = ENEMY_ATTACK_RECOVERY_MS
+          // Only release the slot if we still hold it.
+          if (currentAttackerId === id) setAttackingEnemy(null)
+        }
+      }
 
       // Avoidance against other enemies — read positions directly from refs.
       _avoidanceForce.set(0, 0, 0)
@@ -166,23 +177,9 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
               true
             )
 
-            if (currentAttackerId === null) {
-              _toPlayer.subVectors(playerPositionRef.current, _enemyVec).normalize()
-              const dotProduct = facingDirection.current.dot(_toPlayer)
-
-              if (dotProduct > 0.5) {
-                setAttackingEnemy(id)
-                if (attackTimeoutRef.current !== null) {
-                  clearTimeout(attackTimeoutRef.current)
-                }
-                attackTimeoutRef.current = setTimeout(() => {
-                  attackTimeoutRef.current = null
-                  // Only release the slot if we still hold it.
-                  if (useGameStore.getState().attackingEnemyId === id) {
-                    setAttackingEnemy(null)
-                  }
-                }, 1000)
-              }
+            if (currentAttackerId === null && attackRecoveryLeft.current === 0) {
+              setAttackingEnemy(id)
+              attackTimeLeft.current = ENEMY_ATTACK_DURATION_MS
             }
           }
         }

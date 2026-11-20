@@ -24,8 +24,9 @@ const ENEMY_HEALTH: Record<EnemyType, number> = {
   [EnemyType.HEAVY]: 100,
 }
 
+// The timestamp prefix keeps ids unique even if a dev hot reload resets the counter.
 let enemyIdCounter = 0
-const nextEnemyId = () => `enemy-${++enemyIdCounter}`
+const nextEnemyId = () => `enemy-${Date.now().toString(36)}-${++enemyIdCounter}`
 
 interface CameraRigProps {
   playerPositionRef: RefObject<Vector3>
@@ -96,13 +97,15 @@ export const GameScene = () => {
     })
   }, [spawnEnemy])
 
-  // Periodic spawn — reads enemy count from store snapshot inside callback.
-  // Paused or game-over: no interval, so enemies don't pile up off-screen.
+  // Periodic spawn — reads live store state inside the callback. Ticks while
+  // paused are skipped rather than restarting the interval, so pausing can't
+  // keep resetting the spawn clock.
   useEffect(() => {
-    if (isGameOver || isPaused) return
+    if (isGameOver) return
 
     const interval = setInterval(() => {
-      if (useGameStore.getState().enemies.length >= MAX_ENEMIES) return
+      const { enemies: current, isPaused } = useGameStore.getState()
+      if (isPaused || current.length >= MAX_ENEMIES) return
 
       const angle = Math.random() * Math.PI * 2
       const types = [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY]
@@ -118,7 +121,7 @@ export const GameScene = () => {
     }, SPAWN_INTERVAL_MS)
 
     return () => clearInterval(interval)
-  }, [isGameOver, isPaused, spawnEnemy])
+  }, [isGameOver, spawnEnemy])
 
   // Clean up enemy refs when enemies are removed
   useEffect(() => {

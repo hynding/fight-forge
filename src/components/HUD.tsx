@@ -24,7 +24,8 @@ export const HUD = () => {
       left: 0,
       width: '100%',
       padding: '20px',
-      pointerEvents: isGameOver ? 'auto' : 'none',
+      // The game-over panel opts back in; the rest must let drags reach the canvas.
+      pointerEvents: 'none',
       color: 'white',
       fontFamily: 'monospace',
       userSelect: 'none',
