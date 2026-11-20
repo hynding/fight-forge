@@ -8,6 +8,8 @@ import { moveSchema, packSchema, settingsSchema } from '../content/schemas'
 import { deleteIn, getIn, pathString, setIn } from './paths'
 import { defaultFor, fieldKind, labelFor } from './schemaForm'
 import { memoryStore } from './storage'
+import { sandboxLevel } from './sandbox'
+import { validateLevel } from '../sim/level'
 import { addNode, buildTree, nodeValue, overrideNode, removeNode } from './tree'
 import { addModelAsset, assetFile, comboChain, fitModel, gltfModelFor, moveFrames, phaseAt, removeAsset, setComboChain } from './fighter'
 import { baseContent, duplicatePack, editPack, exportBundle, importBundle, newPack, slugify, uniqueId, validatePack } from './workspace'
@@ -187,5 +189,20 @@ describe('fighter tools', () => {
     const reordered = setComboChain(json, ['hook', 'jab'])
     expect(comboChain(reordered)).toEqual(['hook', 'jab'])
     expect(validatePack(reordered)).toEqual([])
+  })
+})
+
+describe('sandbox', () => {
+  it('makes a valid arena of N enemies near the player', () => {
+    const level = sandboxLevel('HEAVY', 3)
+    expect(validateLevel(level)).toEqual([])
+    const wave = level.segments[0].triggers[0]
+    if (wave.kind !== 'wave') throw new Error()
+    expect(wave.waves[0].enemies.map((e) => e.x)).toEqual([4, 5, 6])
+    expect(sandboxLevel('X', 99).segments[0].triggers[0]).toMatchObject({ waves: [{ enemies: expect.any(Array) }] })
+    // A pack whose enemy type it names loads with it.
+    const json = { ...newPack('S', []).json, levels: [level] }
+    expect(validatePack(json)).toEqual([])
+    expect(validatePack({ ...json, levels: [sandboxLevel('NOPE', 1)] })).not.toEqual([])
   })
 })

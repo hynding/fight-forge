@@ -130,6 +130,27 @@ describe('stepLevel', () => {
     expect(rt.lockX).toBeNull()
   })
 
+  it('keeps a lock when the whole wave spawns on the step it starts', () => {
+    const level: Level = {
+      id: 'n',
+      name: 'Now',
+      theme: 'default',
+      segments: [{ length: 30, triggers: [{ kind: 'wave', at: 3, lock: true, waves: [{ enemies: [{ type: B, from: 'placed', x: 2 }] }] }, { kind: 'goal', at: 28 }] }],
+    }
+    const rt = createLevelRuntime(level)
+    const w = world()
+    // Like the game: who is alive is read before the step's spawns.
+    const step = () => {
+      const snapshot = new Set(w.alive)
+      return stepLevel(rt, { playerX: 3, cameraX: 9, isAlive: (id) => snapshot.has(id), spawn: w.spawn }, SIM_STEP)
+    }
+    expect(step()).not.toContainEqual({ kind: 'unlock' })
+    expect(step()).toEqual([])
+    expect(rt.lockX).toBe(9)
+    w.killAll()
+    expect(step()).toContainEqual({ kind: 'unlock' })
+  })
+
   it('completes at the goal and then does nothing', () => {
     const rt = createLevelRuntime(LEVEL)
     const w = world()

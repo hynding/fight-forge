@@ -4,6 +4,7 @@ import type { EnemyType } from '../types/game'
 import { getConfig, getLevels } from '../content/active'
 import { applyPickup, type PickupInstance } from '../sim/pickups'
 import type { PropInstance } from '../sim/props'
+import type { Level } from '../sim/level'
 
 
 export interface Enemy {
@@ -54,6 +55,8 @@ interface GameState {
   showHitboxes: boolean
   /** Which of the active levels (`getLevels()`) is being played. */
   levelIndex: number
+  /** A Forge sandbox fight, played instead of the active levels; leaving it returns to the Forge. */
+  sandbox: Level | null
   /** Lives left, including the current one. Losing the last is game over. */
   lives: number
   /** Continues left after a game over (`rules.continues` per run). */
@@ -83,6 +86,10 @@ interface GameState {
   resetGame: () => void
   /** Starts a new run at a level (from the menu); goes through the loading screen. */
   startRun: (levelIndex: number) => void
+  /** Starts a Forge sandbox fight in a generated level (through the loading screen). */
+  startSandbox: (level: Level) => void
+  /** Leaves the run: back to the menu, or to the Forge from a sandbox. */
+  quitRun: () => void
   /** After a level's results: the next level, keeping score and lives. */
   nextLevel: () => void
   /** After a game over: spend a continue to carry on where you fell, with full lives. */
@@ -158,6 +165,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   packs: [],
   contentError: null,
   levelIndex: 0,
+  sandbox: null,
   lives: getConfig().rules.lives,
   continuesLeft: getConfig().rules.continues,
   respawnCount: 0,
@@ -235,8 +243,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       ...freshLevel(state),
       ...freshRun(),
-      // Keep current screen if we're just resetting, otherwise go to playing
-      gameScreen: state.gameScreen === 'menu' ? 'menu' : 'playing',
+      // Keep a menu screen; restarting from the game goes back to playing.
+      gameScreen: state.gameScreen === 'menu' || state.gameScreen === 'forge' ? state.gameScreen : 'playing',
     })),
 
   startRun: (levelIndex) =>
@@ -244,12 +252,24 @@ export const useGameStore = create<GameState>((set, get) => ({
       ...freshLevel(state),
       ...freshRun(),
       levelIndex: Math.max(0, Math.min(getLevels().length - 1, levelIndex)),
+      sandbox: null,
       gameScreen: 'loading',
+    })),
+
+  startSandbox: (level) =>
+    set((state) => ({ ...freshLevel(state), ...freshRun(), levelIndex: 0, sandbox: level, gameScreen: 'loading' })),
+
+  quitRun: () =>
+    set((state) => ({
+      ...freshLevel(state),
+      ...freshRun(),
+      gameScreen: state.sandbox ? 'forge' : 'menu',
+      sandbox: null,
     })),
 
   nextLevel: () =>
     set((state) =>
-      state.levelProgress.complete && state.levelIndex + 1 < getLevels().length
+      state.levelProgress.complete && !state.sandbox && state.levelIndex + 1 < getLevels().length
         ? {
             ...freshLevel(state),
             levelIndex: state.levelIndex + 1,
