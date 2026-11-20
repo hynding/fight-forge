@@ -13,6 +13,8 @@ const EPSILON = 1e-9
  * slot systems in between.
  */
 export const SYSTEM_ORDER = {
+  /** Controllers decide intents; fighters move, jump, face, and update their state. */
+  fighters: 50,
   /** Player swing timers: a swing started this step is visible to combat this step. */
   playerAttack: 100,
   /** Enemy attack-slot hold/recovery timers. */

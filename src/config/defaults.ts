@@ -33,6 +33,10 @@ export interface GameConfig {
     colliderHalfExtents: Vec3
     /** HumanoidModel's feet sit 0.65 below its origin; this drops them onto the collider bottom. */
     modelYOffset: number
+    /** Grounded = something solid within this distance below the body centre (half-height 1 + slack), × scale. */
+    groundRayLength: number
+    /** ...and vertical speed below this. */
+    groundedMaxVelY: number
     /** Below this speed an axis counts as stopped (walk animation off; player deceleration snaps to 0). */
     stopSpeed: number
   }
@@ -44,9 +48,6 @@ export interface GameConfig {
     jumpVelocity: number
     /** Velocity multiplier per 60 Hz frame while no direction is held. */
     deceleration: number
-    /** Grounded = something solid within this distance below the body centre (half-height 1 + slack). */
-    groundRayLength: number
-    groundedMaxVelY: number
     linearDamping: number
     attack: {
       duration: number
@@ -71,6 +72,8 @@ export interface GameConfig {
     attackSlotDuration: number
     /** Wait after releasing the slot before claiming it again. */
     attackSlotRecovery: number
+    /** Velocity multiplier per 60 Hz step when not moving; 0 stops instantly. */
+    deceleration: number
     minSpacing: number
     /** Spacing push strength above which an enemy counts as crowded. */
     crowdedThreshold: number
@@ -125,6 +128,8 @@ export const DEFAULT_CONFIG: GameConfig = {
   body: {
     colliderHalfExtents: [0.25, 1, 0.25],
     modelYOffset: -0.35,
+    groundRayLength: 1.1,
+    groundedMaxVelY: 0.5,
     stopSpeed: 0.1,
   },
   player: {
@@ -134,8 +139,6 @@ export const DEFAULT_CONFIG: GameConfig = {
     walkSpeed: 5,
     jumpVelocity: 8,
     deceleration: 0.85,
-    groundRayLength: 1.1,
-    groundedMaxVelY: 0.5,
     linearDamping: 0,
     attack: {
       duration: 0.2,
@@ -153,6 +156,7 @@ export const DEFAULT_CONFIG: GameConfig = {
     damageCooldown: 1,
     attackSlotDuration: 1,
     attackSlotRecovery: 1,
+    deceleration: 0,
     minSpacing: 2.5,
     crowdedThreshold: 0.1,
     avoidanceWeight: 0.7,
