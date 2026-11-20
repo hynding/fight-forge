@@ -3,6 +3,7 @@ import type { ClipMap } from '../sim/animation'
 import type { MoveSet } from '../sim/moves'
 import type { ReactionConfig } from '../sim/reactions'
 import type { ActionsConfig } from '../sim/defense'
+import type { AiBehavior, AiKind } from '../sim/controllers'
 
 /**
  * Every gameplay tuning value in one typed object.
@@ -46,6 +47,12 @@ export interface EnemyTypeDef {
   speed: number
   /** Multiplies `enemy.aggroRange`. */
   aggression: number
+  /** Which AI archetype drives it (see `ai`). */
+  ai: AiKind
+  /** The move it throws when it gets an attack token; defaults to `enemy.attackMove`. */
+  attackMove?: string
+  /** Super armor: hits with at most this much hitstun (and no knockdown) don't stagger it. */
+  armor?: number
   color: string
   model: ModelRef
   /** Collider half extents before `scale`; defaults to `body.colliderHalfExtents`. */
@@ -88,14 +95,15 @@ export interface GameConfig {
   enemy: {
     /** Base aggro radius, multiplied by the type's aggression. */
     aggroRange: number
-    /** Within this X distance (and `depthTolerance` in Z) an enemy stops chasing and tries to attack. */
-    attackRange: number
+    /** Enemies attack only when this close to the player in depth (Z); reach in X comes from the AI archetype. */
     depthTolerance: number
-    /** The move an enemy throws when it takes the attacker slot (one per hold). */
+    /** How many enemies may attack the player at once (attack tokens). */
+    maxSimultaneousAttackers: number
+    /** The default move an enemy throws when it gets an attack token (one per hold). */
     attackMove: string
-    /** How long an enemy holds the single attacker slot. */
+    /** How long an enemy holds its attack token. */
     attackSlotDuration: number
-    /** Wait after releasing the slot before claiming it again. */
+    /** Wait after releasing the token before asking again. */
     attackSlotRecovery: number
     /** Velocity multiplier per 60 Hz step when not moving; 0 stops instantly. */
     deceleration: number
@@ -116,6 +124,8 @@ export interface GameConfig {
     }
   }
   enemyTypes: Record<EnemyType, EnemyTypeDef>
+  /** AI archetypes: each is a small strategy picked by enemy definitions. */
+  ai: Record<AiKind, AiBehavior>
   /** Every move by name; times in seconds, hitboxes before the attacker's scale. */
   moves: MoveSet
   reactions: ReactionConfig
@@ -211,10 +221,10 @@ export const DEFAULT_CONFIG: GameConfig = {
   },
   enemy: {
     aggroRange: 10,
-    attackRange: 1.5,
     depthTolerance: 0.5,
+    maxSimultaneousAttackers: 1,
     attackMove: 'enemyPunch',
-    attackSlotDuration: 1,
+    attackSlotDuration: 1.5,
     attackSlotRecovery: 1,
     deceleration: 0,
     minSpacing: 2.5,
@@ -231,9 +241,37 @@ export const DEFAULT_CONFIG: GameConfig = {
     },
   },
   enemyTypes: {
-    [EnemyType.BASIC]: { maxHealth: 50, scale: 1, speed: 2, aggression: 1, color: '#00ff00', model: ROBOT_MODEL },
-    [EnemyType.FAST]: { maxHealth: 30, scale: 0.8, speed: 3, aggression: 1.2, color: '#ffff00', model: ROBOT_MODEL },
-    [EnemyType.HEAVY]: { maxHealth: 100, scale: 1.3, speed: 1.5, aggression: 0.8, color: '#ff0000', model: ROBOT_MODEL },
+    [EnemyType.BASIC]: { maxHealth: 50, scale: 1, speed: 2, aggression: 1, ai: 'brawler', color: '#00ff00', model: ROBOT_MODEL },
+    [EnemyType.FAST]: {
+      maxHealth: 30,
+      scale: 0.8,
+      speed: 3,
+      aggression: 1.2,
+      ai: 'rusher',
+      attackMove: 'rushPunch',
+      color: '#ffff00',
+      model: ROBOT_MODEL,
+    },
+    [EnemyType.HEAVY]: {
+      maxHealth: 100,
+      scale: 1.3,
+      speed: 1.5,
+      aggression: 0.8,
+      ai: 'tank',
+      armor: 0.4,
+      color: '#ff0000',
+      model: ROBOT_MODEL,
+    },
+    [EnemyType.FLANKER]: { maxHealth: 40, scale: 0.9, speed: 2.6, aggression: 1.1, ai: 'flanker', color: '#aa44ff', model: ROBOT_MODEL },
+  },
+  ai: {
+    brawler: { approach: 'beside', reach: 1.5, standOff: 0.8, attackFrom: 'any' },
+    // Hangs back, then lunges in with `rushPunch`.
+    rusher: { approach: 'beside', reach: 4, standOff: 0.9, attackFrom: 'any' },
+    // A brawler that shrugs off light hits (`armor` on its enemy type).
+    tank: { approach: 'beside', reach: 1.7, standOff: 0.8, attackFrom: 'any' },
+    // Works its way behind the player and only attacks from there.
+    flanker: { approach: 'behind', reach: 1.5, standOff: 0.8, attackFrom: 'behind' },
   },
   moves: {
     // Light combo: jab, jab, hook, uppercut (launches and knocks down).
@@ -297,6 +335,17 @@ export const DEFAULT_CONFIG: GameConfig = {
       reaction: { hitstun: 0, knockback: { x: 4, y: 3 }, knockdown: true },
       clip: { name: 'Punch', speed: 1.4 },
       lunge: 7,
+    },
+    // Rusher: a long lunge from its hang-back distance.
+    rushPunch: {
+      startup: 0.2,
+      active: 0.15,
+      recovery: 0.5,
+      damage: 12,
+      hitbox: { ...PUNCH_BOX, halfX: 0.6 },
+      reaction: { hitstun: 0.4, knockback: { x: 3, y: 0 } },
+      clip: { name: 'Punch', speed: 1.2 },
+      lunge: 9,
     },
     enemyPunch: {
       startup: 0.4,

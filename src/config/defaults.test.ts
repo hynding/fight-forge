@@ -25,9 +25,20 @@ describe('DEFAULT_CONFIG', () => {
 
   it('has valid moves, and every move it references exists', () => {
     const { moves, player, enemy } = DEFAULT_CONFIG
+    const enemyMoves = Object.values(DEFAULT_CONFIG.enemyTypes).flatMap((t) => (t.attackMove ? [t.attackMove] : []))
     expect(
-      validateMoves(moves, [player.lightAttack, player.jumpAttack, player.dashAttack, enemy.attackMove])
+      validateMoves(moves, [
+        player.lightAttack,
+        player.jumpAttack,
+        player.dashAttack,
+        enemy.attackMove,
+        ...enemyMoves,
+      ])
     ).toEqual([])
+  })
+
+  it('gives every enemy type a defined AI archetype', () => {
+    for (const t of Object.values(DEFAULT_CONFIG.enemyTypes)) expect(DEFAULT_CONFIG.ai[t.ai]).toBeDefined()
   })
 
   it('keeps every hitbox out for at least one sim step, so combat sees it', () => {

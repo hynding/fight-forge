@@ -15,11 +15,10 @@ export const inputIntent = (c: Controls): Intent => ({
   dodge: c.dodge,
 })
 
+/** Shared enemy AI tuning (from `DEFAULT_CONFIG.enemy`, aggro scaled per type). */
 export interface BrawlerConfig {
   aggroRange: number
-  /** Horizontal reach: an enemy attacks when this close in X... */
-  attackRange: number
-  /** ...and this close in depth (Z), so it lines up with the player like a beat 'em up. */
+  /** An enemy attacks only when this close to the player in depth (Z), lined up like a beat 'em up. */
   depthTolerance: number
   minSpacing: number
   crowdedThreshold: number
@@ -34,14 +33,33 @@ export interface BrawlerConfig {
   }
 }
 
+/** The archetypes an enemy definition can pick. */
+export type AiKind = 'brawler' | 'rusher' | 'tank' | 'flanker'
+
+/**
+ * One archetype's strategy, as data. `approach` picks where the enemy stands:
+ * `beside` the target on the side it's already on, or `behind` the target
+ * (detouring around it in depth). `reach` is how close in X it must be to
+ * attack, `standOff` the fraction of reach it stands at, and `attackFrom`
+ * whether it attacks from any side or only from behind.
+ */
+export interface AiBehavior {
+  approach: 'beside' | 'behind'
+  reach: number
+  standOff: number
+  attackFrom: 'any' | 'behind'
+}
+
 /** What the AI can see this step. Positions are planar (X/Z). */
 export interface BrawlerContext {
   self: Vec2
   target: Vec2
+  /** Which way the target faces (±1); flankers go behind it. */
+  targetFacingX?: number
   /** Other enemies, for spacing. */
   others: Iterable<Vec2>
-  /** True when someone else holds the attack slot. */
-  slotTakenByOther: boolean
+  /** True when every attack token is held by other enemies. */
+  tokensTaken: boolean
   /** Engage regardless of distance (e.g. the enemy is off screen, walking in or left behind). */
   forceEngage?: boolean
 }
@@ -83,24 +101,67 @@ export const spacingPush = (self: Vec2, others: Iterable<Vec2>, minSpacing: numb
   return push
 }
 
-// Where an enemy stands to attack, as a fraction of attackRange beside the target.
-const STAND_OFF = 0.8
+// Another enemy this close to a spot (and closer than us) has it.
+const SPOT_TAKEN = 1.5
+
+// How far a flanker swings out in depth to get around the target.
+const FLANK_DETOUR = 1.6
+
+/** Where the enemy wants to stand to attack, by its approach strategy. */
+export const approachSpot = (ctx: BrawlerContext, behavior: AiBehavior): Vec2 => {
+  const distance = behavior.reach * behavior.standOff
+  const sideNow = ctx.self.x >= ctx.target.x ? 1 : -1
+  if (behavior.approach === 'beside') {
+    const mine = { x: ctx.target.x + sideNow * distance, z: ctx.target.z }
+    // Someone closer already has this side's spot: take the other side, so
+    // two enemies don't push each other off the line forever.
+    const myDist = Math.hypot(mine.x - ctx.self.x, mine.z - ctx.self.z)
+    for (const o of ctx.others) {
+      const d = Math.hypot(mine.x - o.x, mine.z - o.z)
+      if (d < myDist && d < SPOT_TAKEN) return { x: ctx.target.x - sideNow * distance, z: ctx.target.z }
+    }
+    return mine
+  }
+  // Behind: the side the target faces away from.
+  const back = -(ctx.targetFacingX ?? 1)
+  const spot = { x: ctx.target.x + back * distance, z: ctx.target.z }
+  // On the wrong side and close: swing out in depth to get around it.
+  if (sideNow !== back && Math.abs(ctx.self.x - ctx.target.x) < behavior.reach * 2) {
+    spot.z += (ctx.self.z <= ctx.target.z ? -1 : 1) * FLANK_DETOUR
+  }
+  return spot
+}
+
+/** Lined up to attack: within reach in X, depth tolerance in Z, and on an allowed side. */
+export const inAttackPosition = (
+  ctx: BrawlerContext,
+  cfg: BrawlerConfig,
+  behavior: AiBehavior
+): boolean => {
+  const dx = ctx.target.x - ctx.self.x
+  const dz = ctx.target.z - ctx.self.z
+  if (Math.abs(dx) > behavior.reach || Math.abs(dz) > cfg.depthTolerance) return false
+  if (behavior.attackFrom === 'any') return true
+  const side = ctx.self.x >= ctx.target.x ? 1 : -1
+  return side === -(ctx.targetFacingX ?? 1)
+}
 
 /**
- * The `brawler` behavior: inside aggro range, walk to a spot level with the
- * target in depth and just beside it (on the side the enemy is already on),
- * keeping spacing from other enemies. Lined up and in reach, circle if crowded
- * and someone else is attacking, otherwise stand and ask to attack (claim the
- * slot). Until it first comes within aggro range (or is forced to engage, as
- * off-screen enemies are), patrol to random nearby points; after that it stays
- * engaged. Always faces the target horizontally.
+ * Enemy AI shared by every archetype: once engaged, walk to the behavior's
+ * approach spot (level with the target in depth), keeping spacing from other
+ * enemies. In attack position, circle if crowded while someone else is
+ * attacking, otherwise stand and ask to attack (the attack token). Until it
+ * first comes within aggro range (or is forced to engage, as off-screen
+ * enemies are), patrol to random nearby points; after that it stays engaged.
+ * Always faces the target horizontally.
  *
  * `move` is the walk-speed fraction, so patrol and circling are slower.
  */
-export const brawlerIntent = (
+export const enemyIntent = (
   ctx: BrawlerContext,
   mem: BrawlerMemory,
   cfg: BrawlerConfig,
+  behavior: AiBehavior,
   dt: number,
   random: () => number = Math.random
 ): Intent => {
@@ -114,12 +175,9 @@ export const brawlerIntent = (
     const face = { x: toTarget.x, z: 0 }
     const push = spacingPush(ctx.self, ctx.others, cfg.minSpacing)
     const crowded = len(push) > cfg.crowdedThreshold
-    const inReach =
-      Math.abs(toTarget.x) <= cfg.attackRange && Math.abs(toTarget.z) <= cfg.depthTolerance
 
-    if (!inReach) {
-      const side = ctx.self.x >= ctx.target.x ? 1 : -1
-      const spot = { x: ctx.target.x + side * cfg.attackRange * STAND_OFF, z: ctx.target.z }
+    if (!inAttackPosition(ctx, cfg, behavior)) {
+      const spot = approachSpot(ctx, behavior)
       let move = normalize({ x: spot.x - ctx.self.x, z: spot.z - ctx.self.z })
       if (crowded) {
         const p = scale(normalize(push), cfg.avoidanceWeight)
@@ -129,7 +187,7 @@ export const brawlerIntent = (
       return { move, face, jump: false, attack: false }
     }
 
-    if (crowded && ctx.slotTakenByOther) {
+    if (crowded && ctx.tokensTaken) {
       // Circle sideways (perpendicular to the target direction) while waiting.
       const circle = scale({ x: -dir.z, z: dir.x }, cfg.circleSpeedFactor)
       return { move: circle, face, jump: false, attack: false }

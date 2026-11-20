@@ -11,7 +11,7 @@ export interface AttackSlotConfig {
   attackSlotRecovery: number
 }
 
-/** One enemy's view of the single attacker slot (`attackingEnemyId`). */
+/** One enemy's hold and recovery timers for its attack token (see tokens.ts). */
 export interface AttackSlotTimer {
   holdLeft: number
   recoveryLeft: number
