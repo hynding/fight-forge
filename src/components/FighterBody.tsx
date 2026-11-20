@@ -2,11 +2,12 @@ import { forwardRef, useEffect, useRef, useState, type ReactNode, type RefObject
 import { useFrame } from '@react-three/fiber'
 import { CuboidCollider, RigidBody, RapierRigidBody, useRapier } from '@react-three/rapier'
 import { Group } from 'three'
-import { HumanoidModel } from './HumanoidModel'
-import { DEFAULT_CONFIG, type Vec3 } from '../config/defaults'
+import { FighterModel } from './FighterModel'
+import { DEFAULT_CONFIG, type ModelRef, type Vec3 } from '../config/defaults'
 import { useGameStore } from '../store/gameStore'
 import { gameStep } from '../utils/gameTime'
 import { SYSTEM_ORDER } from '../sim/loop'
+import { clampToBounds, type Bounds } from '../sim/stage'
 import { useSimSystem } from '../sim/simContext'
 import {
   facingToYaw,
@@ -37,6 +38,9 @@ interface FighterBodyProps {
   linearDamping: number
   movement: MovementConfig
   jumpVelocity: number
+  model: ModelRef
+  /** Before `scale`; defaults to `body.colliderHalfExtents`. */
+  colliderHalfExtents?: Vec3
   color: string
   attackingColor: string
   attackVisual: AttackVisual
@@ -49,6 +53,8 @@ interface FighterBodyProps {
   /** Sim-time attack flag for the state machine. */
   isAttackingNow: () => boolean
   isDead?: () => boolean
+  /** Where this fighter may stand (screen for the player, stage for enemies). */
+  getBounds?: () => Bounds
   runtime: FighterRuntime
   /** Rendered at the body origin, outside the rotating model (e.g. a health bar). */
   children?: ReactNode
@@ -69,6 +75,8 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       linearDamping,
       movement,
       jumpVelocity,
+      model,
+      colliderHalfExtents = BODY.colliderHalfExtents,
       color,
       attackingColor,
       attackVisual,
@@ -77,6 +85,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       getIntent,
       isAttackingNow,
       isDead,
+      getBounds,
       runtime,
       children,
     },
@@ -134,6 +143,17 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
         grounded = false
       }
 
+      // Keep inside the bounds: snap back and drop velocity pointing further out.
+      if (getBounds) {
+        const b = getBounds()
+        const c = clampToBounds(p.x, p.z, b)
+        if (c.changed) {
+          body.setTranslation({ x: c.x, y: p.y, z: c.z }, true)
+          if ((c.x <= b.minX && next.x < 0) || (c.x >= b.maxX && next.x > 0)) next.x = 0
+          if ((c.z <= b.minZ && next.z < 0) || (c.z >= b.maxZ && next.z > 0)) next.z = 0
+        }
+      }
+
       body.setLinvel({ x: next.x, y: velY, z: next.z }, true)
 
       runtime.velocity = next
@@ -160,7 +180,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
 
     const tint = isHurt ? '#ff0000' : isAttacking ? attackingColor : color
     const glowing = isHurt || isAttacking
-    const [hx, hy, hz] = BODY.colliderHalfExtents
+    const [hx, hy, hz] = colliderHalfExtents
     const [ax, ay, az] = attackVisual.position
     const [sx, sy, sz] = attackVisual.size
 
@@ -175,12 +195,14 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       >
         <CuboidCollider args={[hx * scale, hy * scale, hz * scale]} />
 
-        <group ref={visualGroupRef} position={[0, BODY.modelYOffset * scale, 0]}>
-          <HumanoidModel
+        <group ref={visualGroupRef}>
+          <FighterModel
+            model={model}
             color={tint}
             emissive={glowing ? '#ff0000' : '#000000'}
             emissiveIntensity={glowing ? 0.5 : 0}
             scale={scale}
+            runtime={runtime}
             animationTimeRef={animationTimeRef}
             isMovingRef={isMovingRef}
           />

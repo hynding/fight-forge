@@ -15,7 +15,10 @@ export const inputIntent = (c: Controls): Intent => ({
 
 export interface BrawlerConfig {
   aggroRange: number
+  /** Horizontal reach: an enemy attacks when this close in X... */
   attackRange: number
+  /** ...and this close in depth (Z), so it lines up with the player like a beat 'em up. */
+  depthTolerance: number
   minSpacing: number
   crowdedThreshold: number
   avoidanceWeight: number
@@ -70,11 +73,16 @@ export const spacingPush = (self: Vec2, others: Iterable<Vec2>, minSpacing: numb
   return push
 }
 
+// Where an enemy stands to attack, as a fraction of attackRange beside the target.
+const STAND_OFF = 0.8
+
 /**
- * The `brawler` behavior (today's enemy AI): chase the target inside aggro
- * range while keeping spacing; in attack range, circle if crowded and someone
- * else is attacking, otherwise stand and ask to attack (claim the slot);
- * outside aggro range, patrol to random nearby points.
+ * The `brawler` behavior: inside aggro range, walk to a spot level with the
+ * target in depth and just beside it (on the side the enemy is already on),
+ * keeping spacing from other enemies. Lined up and in reach, circle if crowded
+ * and someone else is attacking, otherwise stand and ask to attack (claim the
+ * slot). Outside aggro range, patrol to random nearby points. Always faces the
+ * target horizontally.
  *
  * `move` is the walk-speed fraction, so patrol and circling are slower.
  */
@@ -90,26 +98,31 @@ export const brawlerIntent = (
 
   if (distance < cfg.aggroRange) {
     const dir = normalize(toTarget)
+    const face = { x: toTarget.x, z: 0 }
     const push = spacingPush(ctx.self, ctx.others, cfg.minSpacing)
     const crowded = len(push) > cfg.crowdedThreshold
+    const inReach =
+      Math.abs(toTarget.x) <= cfg.attackRange && Math.abs(toTarget.z) <= cfg.depthTolerance
 
-    if (distance > cfg.attackRange) {
-      let move = dir
+    if (!inReach) {
+      const side = ctx.self.x >= ctx.target.x ? 1 : -1
+      const spot = { x: ctx.target.x + side * cfg.attackRange * STAND_OFF, z: ctx.target.z }
+      let move = normalize({ x: spot.x - ctx.self.x, z: spot.z - ctx.self.z })
       if (crowded) {
         const p = scale(normalize(push), cfg.avoidanceWeight)
-        const d = scale(dir, 1 - cfg.avoidanceWeight)
+        const d = scale(move, 1 - cfg.avoidanceWeight)
         move = normalize({ x: p.x + d.x, z: p.z + d.z })
       }
-      return { move, face: dir, jump: false, attack: false }
+      return { move, face, jump: false, attack: false }
     }
 
     if (crowded && ctx.slotTakenByOther) {
       // Circle sideways (perpendicular to the target direction) while waiting.
       const circle = scale({ x: -dir.z, z: dir.x }, cfg.circleSpeedFactor)
-      return { move: circle, face: dir, jump: false, attack: false }
+      return { move: circle, face, jump: false, attack: false }
     }
 
-    return { move: { x: 0, z: 0 }, face: dir, jump: false, attack: true }
+    return { move: { x: 0, z: 0 }, face, jump: false, attack: true }
   }
 
   // Patrol
