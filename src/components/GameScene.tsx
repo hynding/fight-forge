@@ -11,8 +11,11 @@ import { HUD } from './HUD'
 import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
 import { useGameStore } from '../store/gameStore'
-import { gameStep } from '../utils/gameTime'
 import { DEFAULT_CONFIG } from '../config/defaults'
+import { SimLoopDriver } from '../sim/SimLoopDriver'
+import { useSimSystem } from '../sim/simContext'
+import { SYSTEM_ORDER } from '../sim/loop'
+import { createPlayerAttackState, stepIntervalClock } from '../sim/timers'
 
 const _cameraTarget = new Vector3()
 
@@ -54,20 +57,15 @@ const CameraRig = ({ playerPositionRef, controlsRef }: CameraRigProps) => {
   return null
 }
 
-// Periodic spawner. Counts game time in useFrame: frozen while paused or game
-// over, and the clamped step means returning to a hidden tab can't pay out a burst.
+// Periodic spawner, as a sim system: frozen while paused or game over, and the
+// clamped frame step means returning to a hidden tab can't pay out a burst.
 const EnemySpawner = () => {
   const spawnEnemy = useGameStore((state) => state.spawnEnemy)
-  const elapsed = useRef(0)
+  const clock = useRef({ elapsed: 0 })
 
-  useFrame((_, delta) => {
-    const { isPaused, isGameOver, enemies } = useGameStore.getState()
-    if (isPaused || isGameOver) return
-
-    elapsed.current += gameStep(delta)
-    if (elapsed.current < SPAWN.interval) return
-    elapsed.current -= SPAWN.interval
-    if (enemies.length >= SPAWN.maxEnemies) return
+  useSimSystem('spawner', SYSTEM_ORDER.spawner, (dt) => {
+    if (!stepIntervalClock(clock.current, dt, SPAWN.interval)) return
+    if (useGameStore.getState().enemies.length >= SPAWN.maxEnemies) return
 
     const angle = Math.random() * Math.PI * 2
     const randomType = SPAWN.types[Math.floor(Math.random() * SPAWN.types.length)]
@@ -94,11 +92,9 @@ export const GameScene = () => {
   const playerPositionRef = useRef(new Vector3(...DEFAULT_CONFIG.player.spawnPosition))
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const attackDirectionRef = useRef(new Vector3(0, 0, -1))
-  // `playerAttacking` stays as React state because CombatSystem reads it as a prop
-  // in `useFrame` and React's reconciler is what gets the new value into the closure.
-  // The cost is one re-render of GameScene per attack (twice per swing — start and end),
-  // which is negligible compared to the previous 60Hz cascade.
-  const [playerAttacking, setPlayerAttacking] = useState(false)
+  // Mutable swing state shared by Player (writes) and CombatSystem (reads) inside
+  // the fixed-step sim, so no React re-render sits between a swing and its hit.
+  const [playerAttack] = useState(createPlayerAttackState)
 
   const enemies = useGameStore((state) => state.enemies)
   const spawnEnemy = useGameStore((state) => state.spawnEnemy)
@@ -139,13 +135,6 @@ export const GameScene = () => {
     })
   }, [enemies])
 
-  const handleAttackChange = (isAttacking: boolean, direction: Vector3) => {
-    if (isAttacking) {
-      attackDirectionRef.current.copy(direction)
-    }
-    setPlayerAttacking(isAttacking)
-  }
-
   return (
     <>
       <Canvas shadows dpr={[1, 2]}>
@@ -164,7 +153,6 @@ export const GameScene = () => {
         />
 
         <CameraRig playerPositionRef={playerPositionRef} controlsRef={controlsRef} />
-        <EnemySpawner />
 
         <ambientLight intensity={0.5} />
         <directionalLight
@@ -179,9 +167,11 @@ export const GameScene = () => {
         />
         <pointLight position={[-10, 10, -10]} intensity={0.5} />
 
+        <SimLoopDriver>
+        <EnemySpawner />
         <Physics gravity={DEFAULT_CONFIG.physics.gravity} paused={isPaused || isGameOver}>
           <Arena />
-          <Player ref={playerRef} onAttackChange={handleAttackChange} />
+          <Player ref={playerRef} attack={playerAttack} attackDirectionRef={attackDirectionRef} />
 
           {enemies.map((enemy) => {
             if (!enemyRefs.current.has(enemy.id)) {
@@ -203,12 +193,13 @@ export const GameScene = () => {
 
           <CombatSystem
             playerRef={playerRef}
-            playerAttacking={playerAttacking}
+            attack={playerAttack}
             attackDirectionRef={attackDirectionRef}
             enemyRefs={enemyRefs.current}
             playerPositionRef={playerPositionRef}
           />
         </Physics>
+        </SimLoopDriver>
       </Canvas>
       <HUD />
       <PauseMenu />

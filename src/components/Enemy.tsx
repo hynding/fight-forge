@@ -8,6 +8,14 @@ import { useGameStore } from '../store/gameStore'
 import { HumanoidModel } from './HumanoidModel'
 import { gameStep } from '../utils/gameTime'
 import { DEFAULT_CONFIG } from '../config/defaults'
+import { SYSTEM_ORDER } from '../sim/loop'
+import { useSimSystem } from '../sim/simContext'
+import {
+  canClaimAttackSlot,
+  createAttackSlotTimer,
+  startAttackSlotHold,
+  stepAttackSlot,
+} from '../sim/timers'
 
 // Module-scoped temp vectors — reused every frame to avoid allocations.
 // Safe because Enemy.useFrame is single-threaded per renderer.
@@ -42,9 +50,8 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const personalityTimer = useRef(Math.random())
     const animationTimeRef = useRef(0)
     const isMovingRef = useRef(false)
-    // Game-time (seconds) countdowns; they only advance on unpaused frames.
-    const attackTimeLeft = useRef(0)
-    const attackRecoveryLeft = useRef(0)
+    // Attack-slot hold/recovery countdowns, stepped by the sim (game time).
+    const slotTimer = useRef(createAttackSlotTimer())
 
     const attackingEnemyId = useGameStore((state) => state.attackingEnemyId)
     const setAttackingEnemy = useGameStore((state) => state.setAttackingEnemy)
@@ -69,6 +76,14 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
 
     // Death (removal + score) is handled atomically by `damageEnemy` in the store.
 
+    // Attack-slot bookkeeping. When the hold ends, back off (recovery) so other
+    // enemies get a turn, and release the slot only if we still hold it.
+    // Removal on death/unmount is handled by the store.
+    useSimSystem(`enemyAttackSlot:${id}`, SYSTEM_ORDER.enemyAttackSlot, (dt) => {
+      if (!stepAttackSlot(slotTimer.current, dt, E)) return
+      if (useGameStore.getState().attackingEnemyId === id) setAttackingEnemy(null)
+    })
+
     useFrame((_, frameDelta) => {
       if (!enemyRef.current || !playerPositionRef.current) return
       // Read live store state: the render-time `attackingEnemyId` can be several
@@ -90,19 +105,6 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         Math.abs(vel.z) > BODY.stopSpeed
 
       personalityTimer.current += delta
-
-      // Attack slot bookkeeping. Removal on death/unmount is handled by the store.
-      attackRecoveryLeft.current = Math.max(0, attackRecoveryLeft.current - delta)
-      if (attackTimeLeft.current > 0) {
-        attackTimeLeft.current -= delta
-        if (attackTimeLeft.current <= 0) {
-          attackTimeLeft.current = 0
-          // Back off before trying again so other enemies get a turn.
-          attackRecoveryLeft.current = E.attackSlotRecovery
-          // Only release the slot if we still hold it.
-          if (currentAttackerId === id) setAttackingEnemy(null)
-        }
-      }
 
       // Avoidance against other enemies — read positions directly from refs.
       _avoidanceForce.set(0, 0, 0)
@@ -163,9 +165,9 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
               true
             )
 
-            if (currentAttackerId === null && attackRecoveryLeft.current === 0) {
+            if (currentAttackerId === null && canClaimAttackSlot(slotTimer.current)) {
               setAttackingEnemy(id)
-              attackTimeLeft.current = E.attackSlotDuration
+              startAttackSlotHold(slotTimer.current, E)
             }
           }
         }
