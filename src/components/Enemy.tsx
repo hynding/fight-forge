@@ -15,7 +15,7 @@ import {
   stepAttackSlot,
 } from '../sim/timers'
 import { startMove, stepMoveRunner } from '../sim/moves'
-import { brawlerIntent, createBrawlerMemory, type BrawlerConfig } from '../sim/controllers'
+import { createBrawlerMemory, enemyIntent, type BrawlerConfig } from '../sim/controllers'
 import { createFighterRuntime, idleIntent, isBusy, type FighterRuntime, type Vec2 } from '../sim/fighter'
 import { stageBounds, type StageView } from '../sim/stage'
 import { FighterBody } from './FighterBody'
@@ -37,7 +37,7 @@ interface EnemyProps {
   runtimes: Map<string, FighterRuntime>
 }
 
-/** An enemy: a FighterBody driven by the `brawler` AI controller. */
+/** An enemy: a FighterBody driven by its type's AI archetype (`def.ai`). */
 export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
   ({ id, type, position, playerPositionRef, enemyRefs, stageLength, view, runtimes }, ref) => {
     const def = DEFAULT_CONFIG.enemyTypes[type]
@@ -48,13 +48,15 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     // Set by the AI when it's in reach and wants to hit; acted on by the slot system.
     const wantsAttack = useRef(false)
     const [ai] = useState<BrawlerConfig>(() => ({ ...E, aggroRange: E.aggroRange * def.aggression }))
+    const behavior = DEFAULT_CONFIG.ai[def.ai]
+    const attackMove = def.attackMove ?? E.attackMove
     const [movement] = useState(() => ({
       walkSpeed: def.speed,
       deceleration: E.deceleration,
       stopSpeed: BODY.stopSpeed,
     }))
 
-    const isAttacking = useGameStore((state) => state.attackingEnemyId === id)
+    const isAttacking = useGameStore((state) => state.attackTokens.holders.includes(id))
     const health = useGameStore(
       (state) => state.enemies.find((e) => e.id === id)?.health ?? def.maxHealth
     )
@@ -63,11 +65,12 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     )
 
     useEffect(() => {
+      runtime.armor = def.armor ?? 0
       runtimes.set(id, runtime)
       return () => {
         runtimes.delete(id)
       }
-    }, [runtimes, id, runtime])
+    }, [runtimes, id, runtime, def.armor])
 
     // AIController: decide where to go and whether to attack.
     const getIntent = (body: RapierRigidBody, dt: number) => {
@@ -82,18 +85,20 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         others.push({ x: o.x, z: o.z })
       })
 
-      const { attackingEnemyId } = useGameStore.getState()
-      const intent = brawlerIntent(
+      const { holders } = useGameStore.getState().attackTokens
+      const intent = enemyIntent(
         {
           self: { x: self.x, z: self.z },
           target: { x: target.x, z: target.z },
+          targetFacingX: runtimes.get('player')?.facing.x,
           others,
-          slotTakenByOther: attackingEnemyId !== null && attackingEnemyId !== id,
+          tokensTaken: holders.length >= E.maxSimultaneousAttackers && !holders.includes(id),
           // Off screen (walking in, or left behind by the camera): come and fight.
           forceEngage: Math.abs(self.x - view.cameraX) > view.halfWidth,
         },
         memory.current,
         ai,
+        behavior,
         dt
       )
 
@@ -101,36 +106,37 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       return intent
     }
 
-    // The single attacker slot and the enemy's move, after the fighter step and
-    // before combat. Taking the slot throws one `enemy.attackMove`. When the
-    // hold ends (or the enemy is hit), back off (recovery) so other enemies get
-    // a turn, and release the slot only if we still hold it. Death and unmount
-    // are handled by the store, which clears the slot when the holder is removed.
-    // Read live store state; the render-time selector can be frames stale and
-    // let two enemies claim the slot at once.
+    // The attack token and the enemy's move, after the fighter step and before
+    // combat. An enemy in attack position queues for a token (longest-waiting
+    // first); getting one throws its attack move. When the hold ends (or the
+    // enemy is hit), it gives the token back and waits out the recovery so
+    // others get a turn. Death and unmount are handled by the store, which
+    // forgets the enemy's token and queue place.
+    // Read live store state; a render-time selector can be frames stale.
     useSimSystem(`enemyAttackSlot:${id}`, SYSTEM_ORDER.enemyAttackSlot, (dt) => {
-      stepMoveRunner(runtime.move, false, dt, MOVES, E.attackMove)
-      const { attackingEnemyId, setAttackingEnemy } = useGameStore.getState()
-      const holding = attackingEnemyId === id
+      stepMoveRunner(runtime.move, false, dt, MOVES, attackMove)
+      const store = useGameStore.getState()
+      const holding = store.attackTokens.holders.includes(id)
 
       if (runtime.reaction.kind !== null && holding) {
         releaseAttackSlotEarly(slotTimer.current, E)
-        setAttackingEnemy(null)
+        store.releaseAttackToken(id)
         return
       }
       if (stepAttackSlot(slotTimer.current, dt, E)) {
-        if (holding) setAttackingEnemy(null)
+        if (holding) store.releaseAttackToken(id)
         return
       }
-      if (
-        wantsAttack.current &&
-        !isBusy(runtime) &&
-        attackingEnemyId === null &&
-        canClaimAttackSlot(slotTimer.current)
-      ) {
-        setAttackingEnemy(id)
+      if (holding) return
+
+      const eligible = wantsAttack.current && !isBusy(runtime) && canClaimAttackSlot(slotTimer.current)
+      if (!eligible) {
+        store.cancelAttackRequest(id)
+        return
+      }
+      if (store.requestAttackToken(id)) {
         startAttackSlotHold(slotTimer.current, E)
-        startMove(runtime.move, E.attackMove)
+        startMove(runtime.move, attackMove)
       }
     })
 

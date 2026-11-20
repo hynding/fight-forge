@@ -22,7 +22,8 @@ export interface AttackData {
 export enum EnemyType {
   BASIC = 'BASIC',
   HEAVY = 'HEAVY',
-  FAST = 'FAST'
+  FAST = 'FAST',
+  FLANKER = 'FLANKER'
 }
 
 export interface EnemyState extends CharacterState {

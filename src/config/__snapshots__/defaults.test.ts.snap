@@ -18,6 +18,32 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "speedFactor": 1.8,
     },
   },
+  "ai": {
+    "brawler": {
+      "approach": "beside",
+      "attackFrom": "any",
+      "reach": 1.5,
+      "standOff": 0.8,
+    },
+    "flanker": {
+      "approach": "behind",
+      "attackFrom": "behind",
+      "reach": 1.5,
+      "standOff": 0.8,
+    },
+    "rusher": {
+      "approach": "beside",
+      "attackFrom": "any",
+      "reach": 4,
+      "standOff": 0.9,
+    },
+    "tank": {
+      "approach": "beside",
+      "attackFrom": "any",
+      "reach": 1.7,
+      "standOff": 0.8,
+    },
+  },
   "body": {
     "colliderHalfExtents": [
       0.25,
@@ -41,8 +67,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   "enemy": {
     "aggroRange": 10,
     "attackMove": "enemyPunch",
-    "attackRange": 1.5,
-    "attackSlotDuration": 1,
+    "attackSlotDuration": 1.5,
     "attackSlotRecovery": 1,
     "avoidanceWeight": 0.7,
     "circleSpeedFactor": 0.5,
@@ -50,6 +75,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "deceleration": 0,
     "depthTolerance": 0.5,
     "linearDamping": 2,
+    "maxSimultaneousAttackers": 1,
     "minSpacing": 2.5,
     "patrol": {
       "arriveDistance": 0.5,
@@ -62,6 +88,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   "enemyTypes": {
     "BASIC": {
       "aggression": 1,
+      "ai": "brawler",
       "color": "#00ff00",
       "maxHealth": 50,
       "model": {
@@ -96,6 +123,8 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     },
     "FAST": {
       "aggression": 1.2,
+      "ai": "rusher",
+      "attackMove": "rushPunch",
       "color": "#ffff00",
       "maxHealth": 30,
       "model": {
@@ -128,8 +157,45 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "scale": 0.8,
       "speed": 3,
     },
+    "FLANKER": {
+      "aggression": 1.1,
+      "ai": "flanker",
+      "color": "#aa44ff",
+      "maxHealth": 40,
+      "model": {
+        "clips": {
+          "attack": "Punch",
+          "dead": "Death",
+          "getup": {
+            "name": "Standing",
+            "speed": 1,
+          },
+          "idle": "Idle",
+          "jump": "Jump",
+          "knockdown": "Death",
+          "run": "Running",
+          "walk": "Walking",
+        },
+        "kind": "gltf",
+        "offset": [
+          0,
+          -1,
+          0,
+        ],
+        "rotationY": 3.141592653589793,
+        "scale": 0.4,
+        "tintMaterials": [
+          "Main",
+        ],
+        "url": "/models/robot-expressive.glb",
+      },
+      "scale": 0.9,
+      "speed": 2.6,
+    },
     "HEAVY": {
       "aggression": 0.8,
+      "ai": "tank",
+      "armor": 0.4,
       "color": "#ff0000",
       "maxHealth": 100,
       "model": {
@@ -313,6 +379,31 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       },
       "recovery": 0.1,
       "startup": 0.06,
+    },
+    "rushPunch": {
+      "active": 0.15,
+      "clip": {
+        "name": "Punch",
+        "speed": 1.2,
+      },
+      "damage": 12,
+      "hitbox": {
+        "forward": 0.8,
+        "halfX": 0.6,
+        "halfY": 0.5,
+        "halfZ": 0.45,
+        "up": 0.2,
+      },
+      "lunge": 9,
+      "reaction": {
+        "hitstun": 0.4,
+        "knockback": {
+          "x": 3,
+          "y": 0,
+        },
+      },
+      "recovery": 0.5,
+      "startup": 0.2,
     },
     "uppercut": {
       "active": 0.1,

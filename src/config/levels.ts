@@ -1,7 +1,7 @@
 import { EnemyType } from '../types/game'
 import type { Level } from '../sim/level'
 
-const { BASIC, FAST, HEAVY } = EnemyType
+const { BASIC, FAST, HEAVY, FLANKER } = EnemyType
 
 /**
  * The first hand-written level, as data shaped like the future content schema.
@@ -73,7 +73,7 @@ export const DEFAULT_LEVEL: Level = {
             {
               enemies: [
                 { type: HEAVY, from: 'right', depth: 0.5 },
-                { type: BASIC, from: 'left', depth: 0.2, delay: 1 },
+                { type: FLANKER, from: 'left', depth: 0.2, delay: 1 },
                 { type: BASIC, from: 'right', depth: 0.8, delay: 2 },
               ],
             },
@@ -99,7 +99,8 @@ export const DEFAULT_LEVEL: Level = {
             {
               enemies: [
                 { type: HEAVY, from: 'right', depth: 0.3 },
-                { type: HEAVY, from: 'left', depth: 0.7, delay: 1 },
+                { type: FLANKER, from: 'left', depth: 0.7, delay: 1 },
+                { type: FAST, from: 'right', depth: 0.9, delay: 2 },
               ],
             },
           ],

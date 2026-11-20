@@ -1,3 +1,4 @@
+import { EMPTY_POOL, cancelRequest, forget, releaseToken, requestToken, type TokenPool } from '../sim/tokens'
 import { create } from 'zustand'
 import { EnemyType } from '../types/game'
 import { DEFAULT_CONFIG } from '../config/defaults'
@@ -40,7 +41,8 @@ interface GameState {
   isGameOver: boolean
   isPaused: boolean
   gameScreen: GameScreen
-  attackingEnemyId: string | null
+  /** Who may attack the player now, and who is queued (see src/sim/tokens.ts). */
+  attackTokens: TokenPool
   /** Incremented on every reset. App keys GameScene on it so a restart remounts the scene. */
   gameId: number
   levelProgress: LevelProgress
@@ -57,7 +59,10 @@ interface GameState {
   resetGame: () => void
   togglePause: () => void
   setGameScreen: (screen: GameScreen) => void
-  setAttackingEnemy: (id: string | null) => void
+  /** Queues for a token; true if this enemy holds one now. */
+  requestAttackToken: (id: string) => boolean
+  cancelAttackRequest: (id: string) => void
+  releaseAttackToken: (id: string) => void
   setLevelProgress: (patch: Partial<LevelProgress>) => void
   completeLevel: () => void
   toggleHitboxes: () => void
@@ -67,7 +72,7 @@ interface GameState {
 export const isFrozen = (s: Pick<GameState, 'isPaused' | 'isGameOver' | 'levelProgress'>): boolean =>
   s.isPaused || s.isGameOver || s.levelProgress.complete
 
-export const useGameStore = create<GameState>((set) => ({
+export const useGameStore = create<GameState>((set, get) => ({
   playerHealth: DEFAULT_CONFIG.player.maxHealth,
   playerMaxHealth: DEFAULT_CONFIG.player.maxHealth,
   score: 0,
@@ -75,7 +80,7 @@ export const useGameStore = create<GameState>((set) => ({
   isGameOver: false,
   isPaused: false,
   gameScreen: 'menu',
-  attackingEnemyId: null,
+  attackTokens: EMPTY_POOL,
   gameId: 0,
   levelProgress: INITIAL_LEVEL_PROGRESS,
   showHitboxes: false,
@@ -110,8 +115,7 @@ export const useGameStore = create<GameState>((set) => ({
   removeEnemy: (id) =>
     set((state) => ({
       enemies: state.enemies.filter((e) => e.id !== id),
-      // Clear attacking enemy if it's the one being removed
-      attackingEnemyId: state.attackingEnemyId === id ? null : state.attackingEnemyId,
+      attackTokens: forget(state.attackTokens, id),
     })),
 
   // Applies damage and, when health reaches 0, removes the enemy and awards the
@@ -133,7 +137,7 @@ export const useGameStore = create<GameState>((set) => ({
       return {
         enemies: state.enemies.filter((e) => e.id !== id),
         score: state.score + ENEMY_KILL_SCORE,
-        attackingEnemyId: state.attackingEnemyId === id ? null : state.attackingEnemyId,
+        attackTokens: forget(state.attackTokens, id),
       }
     }),
 
@@ -144,7 +148,7 @@ export const useGameStore = create<GameState>((set) => ({
       enemies: [],
       isGameOver: false,
       isPaused: false,
-      attackingEnemyId: null,
+      attackTokens: EMPTY_POOL,
       gameId: state.gameId + 1,
       levelProgress: INITIAL_LEVEL_PROGRESS,
       // Keep current screen if we're just resetting, otherwise go to playing
@@ -162,10 +166,21 @@ export const useGameStore = create<GameState>((set) => ({
       gameScreen: screen,
     }),
 
-  setAttackingEnemy: (id) =>
-    set({
-      attackingEnemyId: id,
-    }),
+  requestAttackToken: (id) => {
+    const r = requestToken(get().attackTokens, id, DEFAULT_CONFIG.enemy.maxSimultaneousAttackers)
+    if (r.pool !== get().attackTokens) set({ attackTokens: r.pool })
+    return r.granted
+  },
+
+  cancelAttackRequest: (id) => {
+    const pool = cancelRequest(get().attackTokens, id)
+    if (pool !== get().attackTokens) set({ attackTokens: pool })
+  },
+
+  releaseAttackToken: (id) => {
+    const pool = releaseToken(get().attackTokens, id)
+    if (pool !== get().attackTokens) set({ attackTokens: pool })
+  },
 
   setLevelProgress: (patch) =>
     set((state) => ({ levelProgress: { ...state.levelProgress, ...patch } })),

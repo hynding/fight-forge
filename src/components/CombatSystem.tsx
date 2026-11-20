@@ -25,10 +25,11 @@ interface CombatSystemProps {
 /**
  * The `combat` sim system: every fighter whose move is in its active frames
  * checks its hitbox against its targets' hurtboxes. The player hits enemies;
- * an enemy hits the player only while it holds the attacker slot. A move
+ * an enemy hits the player only while it holds an attack token. A move
  * instance hits each target at most once. Knocked-down, getting-up and
  * dodging targets are invulnerable. A target guarding toward the attacker
- * blocks: chip damage, blockstun, a short push. Otherwise the hit deals damage,
+ * blocks: chip damage, blockstun, a short push. A target whose `armor` covers
+ * the hit's hitstun takes the damage without flinching. Otherwise the hit deals damage,
  * applies the move's reaction (hitstun or knockdown) and knockback, and
  * interrupts the target's own move.
  */
@@ -66,8 +67,8 @@ export const CombatSystem = ({
 
       // Read live store state; a render-time snapshot can lag the store by frames.
       const store = useGameStore.getState()
-      // The single-attacker rule: only the slot holder may hurt the player.
-      if (attackerName !== PLAYER && store.attackingEnemyId !== attackerName) return
+      // Attack tokens: only an enemy holding one may hurt the player.
+      if (attackerName !== PLAYER && !store.attackTokens.holders.includes(attackerName)) return
 
       const attackerBody = bodyOf(attackerName)
       if (!attackerBody) return
@@ -101,13 +102,15 @@ export const CombatSystem = ({
           applyBlockstun(target.reaction, blocked.blockstun)
           target.velocity = { x: dir * blocked.knockbackX, z: 0 }
           targetBody.setLinvel({ x: dir * blocked.knockbackX, y: v.y, z: 0 }, true)
-        } else {
+          interruptMove(target.move)
+        } else if (move.reaction.knockdown || move.reaction.hitstun > target.armor) {
           applyHit(target.reaction, move.reaction, REACTIONS)
           const kb = move.reaction.knockback
           target.velocity = { x: dir * kb.x, z: 0 }
           targetBody.setLinvel({ x: dir * kb.x, y: kb.y > 0 ? kb.y : v.y, z: 0 }, true)
+          interruptMove(target.move)
         }
-        interruptMove(target.move)
+        // Otherwise super armor: the target takes the damage without flinching.
 
         if (damage <= 0) continue
         if (targetName === PLAYER) store.damagePlayer(damage)

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ENEMY_KILL_SCORE, isFrozen, useGameStore, type Enemy } from './gameStore'
 import { EnemyType } from '../types/game'
+import { DEFAULT_CONFIG } from '../config/defaults'
 
 const makeEnemy = (id: string, health = 50): Enemy => ({
   id,
@@ -37,21 +38,33 @@ describe('damageEnemy', () => {
     expect(score).toBe(ENEMY_KILL_SCORE)
   })
 
-  it('releases the attacker slot when the attacking enemy dies', () => {
+  it('releases the attack token and queue place when an enemy dies', () => {
     const s = useGameStore.getState()
     s.spawnEnemy(makeEnemy('a', 10))
-    s.setAttackingEnemy('a')
+    s.spawnEnemy(makeEnemy('b', 10))
+    expect(s.requestAttackToken('a')).toBe(true)
+    expect(s.requestAttackToken('b')).toBe(false)
+    s.damageEnemy('b', 10)
     s.damageEnemy('a', 10)
-    expect(useGameStore.getState().attackingEnemyId).toBeNull()
+    expect(useGameStore.getState().attackTokens).toEqual({ holders: [], waiting: [] })
   })
 
-  it('keeps another enemy in the attacker slot', () => {
+  it('keeps another enemy holding its token', () => {
     const s = useGameStore.getState()
     s.spawnEnemy(makeEnemy('a', 10))
     s.spawnEnemy(makeEnemy('b'))
-    s.setAttackingEnemy('b')
+    s.requestAttackToken('b')
     s.damageEnemy('a', 10)
-    expect(useGameStore.getState().attackingEnemyId).toBe('b')
+    expect(useGameStore.getState().attackTokens.holders).toEqual(['b'])
+  })
+
+  it('limits attackers to enemy.maxSimultaneousAttackers', () => {
+    const s = useGameStore.getState()
+    const max = DEFAULT_CONFIG.enemy.maxSimultaneousAttackers
+    const granted = ['a', 'b', 'c', 'd'].filter((id) => s.requestAttackToken(id))
+    expect(granted).toHaveLength(max)
+    s.releaseAttackToken(granted[0])
+    expect(useGameStore.getState().attackTokens.holders).toHaveLength(max - 1)
   })
 
   it('does nothing after game over', () => {
@@ -104,7 +117,7 @@ describe('resetGame', () => {
     expect(state.enemies).toEqual([])
     expect(state.isGameOver).toBe(false)
     expect(state.isPaused).toBe(false)
-    expect(state.attackingEnemyId).toBeNull()
+    expect(state.attackTokens).toEqual({ holders: [], waiting: [] })
     expect(state.gameId).toBe(prevGameId + 1)
     expect(state.gameScreen).toBe('playing')
   })

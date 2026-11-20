@@ -143,6 +143,8 @@ export interface FighterRuntime {
   dodge: DodgeState
   /** Last step's dodge button, for press detection. */
   dodgeHeld: boolean
+  /** Super armor: hits with at most this much hitstun (and no knockdown) don't stagger. */
+  armor: number
   /** Uniform scale; hitboxes scale with it. Set by the body. */
   scale: number
   /** Hurtbox half extents (the collider's, scaled). Set by the body. */
@@ -160,6 +162,7 @@ export const createFighterRuntime = (): FighterRuntime => ({
   blocking: false,
   dodge: createDodgeState(),
   dodgeHeld: false,
+  armor: 0,
   scale: 1,
   hurtbox: { x: 0.25, y: 1, z: 0.25 },
 })
