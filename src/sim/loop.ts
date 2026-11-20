@@ -15,6 +15,8 @@ const EPSILON = 1e-9
 export const SYSTEM_ORDER = {
   /** Controllers decide intents; fighters move, jump, face, and update their state. */
   fighters: 50,
+  /** The scrolling camera follows the player (and so moves the player's screen bounds). */
+  camera: 60,
   /** Player swing timers: a swing started this step is visible to combat this step. */
   playerAttack: 100,
   /** Enemy attack-slot hold/recovery timers. */

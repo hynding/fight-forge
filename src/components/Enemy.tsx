@@ -15,12 +15,14 @@ import {
 } from '../sim/timers'
 import { brawlerIntent, createBrawlerMemory, type BrawlerConfig } from '../sim/controllers'
 import { createFighterRuntime, idleIntent, type Vec2 } from '../sim/fighter'
+import { stageBounds } from '../sim/stage'
 import { FighterBody, type AttackVisual } from './FighterBody'
 
 const E = DEFAULT_CONFIG.enemy
 const BODY = DEFAULT_CONFIG.body
 const ATTACK_VISUAL: AttackVisual = { position: [0, -0.35, -0.5], size: [1.5, 1.5, 1], opacity: 0.3 }
 const HEALTH_BAR_WIDTH = 1.2
+const BOUNDS = stageBounds(DEFAULT_CONFIG.stage.length, DEFAULT_CONFIG.stage.depthBand)
 
 interface EnemyProps {
   id: string
@@ -119,6 +121,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         isAttacking={isAttacking}
         getIntent={getIntent}
         isAttackingNow={() => useGameStore.getState().attackingEnemyId === id}
+        getBounds={() => BOUNDS}
         runtime={runtime}
       >
         {/* Health bar: outside the rotating model and billboarded so it always

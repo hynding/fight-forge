@@ -87,8 +87,9 @@ export interface GameConfig {
   enemy: {
     /** Base aggro radius, multiplied by the type's aggression. */
     aggroRange: number
-    /** Within this distance an enemy stops chasing and tries to attack. */
+    /** Within this X distance (and `depthTolerance` in Z) an enemy stops chasing and tries to attack. */
     attackRange: number
+    depthTolerance: number
     /** Within this distance an attacking enemy's hit lands. */
     hitRange: number
     damage: number
@@ -123,21 +124,32 @@ export interface GameConfig {
     /** Game time between periodic spawns. */
     interval: number
     maxEnemies: number
-    /** Periodic spawns appear on a circle of this radius around the arena centre. */
-    distance: number
+    /** Periodic spawns appear this far beyond the left or right screen edge. */
+    offscreenMargin: number
     height: number
     types: EnemyType[]
   }
   camera: {
-    /** Camera position relative to the player while playing. */
-    followOffset: Vec3
-    initialPosition: Vec3
-    minDistance: number
-    maxDistance: number
-    maxPolarAngle: number
+    /** Height above the ground and distance in front of the depth lane's centre (z = 0). */
+    height: number
+    distance: number
+    /** The camera looks at (screen centre, lookAtHeight, lookAtDepth); behind the lane puts the lane low on screen. */
+    lookAtHeight: number
+    lookAtDepth: number
+    /** Vertical field of view in degrees. */
+    fov: number
+    /** The player can move this far either side of the screen centre before the camera follows. */
+    deadZone: number
+    /** Classic beat 'em up: once scrolled forward, the camera never scrolls back. */
+    allowBacktrack: boolean
+    /** Fighters stay this far inside the left and right screen edges. */
+    edgeMargin: number
   }
-  arena: {
-    size: number
+  stage: {
+    /** The level runs from x = 0 to x = length. */
+    length: number
+    /** Depth lane: fighters move within z in [min, max]. */
+    depthBand: [number, number]
     floorThickness: number
     wallHeight: number
     wallThickness: number
@@ -186,7 +198,7 @@ export const DEFAULT_CONFIG: GameConfig = {
     maxHealth: 100,
     color: '#4444ff',
     model: PLAYER_MODEL,
-    spawnPosition: [0, 2, 0],
+    spawnPosition: [3, 2, 0],
     walkSpeed: 5,
     jumpVelocity: 8,
     deceleration: 0.85,
@@ -202,6 +214,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   enemy: {
     aggroRange: 10,
     attackRange: 1.5,
+    depthTolerance: 0.5,
     hitRange: 2,
     damage: 10,
     damageCooldown: 1,
@@ -229,26 +242,30 @@ export const DEFAULT_CONFIG: GameConfig = {
   spawning: {
     initialType: EnemyType.BASIC,
     initialPositions: [
-      [5, 2, 5],
-      [-5, 2, 5],
-      [5, 2, -5],
-      [-5, 2, -5],
+      [8, 2, -1.5],
+      [10, 2, 1.5],
+      [14, 2, -2],
+      [16, 2, 2],
     ],
     interval: 5,
     maxEnemies: 8,
-    distance: 10,
+    offscreenMargin: 2,
     height: 2,
     types: [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY],
   },
   camera: {
-    followOffset: [0, 15, 20],
-    initialPosition: [0, 17, 20],
-    minDistance: 10,
-    maxDistance: 30,
-    maxPolarAngle: Math.PI / 2.2,
+    height: 6,
+    distance: 12,
+    lookAtHeight: 2.5,
+    lookAtDepth: -3,
+    fov: 50,
+    deadZone: 2,
+    allowBacktrack: false,
+    edgeMargin: 0.75,
   },
-  arena: {
-    size: 30,
+  stage: {
+    length: 200,
+    depthBand: [-3, 3],
     floorThickness: 0.5,
     wallHeight: 4,
     wallThickness: 0.5,
