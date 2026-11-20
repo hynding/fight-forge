@@ -13,7 +13,14 @@ interface PlayerProps {
 const SPEED = 5
 const JUMP_FORCE = 8
 const ATTACK_COOLDOWN = 500
+const ATTACK_DURATION = 200
 const DECELERATION = 0.85
+// Collider half-height is 1 and the arena floor's top is y=0.25, so the body
+// rests at y≈1.25. Allow a little slack for contact jitter.
+const GROUNDED_MAX_Y = 1.3
+const GROUNDED_MAX_VEL_Y = 0.5
+// HumanoidModel's feet sit 0.65 below its origin; drop it so they meet the collider bottom.
+const MODEL_Y_OFFSET = -0.35
 
 export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange }, ref) => {
   const rigidBodyRef = useRef<RapierRigidBody>(null)
@@ -24,18 +31,21 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
   const isMovingRef = useRef(false)
   const animationTimeRef = useRef(0)
   const lastDirection = useRef(new Vector3(0, 0, -1))
+  // `isAttacking` state drives visuals only. Per-frame gating uses refs so that
+  // frames rendered before React re-renders can't start a second swing.
   const [isAttacking, setIsAttacking] = useState(false)
-  const [attackCooldown, setAttackCooldown] = useState(0)
+  const isAttackingRef = useRef(false)
+  const nextAttackAllowedAt = useRef(0)
+  const attackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isHurt, setIsHurt] = useState(false)
   const playerHealth = useGameStore((state) => state.playerHealth)
   const prevHealth = useRef(playerHealth)
 
   useEffect(() => {
-    if (attackCooldown > 0) {
-      const timer = setTimeout(() => setAttackCooldown(0), attackCooldown)
-      return () => clearTimeout(timer)
+    return () => {
+      if (attackTimeoutRef.current !== null) clearTimeout(attackTimeoutRef.current)
     }
-  }, [attackCooldown])
+  }, [])
 
   // Flash red when taking damage
   useEffect(() => {
@@ -50,6 +60,8 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
 
   useFrame((_, delta) => {
     if (!playerRef.current) return
+    const { isPaused, isGameOver } = useGameStore.getState()
+    if (isPaused || isGameOver) return
 
     animationTimeRef.current += delta
 
@@ -86,25 +98,31 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
 
     playerRef.current.setLinvel({ x: newVelX, y: velocity.y, z: newVelZ }, true)
 
+    // Grounded check
+    const position = playerRef.current.translation()
+    isGroundedRef.current =
+      position.y < GROUNDED_MAX_Y && Math.abs(velocity.y) < GROUNDED_MAX_VEL_Y
+
     // Jump
     if (controls.jump && isGroundedRef.current) {
       playerRef.current.setLinvel({ x: newVelX, y: JUMP_FORCE, z: newVelZ }, true)
+      isGroundedRef.current = false
     }
 
     // Attack
-    if (controls.attack && !isAttacking && attackCooldown === 0) {
+    const now = performance.now()
+    if (controls.attack && !isAttackingRef.current && now >= nextAttackAllowedAt.current) {
+      isAttackingRef.current = true
+      nextAttackAllowedAt.current = now + ATTACK_COOLDOWN
       setIsAttacking(true)
       onAttackChange?.(true, lastDirection.current.clone())
-      setAttackCooldown(ATTACK_COOLDOWN)
-      setTimeout(() => {
+      attackTimeoutRef.current = setTimeout(() => {
+        attackTimeoutRef.current = null
+        isAttackingRef.current = false
         setIsAttacking(false)
         onAttackChange?.(false, new Vector3())
-      }, 200)
+      }, ATTACK_DURATION)
     }
-
-    // Grounded check
-    const position = playerRef.current.translation()
-    isGroundedRef.current = position.y < 1.1
 
     // Drive rotation imperatively from current facing direction
     if (visualGroupRef.current) {
@@ -126,7 +144,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     >
       <CuboidCollider args={[0.25, 1, 0.25]} />
 
-      <group ref={visualGroupRef}>
+      <group ref={visualGroupRef} position={[0, MODEL_Y_OFFSET, 0]}>
         <HumanoidModel
           color={isHurt ? '#ff0000' : isAttacking ? '#ff4444' : '#4444ff'}
           emissive={isAttacking || isHurt ? '#ff0000' : '#000000'}

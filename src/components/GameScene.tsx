@@ -15,6 +15,18 @@ import { EnemyType } from '../types/game'
 
 const _cameraTarget = new Vector3()
 
+const MAX_ENEMIES = 8
+const SPAWN_INTERVAL_MS = 5000
+const SPAWN_DISTANCE = 10
+const ENEMY_HEALTH: Record<EnemyType, number> = {
+  [EnemyType.BASIC]: 50,
+  [EnemyType.FAST]: 30,
+  [EnemyType.HEAVY]: 100,
+}
+
+let enemyIdCounter = 0
+const nextEnemyId = () => `enemy-${++enemyIdCounter}`
+
 interface CameraRigProps {
   playerPositionRef: RefObject<Vector3>
   controlsRef: RefObject<OrbitControlsImpl>
@@ -27,7 +39,11 @@ const CameraRig = ({ playerPositionRef, controlsRef }: CameraRigProps) => {
     const p = playerPositionRef.current
     if (!p) return
 
-    camera.position.set(p.x, p.y + 15, p.z + 20)
+    // After game over, OrbitControls rotation is enabled; stop forcing the camera
+    // position so the player can actually orbit around the final scene.
+    if (!useGameStore.getState().isGameOver) {
+      camera.position.set(p.x, p.y + 15, p.z + 20)
+    }
 
     if (controlsRef.current) {
       _cameraTarget.set(p.x, p.y, p.z)
@@ -54,6 +70,7 @@ export const GameScene = () => {
   const enemies = useGameStore((state) => state.enemies)
   const spawnEnemy = useGameStore((state) => state.spawnEnemy)
   const isGameOver = useGameStore((state) => state.isGameOver)
+  const isPaused = useGameStore((state) => state.isPaused)
   const hasSpawnedInitial = useRef(false)
 
   // Spawn initial enemies once
@@ -68,50 +85,40 @@ export const GameScene = () => {
       [-5, 2, -5],
     ]
 
-    positions.forEach((pos, idx) => {
+    positions.forEach((pos) => {
       spawnEnemy({
-        id: `enemy-${idx}`,
+        id: nextEnemyId(),
         type: EnemyType.BASIC,
-        health: 50,
-        maxHealth: 50,
+        health: ENEMY_HEALTH[EnemyType.BASIC],
+        maxHealth: ENEMY_HEALTH[EnemyType.BASIC],
         position: pos,
       })
     })
   }, [spawnEnemy])
 
-  // Periodic spawn (5s) — reads enemy count from store snapshot inside callback
+  // Periodic spawn — reads enemy count from store snapshot inside callback.
+  // Paused or game-over: no interval, so enemies don't pile up off-screen.
   useEffect(() => {
-    if (isGameOver) return
+    if (isGameOver || isPaused) return
 
     const interval = setInterval(() => {
-      const currentCount = useGameStore.getState().enemies.length
-      if (currentCount < 8) {
-        const angle = Math.random() * Math.PI * 2
-        const distance = 10
-        const x = Math.cos(angle) * distance
-        const z = Math.sin(angle) * distance
+      if (useGameStore.getState().enemies.length >= MAX_ENEMIES) return
 
-        const types = [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY]
-        const randomType = types[Math.floor(Math.random() * types.length)]
+      const angle = Math.random() * Math.PI * 2
+      const types = [EnemyType.BASIC, EnemyType.FAST, EnemyType.HEAVY]
+      const randomType = types[Math.floor(Math.random() * types.length)]
 
-        const healthMap = {
-          [EnemyType.BASIC]: 50,
-          [EnemyType.FAST]: 30,
-          [EnemyType.HEAVY]: 100,
-        }
-
-        spawnEnemy({
-          id: `enemy-${Date.now()}`,
-          type: randomType,
-          health: healthMap[randomType],
-          maxHealth: healthMap[randomType],
-          position: [x, 2, z],
-        })
-      }
-    }, 5000)
+      spawnEnemy({
+        id: nextEnemyId(),
+        type: randomType,
+        health: ENEMY_HEALTH[randomType],
+        maxHealth: ENEMY_HEALTH[randomType],
+        position: [Math.cos(angle) * SPAWN_DISTANCE, 2, Math.sin(angle) * SPAWN_DISTANCE],
+      })
+    }, SPAWN_INTERVAL_MS)
 
     return () => clearInterval(interval)
-  }, [isGameOver, spawnEnemy])
+  }, [isGameOver, isPaused, spawnEnemy])
 
   // Clean up enemy refs when enemies are removed
   useEffect(() => {
@@ -139,6 +146,9 @@ export const GameScene = () => {
   return (
     <>
       <Canvas shadows dpr={[1, 2]}>
+        {/* Without an explicit background the canvas is transparent over a white page,
+            which made the white HUD text unreadable. */}
+        <color attach="background" args={['#1a1a2e']} />
         <PerspectiveCamera makeDefault position={[0, 17, 20]} />
         <OrbitControls
           ref={controlsRef}
@@ -165,7 +175,7 @@ export const GameScene = () => {
         />
         <pointLight position={[-10, 10, -10]} intensity={0.5} />
 
-        <Physics gravity={[0, -20, 0]}>
+        <Physics gravity={[0, -20, 0]} paused={isPaused || isGameOver}>
           <Arena />
           <Player ref={playerRef} onAttackChange={handleAttackChange} />
 

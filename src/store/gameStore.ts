@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { EnemyType } from '../types/game'
 
-interface Enemy {
+export const ENEMY_KILL_SCORE = 100
+
+export interface Enemy {
   id: string
   type: EnemyType
   health: number
@@ -20,6 +22,8 @@ interface GameState {
   isPaused: boolean
   gameScreen: GameScreen
   attackingEnemyId: string | null
+  /** Incremented on every reset. App keys GameScene on it so a restart remounts the scene. */
+  gameId: number
 
   // Actions
   damagePlayer: (damage: number) => void
@@ -43,9 +47,11 @@ export const useGameStore = create<GameState>((set) => ({
   isPaused: false,
   gameScreen: 'menu',
   attackingEnemyId: null,
+  gameId: 0,
 
   damagePlayer: (damage) =>
     set((state) => {
+      if (state.isGameOver) return {}
       const newHealth = Math.max(0, state.playerHealth - damage)
       return {
         playerHealth: newHealth,
@@ -75,31 +81,45 @@ export const useGameStore = create<GameState>((set) => ({
       attackingEnemyId: state.attackingEnemyId === id ? null : state.attackingEnemyId,
     })),
 
+  // Applies damage and, when health reaches 0, removes the enemy and awards the
+  // kill score in the same update, so a kill can never be scored twice and a
+  // dead enemy never lingers for a frame.
   damageEnemy: (id, damage) =>
-    set((state) => ({
-      enemies: state.enemies.map((enemy) =>
-        enemy.id === id
-          ? { ...enemy, health: Math.max(0, enemy.health - damage) }
-          : enemy
-      ),
-    })),
+    set((state) => {
+      if (state.isGameOver) return {}
+      const target = state.enemies.find((e) => e.id === id)
+      if (!target) return {}
+
+      const health = Math.max(0, target.health - damage)
+      if (health > 0) {
+        return {
+          enemies: state.enemies.map((e) => (e.id === id ? { ...e, health } : e)),
+        }
+      }
+
+      return {
+        enemies: state.enemies.filter((e) => e.id !== id),
+        score: state.score + ENEMY_KILL_SCORE,
+        attackingEnemyId: state.attackingEnemyId === id ? null : state.attackingEnemyId,
+      }
+    }),
 
   resetGame: () =>
     set((state) => ({
-      playerHealth: 100,
+      playerHealth: state.playerMaxHealth,
       score: 0,
       enemies: [],
       isGameOver: false,
       isPaused: false,
       attackingEnemyId: null,
+      gameId: state.gameId + 1,
       // Keep current screen if we're just resetting, otherwise go to playing
       gameScreen: state.gameScreen === 'menu' ? 'menu' : 'playing',
     })),
 
+  // Pausing is meaningless once the game is over (the game-over overlay owns the screen).
   togglePause: () =>
-    set((state) => ({
-      isPaused: !state.isPaused,
-    })),
+    set((state) => (state.isGameOver ? {} : { isPaused: !state.isPaused })),
 
   setGameScreen: (screen) =>
     set({

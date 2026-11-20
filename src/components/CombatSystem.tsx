@@ -28,7 +28,6 @@ export const CombatSystem = ({
 }: CombatSystemProps) => {
   const damagePlayer = useGameStore((state) => state.damagePlayer)
   const damageEnemy = useGameStore((state) => state.damageEnemy)
-  const attackingEnemyId = useGameStore((state) => state.attackingEnemyId)
   const lastEnemyDamageTime = useRef<Map<string, number>>(new Map())
   const damagedEnemiesThisAttack = useRef<Set<string>>(new Set())
   const lastAttackState = useRef(false)
@@ -43,6 +42,10 @@ export const CombatSystem = ({
     if (playerPositionRef.current) {
       playerPositionRef.current.copy(_playerVec)
     }
+
+    // Read live store state; a render-time snapshot can lag the store by frames.
+    const { isPaused, isGameOver, attackingEnemyId } = useGameStore.getState()
+    if (isPaused || isGameOver) return
 
     const now = Date.now()
 
