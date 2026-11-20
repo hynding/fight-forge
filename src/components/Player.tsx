@@ -7,15 +7,21 @@ import { HumanoidModel } from './HumanoidModel'
 import { useGameStore } from '../store/gameStore'
 import { gameStep } from '../utils/gameTime'
 import { DEFAULT_CONFIG } from '../config/defaults'
+import { useSimSystem } from '../sim/simContext'
+import { SYSTEM_ORDER } from '../sim/loop'
+import { stepPlayerAttack, type PlayerAttackState } from '../sim/timers'
 
 interface PlayerProps {
-  onAttackChange?: (isAttacking: boolean, direction: Vector3) => void
+  /** Swing state shared with CombatSystem; the player's sim system writes it. */
+  attack: PlayerAttackState
+  /** Facing captured when a swing starts; CombatSystem reads it. */
+  attackDirectionRef: React.RefObject<Vector3>
 }
 
 const P = DEFAULT_CONFIG.player
 const BODY = DEFAULT_CONFIG.body
 
-export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange }, ref) => {
+export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ attack, attackDirectionRef }, ref) => {
   const rigidBodyRef = useRef<RapierRigidBody>(null)
   const playerRef = (ref as React.RefObject<RapierRigidBody>) || rigidBodyRef
   const visualGroupRef = useRef<Group>(null)
@@ -24,11 +30,9 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
   const isMovingRef = useRef(false)
   const animationTimeRef = useRef(0)
   const lastDirection = useRef(new Vector3(0, 0, -1))
-  // `isAttacking` state drives visuals only. Per-frame gating uses refs so that
-  // frames rendered before React re-renders can't start a second swing.
+  // `isAttacking` state drives visuals only. Gameplay reads the shared `attack`
+  // state, which the fixed-step system below updates.
   const [isAttacking, setIsAttacking] = useState(false)
-  const attackTimeLeft = useRef(0)
-  const cooldownTimeLeft = useRef(0)
   const [isHurt, setIsHurt] = useState(false)
   const playerHealth = useGameStore((state) => state.playerHealth)
   const prevHealth = useRef(playerHealth)
@@ -46,6 +50,18 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     }
     prevHealth.current = playerHealth
   }, [playerHealth])
+
+  // Swing timers run in the fixed-step sim, before combat, so combat sees a
+  // swing on the step it starts.
+  useSimSystem('playerAttack', SYSTEM_ORDER.playerAttack, (dt) => {
+    const event = stepPlayerAttack(attack, controls.attack, dt, P.attack)
+    if (event === 'started') {
+      attackDirectionRef.current?.copy(lastDirection.current)
+      setIsAttacking(true)
+    } else if (event === 'ended') {
+      setIsAttacking(false)
+    }
+  })
 
   useFrame((_, frameDelta) => {
     if (!playerRef.current) return
@@ -114,22 +130,6 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ onAttackChange
     if (controls.jump && isGroundedRef.current) {
       playerRef.current.setLinvel({ x: newVelX, y: P.jumpVelocity, z: newVelZ }, true)
       isGroundedRef.current = false
-    }
-
-    // Attack
-    cooldownTimeLeft.current = Math.max(0, cooldownTimeLeft.current - delta)
-    if (attackTimeLeft.current > 0) {
-      attackTimeLeft.current -= delta
-      if (attackTimeLeft.current <= 0) {
-        attackTimeLeft.current = 0
-        setIsAttacking(false)
-        onAttackChange?.(false, new Vector3())
-      }
-    } else if (controls.attack && cooldownTimeLeft.current === 0) {
-      attackTimeLeft.current = P.attack.duration
-      cooldownTimeLeft.current = P.attack.cooldown
-      setIsAttacking(true)
-      onAttackChange?.(true, lastDirection.current.clone())
     }
 
     // Drive rotation imperatively from current facing direction

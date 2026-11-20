@@ -6,9 +6,10 @@
  * hidden duration. Clamping keeps game-time timers (attack slots, cooldowns,
  * the spawn clock) from all expiring at once or paying out a burst.
  *
- * Keep this below the shortest gameplay timer (the player's 0.2s swing) so a
- * single long frame can never start and finish a swing before combat sees it.
- * These timers are independent of Rapier's fixed-step physics clock.
+ * The fixed-step sim loop (src/sim/loop.ts) feeds every frame through this,
+ * so one frame runs at most MAX_FRAME_STEP / SIM_STEP steps. Keep it below the
+ * shortest gameplay timer (the player's 0.2s swing) as a margin anyway.
+ * These timers are independent of Rapier's own fixed-step physics clock.
  */
 export const MAX_FRAME_STEP = 0.1
 
