@@ -280,7 +280,7 @@ Packs become shareable online. This is the first phase with a server, so it star
 ### Phase 6: Stretch goals
 
 - **Local co-op**: a second `InputController` and HUD; camera framing for two players.
-- **Weapons and throwables**: pickup items with their own movesets.
+- **Weapons and throwables**: pickup items with their own movesets. Planned in [plans/weapons.md](plans/weapons.md) (W1–W3).
 - **Bosses**: scripted phases and health-bar UI driven by level triggers. Planned in [plans/bosses.md](plans/bosses.md) (B1–B3).
 - ~~Grabs and throws, and specials with a meter~~: moved into M5.3 (C5, C6).
 - **Online co-op**: much larger than local co-op (netcode); only worth planning once the fixed-step sim has proven deterministic.
