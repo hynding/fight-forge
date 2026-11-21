@@ -1,13 +1,16 @@
-// The scene's input: device sources (keyboard, and the mouse over the game
-// view) feed an ActionSampler (src/sim/actions.ts),
-// which the `input` sim system samples once per fixed step. Not React state:
+// The scene's input: device sources (keyboard, the mouse over the game view,
+// and player 1's gamepad, polled every animation frame) feed an ActionSampler
+// (src/sim/actions.ts), which the `input` sim system samples once per fixed step. Not React state:
 // GameScene owns one per scene, like `runtimes`. Pause and the hitbox toggle
 // subscribe to presses directly, since they must work while the sim is frozen.
 
 import { getBindings } from '../content/bindings'
+import { getConfig } from '../content/active'
+import { padChanges, padStick } from '../sim/gamepad'
+import { activePadIndex, readPad } from './gamepads'
+import { loadPadPrefs } from './prefs'
 import {
   createActionSampler,
-  dropEdges,
   emptyFrame,
   inputDown,
   inputMap,
@@ -15,6 +18,7 @@ import {
   keyInput,
   releaseAll,
   sampleActions,
+  suppressHeld,
   type ActionFrame,
   type InputMap,
 } from '../sim/actions'
@@ -29,6 +33,8 @@ export class InputManager {
   frame: ActionFrame = emptyFrame()
   private map: InputMap = new Map()
   private listeners = new Set<PressListener>()
+  /** Pad inputs down at the last poll. */
+  private padDown = new Set<string>()
 
   /** Samples this step's frame. Called by the `input` sim system, first in the step. */
   step(): ActionFrame {
@@ -48,8 +54,21 @@ export class InputManager {
     if (!action) return false
     if (this.sampler.down.has(input)) return true
     inputDown(this.sampler, input, device)
+    if (device !== 'gamepad') useGameStore.getState().setInputDevice(device)
     for (const fn of this.listeners) fn(action)
     return true
+  }
+
+  /** Reads player 1's pad: button edges into the sampler, the left stick as the analog move. */
+  private pollPad(): void {
+    const editing = useGameStore.getState().editing
+    const { pad, inputs } = editing ? { pad: null, inputs: new Set<string>() } : readPad()
+    const { down, up } = padChanges(this.padDown, inputs)
+    for (const name of up) inputUp(this.sampler, inputName('gamepad', name))
+    for (const name of down) this.press(inputName('gamepad', name), 'gamepad')
+    this.padDown = inputs
+    const deadZone = loadPadPrefs().deadZone ?? getConfig().input.analog.deadZone
+    this.sampler.stick = pad ? padStick(pad, deadZone) : { x: 0, z: 0 }
   }
 
   /**
@@ -107,9 +126,24 @@ export class InputManager {
       if (s.packs !== prev.packs) this.map = inputMap(getBindings())
       // Nothing stays held across a trip to the Forge.
       if (s.editing !== prev.editing) releaseAll(this.sampler)
-      // A press made while paused doesn't fire on resume.
-      else if (isFrozen(s) !== isFrozen(prev)) dropEdges(this.sampler)
+      // A press made while paused doesn't fire on resume, and a button held
+      // through it (A on RESUME) waits to be released.
+      else if (isFrozen(s) !== isFrozen(prev)) suppressHeld(this.sampler)
     })
+
+    // Pads have no events for buttons: poll them every frame, frozen or not (Start unpauses).
+    let frame = 0
+    const tick = () => {
+      this.pollPad()
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    // The controller in use went away mid-fight: pause.
+    const onPadGone = (e: Event) => {
+      const index = (e as GamepadEvent).gamepad?.index
+      const st = useGameStore.getState()
+      if (index === activePadIndex() && st.inputDevice === 'gamepad' && !isFrozen(st)) st.togglePause()
+    }
 
     target.addEventListener('keydown', onKeyDown)
     target.addEventListener('keyup', onKeyUp)
@@ -118,8 +152,12 @@ export class InputManager {
     target.addEventListener('mouseup', onMouseUp)
     target.addEventListener('wheel', onWheel, { passive: false })
     target.addEventListener('contextmenu', onContextMenu)
+    target.addEventListener('gamepaddisconnected', onPadGone)
     return () => {
       unsubscribe()
+      cancelAnimationFrame(frame)
+      target.removeEventListener('gamepaddisconnected', onPadGone)
+      this.padDown = new Set()
       target.removeEventListener('keydown', onKeyDown)
       target.removeEventListener('keyup', onKeyUp)
       target.removeEventListener('blur', onBlur)

@@ -146,7 +146,7 @@ export const Gallery = () => {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
-        <button style={button} onClick={back}>
+        <button style={button} onClick={back} data-menu-back>
           ← Menu
         </button>
         <div style={{ fontSize: '20px', fontWeight: 'bold', letterSpacing: '6px', marginRight: '10px' }}>PACKS</div>

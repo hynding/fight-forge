@@ -156,14 +156,16 @@
         "pause": ["start"],
         "hitboxes": []
       }
-    }
+    },
+    "analog": { "deadZone": 0.2, "runThreshold": 0.85 }
   },
   "feel": {
     "hitStop": { "enabled": true, "base": 0.03, "perDamage": 0.004, "max": 0.12 },
     "shake": { "enabled": true, "base": 0.02, "perDamage": 0.006, "max": 0.25, "decay": 9 },
     "sparks": { "enabled": true, "count": 6, "color": "#ffe08a", "blockColor": "#8ad4ff", "life": 0.25 },
     "dust": { "enabled": true, "color": "#b8aa94", "life": 0.45 },
-    "damageNumbers": { "enabled": true, "color": "#ffffff", "playerColor": "#ff6060", "life": 0.7 }
+    "damageNumbers": { "enabled": true, "color": "#ffffff", "playerColor": "#ff6060", "life": 0.7 },
+    "rumble": { "enabled": true, "base": 0.25, "perDamage": 0.02, "max": 0.8, "duration": 0.15, "dealt": 0.4, "ko": 0.6 }
   },
   "audio": {
     "hit": "punch",

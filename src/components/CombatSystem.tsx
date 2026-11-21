@@ -15,7 +15,8 @@ import { combatTargets, scaledDamage } from '../sim/rules'
 import { propBox } from '../sim/props'
 import type { FighterRuntime } from '../sim/fighter'
 import { playSound } from '../audio/engine'
-import { feelHit } from '../sim/feel'
+import { feelHit, rumbleFor } from '../sim/feel'
+import { rumble } from '../input/gamepads'
 
 const PLAYER = 'player'
 
@@ -138,6 +139,11 @@ export const CombatSystem = ({
           toPlayer: targetName === PLAYER,
           down: (!guarded && !!move.reaction.knockdown) || knockedOut,
         })
+        const feelSettings = getConfig().feel
+        rumble(
+          rumbleFor(feelSettings, { damage: shown, toPlayer: targetName === PLAYER, byPlayer: attackerName === PLAYER, ko: knockedOut }),
+          feelSettings.rumble.duration
+        )
 
         if (damage <= 0) continue
         if (targetName === PLAYER) {

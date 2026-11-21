@@ -211,6 +211,8 @@ export interface GameConfig {
   /** Bindings per device (keyboard keys as lowercase `KeyboardEvent.key` values, mouse buttons, gamepad buttons); the player can remap them. */
   input: {
     bindings: DeviceBindings
+    /** Analog sticks: no movement inside `deadZone` (0-1); past `runThreshold` the fighter runs. */
+    analog: { deadZone: number; runThreshold: number }
   }
   /** Items by name, placed by levels or dropped by enemies. */
   pickups: Record<string, PickupDef>

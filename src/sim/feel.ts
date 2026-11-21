@@ -15,6 +15,12 @@ export interface FeelSettings {
   dust: { enabled: boolean; color: string; life: number }
   /** Damage dealt, floating up from the target. */
   damageNumbers: { enabled: boolean; color: string; playerColor: string; life: number }
+  /**
+   * Controller rumble (0 to 1) for hits the player takes: base + perDamage ×
+   * damage, at most max, for `duration` seconds. Hits the player lands rumble
+   * `dealt` times as hard, and a KO at least `ko`.
+   */
+  rumble: { enabled: boolean; base: number; perDamage: number; max: number; duration: number; dealt: number; ko: number }
 }
 
 export type Effect =
@@ -40,6 +46,14 @@ const scaled = (on: boolean, base: number, perDamage: number, max: number, damag
 
 export const hitStopFor = (damage: number, s: FeelSettings): number => scaled(s.hitStop.enabled, s.hitStop.base, s.hitStop.perDamage, s.hitStop.max, damage)
 export const shakeFor = (damage: number, s: FeelSettings): number => scaled(s.shake.enabled, s.shake.base, s.shake.perDamage, s.shake.max, damage)
+
+/** Rumble strength (0 to 1) for a hit involving the player; 0 when off or the player isn't in it. */
+export const rumbleFor = (s: FeelSettings, hit: { damage: number; toPlayer: boolean; byPlayer: boolean; ko: boolean }): number => {
+  const r = s.rumble
+  if (!r.enabled || !(hit.toPlayer || hit.byPlayer)) return 0
+  const base = scaled(true, r.base, r.perDamage, r.max, hit.damage) * (hit.toPlayer ? 1 : r.dealt)
+  return Math.min(1, hit.ko ? Math.max(base, r.ko) : base)
+}
 
 export interface HitInfo {
   /** Where it landed. */

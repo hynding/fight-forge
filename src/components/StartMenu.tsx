@@ -5,9 +5,11 @@ import { PackPanel } from './PackPanel'
 import { apiEnabled } from '../net/api'
 import { ControlsPanel } from './ControlsPanel'
 import { getBindings } from '../content/bindings'
-import { controlsHelp } from '../sim/input'
+import { deviceHelp } from '../sim/input'
 
 export const StartMenu = () => {
+  const inputDevice = useGameStore((state) => state.inputDevice)
+  const padLabels = useGameStore((state) => state.padLabels)
   const startRun = useGameStore((state) => state.startRun)
   const setGameScreen = useGameStore((state) => state.setGameScreen)
   // Re-render when packs change: the level list comes from the active content.
@@ -164,7 +166,7 @@ export const StartMenu = () => {
         <div style={{ marginBottom: '10px' }}>
           <strong>CONTROLS:</strong>
         </div>
-        <div>{controlsHelp(getBindings().keyboard)}</div>
+        <div>{deviceHelp(getBindings(), inputDevice, padLabels ?? 'xbox')}</div>
       </div>
 
       {/* Visual Effects */}

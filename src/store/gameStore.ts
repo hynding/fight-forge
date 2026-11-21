@@ -1,3 +1,4 @@
+import type { InputDevice, PadLabelSet } from '../sim/input'
 import { EMPTY_POOL, cancelRequest, forget, releaseToken, requestToken, type TokenPool } from '../sim/tokens'
 import { create } from 'zustand'
 import type { EnemyType } from '../types/game'
@@ -53,6 +54,10 @@ interface GameState {
   levelProgress: LevelProgress
   /** Debug overlay: draw hurtboxes and active hitboxes (toggle with H). Survives restarts. */
   showHitboxes: boolean
+  /** The device last used, so on-screen prompts name its buttons. */
+  inputDevice: InputDevice
+  /** The controller's button names, once one has pressed something (null before). */
+  padLabels: PadLabelSet | null
   /** Which of the active levels (`getLevels()`) is being played. */
   levelIndex: number
   /** A Forge sandbox fight, played instead of the active levels; leaving it returns to the Forge. */
@@ -117,6 +122,8 @@ interface GameState {
   setLevelProgress: (patch: Partial<LevelProgress>) => void
   completeLevel: (time: number) => void
   toggleHitboxes: () => void
+  /** The device last used (and a controller's label set). Only updates when it changes. */
+  setInputDevice: (device: InputDevice, padLabels?: PadLabelSet) => void
   /** Called by the pack library after installing, toggling or removing packs. */
   setPacks: (packs: PackSummary[], contentError: string | null) => void
 }
@@ -182,6 +189,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   gameId: 0,
   levelProgress: INITIAL_LEVEL_PROGRESS,
   showHitboxes: false,
+  inputDevice: 'keyboard',
+  padLabels: null,
   packs: [],
   contentError: null,
   levelIndex: 0,
@@ -197,6 +206,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   props: [],
 
   toggleHitboxes: () => set((state) => ({ showHitboxes: !state.showHitboxes })),
+  setInputDevice: (device, padLabels) => {
+    const s = get()
+    const labels = padLabels ?? s.padLabels
+    if (s.inputDevice !== device || s.padLabels !== labels) set({ inputDevice: device, padLabels: labels })
+  },
   setPacks: (packs, contentError) => set({ packs, contentError }),
 
   damagePlayer: (damage) =>

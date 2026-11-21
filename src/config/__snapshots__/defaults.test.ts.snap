@@ -262,6 +262,15 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "max": 0.12,
       "perDamage": 0.004,
     },
+    "rumble": {
+      "base": 0.25,
+      "dealt": 0.4,
+      "duration": 0.15,
+      "enabled": true,
+      "ko": 0.6,
+      "max": 0.8,
+      "perDamage": 0.02,
+    },
     "shake": {
       "base": 0.02,
       "decay": 9,
@@ -278,6 +287,10 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     },
   },
   "input": {
+    "analog": {
+      "deadZone": 0.2,
+      "runThreshold": 0.85,
+    },
     "bindings": {
       "gamepad": {
         "attack": [

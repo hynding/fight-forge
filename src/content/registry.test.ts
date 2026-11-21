@@ -421,7 +421,7 @@ describe('schema version 1 packs', () => {
 describe('key bindings', () => {
   const withBindings = (b: Record<string, string[]>, device: 'keyboard' | 'mouse' | 'gamepad' = 'keyboard') => {
     const all = DEFAULT_CONFIG.input.bindings
-    return addon({ settings: { input: { bindings: { ...all, [device]: { ...all[device], ...b } } } } })
+    return addon({ settings: { input: { ...DEFAULT_CONFIG.input, bindings: { ...all, [device]: { ...all[device], ...b } } } } })
   }
 
   it('lets a pack rebind keys', () => {
@@ -466,6 +466,16 @@ describe('key bindings', () => {
     const old = { ...addon({ settings: { input: { bindings: keyboard } } }), schemaVersion: 3 }
     const reg = build(defaultPack(), old)
     expect(reg.settings.input.bindings).toEqual({ ...DEFAULT_CONFIG.input.bindings, keyboard })
+    expect(reg.settings.input.analog).toEqual(DEFAULT_CONFIG.input.analog)
+  })
+
+  it('gives a v4 pack the analog and rumble defaults', () => {
+    const { rumble: _r, ...feel } = DEFAULT_CONFIG.feel
+    void _r
+    const old = { ...addon({ settings: { input: { bindings: DEFAULT_CONFIG.input.bindings }, feel } }), schemaVersion: 4 }
+    const reg = build(defaultPack(), old)
+    expect(reg.settings.input.analog).toEqual(DEFAULT_CONFIG.input.analog)
+    expect(reg.settings.feel.rumble).toEqual(DEFAULT_CONFIG.feel.rumble)
   })
 })
 

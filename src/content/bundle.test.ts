@@ -227,11 +227,11 @@ describe('bad bundles', () => {
   })
 
   it('rejects a pack from a newer schema version', async () => {
-    const zip = zipSync({ 'pack.json': strToU8(JSON.stringify(pack({ schemaVersion: 5 }))) })
+    const zip = zipSync({ 'pack.json': strToU8(JSON.stringify(pack({ schemaVersion: 6 }))) })
     expect((await errorsOf(readBundle(zip)))[0]).toEqual({
       pack: 'mini',
       path: 'schemaVersion',
-      message: 'made for schema version 5, but this build reads up to 4; update the game to load it',
+      message: 'made for schema version 6, but this build reads up to 5; update the game to load it',
     })
   })
 })
