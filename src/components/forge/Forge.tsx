@@ -18,10 +18,12 @@ import {
 } from '../../forge/workspace'
 import { downloadBytes } from '../../utils/download'
 import { Field } from './SchemaForm'
+import { BindingsTools } from './BindingsTools'
 import { EnemyTools } from './EnemyTools'
 import { LevelTools } from './LevelTools'
 import { FighterTools } from './FighterTools'
 import { MoveTools } from './MoveTools'
+import { PackInfoTools } from './PackInfoTools'
 import { sectionHeading, ui } from './ui'
 
 const panel: CSSProperties = {
@@ -359,6 +361,8 @@ export const Forge = () => {
                 <MoveTools key={node.key} pack={pack} node={node} save={(wp) => put(wp, false)} />
               </div>
             )}
+            {node.group === 'pack' && <PackInfoTools pack={pack} save={(wp) => put(wp)} onError={(text) => setMessage({ text, error: true })} />}
+            {node.key === 'settings/input' && <BindingsTools key={node.key} pack={pack} node={node} save={(wp) => put(wp)} />}
             {node.group === 'levels' && (
               <div style={{ marginTop: '10px' }}>
                 <LevelTools

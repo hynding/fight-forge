@@ -6,7 +6,7 @@
 
 import { useGameStore, type PackSummary } from '../store/gameStore'
 import { setActiveContent } from './active'
-import { readBundle, writeBundle, type Bundle } from './bundle'
+import { imageType, readBundle, writeBundle, type Bundle } from './bundle'
 import { defaultPack } from './defaultPack'
 import { loadContent, type LoadedContent } from './load'
 import { buildRegistry, formatErrors, type ContentError, type Result } from './registry'
@@ -51,12 +51,27 @@ const assetUrl = (asset: AssetDef): string => {
 export const loadActivePacks = (): { ok: true; value: LoadedContent } | { ok: false; error: string } =>
   loadContent(activePackInputs(), assetUrl)
 
+/** A blob URL of a pack's cover image, made once per install. */
+const coverUrl = (p: Installed): string | undefined => {
+  const id = p.bundle.pack.meta.cover
+  const bytes = id === undefined ? undefined : p.bundle.files.get(id)
+  if (!bytes) return undefined
+  const key = `${p.bundle.pack.id}:cover`
+  let url = blobUrls.get(key)
+  if (!url) {
+    url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: `image/${imageType(bytes) ?? 'png'}` }))
+    blobUrls.set(key, url)
+  }
+  return url
+}
+
 const summary = (p: Installed): PackSummary => ({
   id: p.bundle.pack.id,
   name: p.bundle.pack.name,
   version: p.bundle.pack.version,
   author: p.bundle.pack.meta.author,
   description: p.bundle.pack.meta.description,
+  ...(p.bundle.pack.meta.cover !== undefined && { cover: coverUrl(p) }),
   enabled: p.enabled,
 })
 

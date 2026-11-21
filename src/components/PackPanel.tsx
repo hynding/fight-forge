@@ -100,6 +100,7 @@ export const PackPanel = () => {
                 v{p.version} by {p.author}
               </span>
             </label>
+            {p.cover && <img src={p.cover} alt={`${p.name} cover`} style={{ display: 'block', maxWidth: '160px', maxHeight: '90px', margin: '4px 0 0 22px', borderRadius: '3px' }} />}
             {p.description && <div style={{ color: '#888888', margin: '2px 0 4px 22px' }}>{p.description}</div>}
             <div style={{ marginLeft: '22px', display: 'flex', gap: '6px' }}>
               <button style={small} onClick={() => download(packBundleBytes(p.id)!, `${p.id}.zip`)}>

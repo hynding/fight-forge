@@ -120,6 +120,8 @@ export interface PackSummary {
   version: string
   author: string
   description: string
+  /** A URL of the pack's cover image, if it has one. */
+  cover?: string
   enabled: boolean
 }
 
