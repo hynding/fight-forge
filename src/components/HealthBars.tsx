@@ -39,7 +39,10 @@ export const HealthBars = ({ enemyRefs }: { enemyRefs: Map<string, RefObject<Rap
     tmp.q.copy(camera.quaternion)
     tmp.right.set(1, 0, 0).applyQuaternion(tmp.q)
     let n = 0
+    // The boss in a boss fight has the big bar at the bottom of the screen instead.
+    const bossId = useGameStore.getState().levelProgress.boss?.id
     for (const e of enemies) {
+      if (e.id === bossId) continue
       const body = enemyRefs.get(e.id)?.current
       const def = config.enemyTypes[e.type]
       if (!body || !def) continue

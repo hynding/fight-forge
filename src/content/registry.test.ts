@@ -327,7 +327,7 @@ describe('bad packs: references', () => {
       poise: { hits: 3, window: 2 },
       transition: { duration: 1, push: 6, radius: 3 },
       phases: [
-        { below: 0.5, attacks: [{ move: 'slam', range: 'near' }], ai: 'ninja', taunt: 'roar' },
+        { below: 0.5, attacks: [{ move: 'slam', range: 'near' }], ai: 'ninja', taunt: 'growl' },
         { below: 0.6, summon: { enemies: [{ type: 'GHOST', from: 'right' }] } },
       ],
     }
@@ -337,9 +337,22 @@ describe('bad packs: references', () => {
       'enemyTypes.HEAVY.attacks[1].move: unknown move "charge"',
       'enemyTypes.HEAVY.boss.phases[0].ai: unknown ai "ninja"',
       'enemyTypes.HEAVY.boss.phases[0].attacks[0].move: unknown move "slam"',
-      'enemyTypes.HEAVY.boss.phases[0].taunt: unknown sound "roar"',
+      'enemyTypes.HEAVY.boss.phases[0].taunt: unknown sound "growl"',
       'enemyTypes.HEAVY.boss.phases[1].below: must be below the previous phase\'s 0.5',
       'enemyTypes.HEAVY.boss.phases[1].summon.enemies[0].type: unknown enemyType "GHOST"',
+    ])
+  })
+
+  it('checks boss triggers', () => {
+    const p = base()
+    const level = (p.levels as Record<string, unknown>[])[1] as { segments: { triggers: Record<string, unknown>[] }[] }
+    const last = level.segments[level.segments.length - 1]
+    last.triggers = last.triggers.map((t) => (t.kind === 'boss' ? { ...t, enemy: 'HEAVY', music: 'opera' } : t))
+    level.segments[0].triggers.push({ kind: 'boss', at: 1, enemy: 'KRAKEN', from: 'right' })
+    expect(errorsOf(p).map((e) => `${e.path}: ${e.message}`).sort()).toEqual([
+      `levels.level-2.segments[0].triggers[${level.segments[0].triggers.length - 1}].enemy: unknown enemyType "KRAKEN"`,
+      `levels.level-2.segments[${level.segments.length - 1}].triggers[1].enemy: "HEAVY" isn't a boss (it has no boss block)`,
+      `levels.level-2.segments[${level.segments.length - 1}].triggers[1].music: unknown music "opera"`,
     ])
   })
 
@@ -389,7 +402,7 @@ describe('bad packs: references', () => {
       'levels.broken.segments[0].items[0].pickup: unknown pickup "cake"',
       'levels.broken.segments[0].triggers[0].at: 12 is past the segment\'s length 10',
       'levels.broken.segments[0].triggers[0].waves[0].enemies[0].type: unknown enemyType "DRAGON"',
-      'levels.broken: has no goal trigger, so it can never be completed',
+      'levels.broken: has no goal trigger (or boss that ends it), so it can never be completed',
     ])
   })
 
@@ -570,6 +583,13 @@ describe('key bindings', () => {
   it('loads a v8 pack unchanged (bosses only add optional fields)', () => {
     const old = { ...addon({ enemyTypes: { BRUTE: clone(DEFAULT_CONFIG.enemyTypes.HEAVY) } }), schemaVersion: 8 }
     expect(build(defaultPack(), old).enemyTypes.BRUTE).toEqual(DEFAULT_CONFIG.enemyTypes.HEAVY)
+  })
+
+  it('gives a v9 pack\'s feel settings the boss KO', () => {
+    const { bossKo: _b, ...feel } = DEFAULT_CONFIG.feel
+    void _b
+    const old = { ...addon({ settings: { feel } }), schemaVersion: 9 }
+    expect(build(defaultPack(), old).settings.feel.bossKo).toEqual(DEFAULT_CONFIG.feel.bossKo)
   })
 
   it('gives a v4 pack the analog and rumble defaults', () => {

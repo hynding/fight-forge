@@ -7,6 +7,7 @@ import { actionLabel, deviceHelp, helpExtras } from '../sim/input'
 import { formatTime } from '../utils/format'
 import { sceneProbe } from '../sim/probe'
 import { FRAME_BUDGET_MS, type PerfSnapshot } from '../sim/perf'
+import { BossBar } from './BossBar'
 
 const ResultRow = ({ label, value }: { label: string; value: ReactNode }) => (
   <tr>
@@ -189,6 +190,8 @@ export const HUD = ({ input }: { input: InputManager }) => {
         {` | ENEMIES: ${enemies.length}`}
       </div>
 
+      <BossBar />
+
       {level.goPrompt && (
         <div
           style={{
@@ -242,6 +245,7 @@ export const HUD = ({ input }: { input: InputManager }) => {
             <tbody>
               <ResultRow label="SCORE" value={score} />
               {level.complete && level.time !== null && <ResultRow label="TIME" value={formatTime(level.time)} />}
+              {level.complete && level.bossTime !== null && <ResultRow label="BOSS TIME" value={formatTime(level.bossTime)} />}
               <ResultRow label="KOs" value={kos} />
               {level.complete && lastLevel && !sandbox && levelIndex > 0 && <ResultRow label="TOTAL KOs" value={runKos} />}
               {level.complete && <ResultRow label="LIVES" value={lives} />}

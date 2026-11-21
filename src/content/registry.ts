@@ -451,7 +451,13 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
         const tp = `${sp}.triggers[${ti}]`
         if (t.at > seg.length) err(origin, `${tp}.at`, `${t.at} is past the segment's length ${seg.length}`)
         if (t.kind === 'goal') goals++
-        else
+        else if (t.kind === 'boss') {
+          if (t.endsLevel !== false) goals++
+          const boss = reg.get(`enemyType:${t.enemy}`)
+          if (!boss) err(origin, `${tp}.enemy`, `unknown enemyType "${t.enemy}"`)
+          else if (!boss.boss) err(origin, `${tp}.enemy`, `"${t.enemy}" isn't a boss (it has no boss block)`)
+          expect('music', t.music, origin, `${tp}.music`)
+        } else
           t.waves.forEach((w, wi) =>
             w.enemies.forEach((e, ei) => expect('enemyType', e.type, origin, `${tp}.waves[${wi}].enemies[${ei}].type`))
           )
@@ -467,7 +473,7 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
         expect('prop', pl.prop, origin, `${pp}.prop`)
       })
     })
-    if (goals === 0) err(origin, `${base}`, 'has no goal trigger, so it can never be completed')
+    if (goals === 0) err(origin, `${base}`, 'has no goal trigger (or boss that ends it), so it can never be completed')
   })
 
   return errors

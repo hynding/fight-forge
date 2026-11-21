@@ -21,6 +21,8 @@ export interface FeelSettings {
    * `dealt` times as hard, and a KO at least `ko`.
    */
   rumble: { enabled: boolean; base: number; perDamage: number; max: number; duration: number; dealt: number; ko: number }
+  /** A boss's last hit: a long hit-stop, a big shake, then `duration` seconds (real time) at `slowMotion` speed. */
+  bossKo: { enabled: boolean; hitStop: number; shake: number; slowMotion: number; duration: number }
 }
 
 export type Effect =
@@ -37,9 +39,36 @@ export interface FeelState {
   nextId: number
   /** Bumped when effects are added, so the drawing side knows to re-render. */
   version: number
+  /** Slow motion: real seconds left, the speed, and the fraction of a frame owed. */
+  slow: { timeLeft: number; scale: number; owed: number }
 }
 
-export const createFeel = (): FeelState => ({ hold: 0, shake: 0, effects: [], nextId: 1, version: 0 })
+export const createFeel = (): FeelState => ({ hold: 0, shake: 0, effects: [], nextId: 1, version: 0, slow: { timeLeft: 0, scale: 1, owed: 0 } })
+
+/** The boss is beaten: hold, shake, then slow motion. */
+export const feelBossKo = (f: FeelState, s: FeelSettings): void => {
+  if (!s.bossKo.enabled) return
+  f.hold = Math.max(f.hold, s.bossKo.hitStop)
+  f.shake = Math.max(f.shake, s.bossKo.shake)
+  f.slow = { timeLeft: s.bossKo.duration, scale: s.bossKo.slowMotion, owed: 0 }
+}
+
+/**
+ * During slow motion, whether this rendered frame advances the fight: frames
+ * run at full speed but only `scale` of them advance, so it plays at that speed
+ * (a little stop-motion, which reads as slow motion and keeps physics in step).
+ */
+export const slowFrame = (f: FeelState, realDt: number): boolean => {
+  if (f.slow.timeLeft <= 0) return true
+  f.slow.timeLeft = f.slow.timeLeft - realDt <= 1e-9 ? 0 : f.slow.timeLeft - realDt
+  f.slow.owed += f.slow.scale
+  if (f.slow.owed < 1 - 1e-9) return false
+  f.slow.owed -= 1
+  return true
+}
+
+/** True while a hit-stop or slow motion is still playing out. */
+export const feelBusy = (f: FeelState): boolean => f.hold > 0 || f.slow.timeLeft > 0
 
 const scaled = (on: boolean, base: number, perDamage: number, max: number, damage: number) =>
   on ? Math.min(max, base + perDamage * damage) : 0

@@ -231,9 +231,13 @@ export const LevelTools = ({ pack, node, save, onError, invalid, errors }: Props
             const testId = `${o.ref.kind}-${refPath(o.ref).filter((p) => typeof p === 'number').join('-')}`
             if (o.ref.kind === 'trigger') {
               const t = value as unknown as Trigger
-              const color = t.kind === 'goal' ? '#40d070' : t.lock ? '#ff6060' : '#d9b44a'
-              const count = t.kind === 'wave' ? t.waves.reduce((n, w) => n + w.enemies.length, 0) : 0
-              const label = t.kind === 'goal' ? 'GOAL' : `${t.lock ? '🔒' : '⚔'} ${count}${t.waves.length > 1 ? ` in ${t.waves.length} waves` : ''}`
+              const color = t.kind === 'goal' ? '#40d070' : t.kind === 'boss' ? '#ff40c0' : t.lock ? '#ff6060' : '#d9b44a'
+              const label =
+                t.kind === 'goal'
+                  ? 'GOAL'
+                  : t.kind === 'boss'
+                    ? `👑 ${t.enemy}`
+                    : `${t.lock ? '🔒' : '⚔'} ${t.waves.reduce((n, w) => n + w.enemies.length, 0)}${t.waves.length > 1 ? ` in ${t.waves.length} waves` : ''}`
               return (
                 <g key={key} data-testid={testId} style={{ cursor: 'ew-resize' }} onPointerDown={begin(o.ref, o.x)}>
                   <rect x={sx(o.x) - 7} y={RULER} width={14} height={laneH} fill="transparent" />

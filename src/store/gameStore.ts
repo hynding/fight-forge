@@ -29,6 +29,23 @@ export interface LevelProgress {
   waveLabel: string | null
   /** Seconds of game time the level took; set when it's complete. */
   time: number | null
+  /** The boss fight under way: the HUD's boss bar (health is read from `enemies`). */
+  boss: BossProgress | null
+  /** The boss's name card is showing: the fight is frozen until it goes. */
+  bossIntro: boolean
+  /** Seconds the last boss fight took, for the results. */
+  bossTime: number | null
+}
+
+export interface BossProgress {
+  /** Enemy id of the boss. */
+  id: string
+  title: string
+  subtitle?: string
+  /** Phase thresholds (fractions of max health), for the bar's ticks. */
+  thresholds: number[]
+  /** Game time the fight started. */
+  startedAt: number
 }
 
 const INITIAL_LEVEL_PROGRESS: LevelProgress = {
@@ -37,6 +54,9 @@ const INITIAL_LEVEL_PROGRESS: LevelProgress = {
   goPrompt: false,
   waveLabel: null,
   time: null,
+  boss: null,
+  bossIntro: false,
+  bossTime: null,
 }
 
 interface GameState {
@@ -158,9 +178,9 @@ export interface PlaytestOrigin {
   level?: { id: string; def: Level; cut: number }
 }
 
-/** True while the game shouldn't advance: paused, editing in the Forge, game over, or level complete. */
+/** True while the game shouldn't advance: paused, editing in the Forge, game over, level complete, or a boss's name card. */
 export const isFrozen = (s: Pick<GameState, 'isPaused' | 'isGameOver' | 'levelProgress'> & { editing?: boolean }): boolean =>
-  s.isPaused || !!s.editing || s.isGameOver || s.levelProgress.complete
+  s.isPaused || !!s.editing || s.isGameOver || s.levelProgress.complete || s.levelProgress.bossIntro
 
 /** Everything a level starts with; the scene remounts on the new `gameId`. */
 const freshLevel = (state: GameState): Partial<GameState> => ({

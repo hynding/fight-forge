@@ -32,5 +32,22 @@
         "notes": "D4 - - - F4 - - - A4 - - - G4 - F4 - E4 - - - C4 - - - D4 - - - - - - -"
       }
     ]
+  },
+  "boss": {
+    "kind": "pattern",
+    "tempo": 138,
+    "volume": 0.35,
+    "tracks": [
+      {
+        "wave": "sawtooth",
+        "volume": 0.3,
+        "notes": "E2 E2 . E2 G2 . E2 . A2 A2 . A2 G2 . F2 . E2 E2 . E2 G2 . E2 . B2 . A2 . G2 . F2 ."
+      },
+      {
+        "wave": "square",
+        "volume": 0.2,
+        "notes": "E4 - - - G4 - F4 - E4 - - - D4 - - - E4 - - - B4 - A4 - G4 - F4 - E4 - - -"
+      }
+    ]
   }
 }

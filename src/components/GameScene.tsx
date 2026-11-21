@@ -76,9 +76,16 @@ export const GameScene = () => {
   useEffect(() => {
     sceneProbe.playerX = () => playerPositionRef.current.x
     sceneProbe.runtime = (name) => runtimes.get(name) ?? null
+    sceneProbe.position = (name) => {
+      const body = name === 'player' ? playerRef.current : enemyRefs.current.get(name)?.current
+      if (!body) return null
+      const t = body.translation()
+      return { x: t.x, z: t.z }
+    }
     return () => {
       sceneProbe.playerX = () => null
       sceneProbe.runtime = () => null
+      sceneProbe.position = () => null
     }
   }, [runtimes])
   // The level's music loops while the scene is up, quieter while it's frozen (paused, results, editing).

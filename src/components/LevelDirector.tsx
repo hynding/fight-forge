@@ -3,11 +3,12 @@ import { Vector3 } from 'three'
 import { useGameStore } from '../store/gameStore'
 import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
-import { useSimLoop, useSimSystem } from '../sim/simContext'
+import { useFeel, useSimLoop, useSimSystem } from '../sim/simContext'
 import { createLevelRuntime, placeItems, placeProps, stepLevel, type Level, type SpawnDef } from '../sim/level'
 import { offscreenSpawn, type StageView } from '../sim/stage'
 import { scaledHealth } from '../sim/rules'
-import { playSound } from '../audio/engine'
+import { playMusic, playSound } from '../audio/engine'
+import { feelBossKo, feelBusy } from '../sim/feel'
 import type { SummonRequest } from '../sim/boss'
 
 // The "GO →" prompt hides once the player has walked this far past the
@@ -45,6 +46,9 @@ export const LevelDirector = ({
   const go = useRef<{ fromX: number; timeLeft: number } | null>(null)
   // The loop starts at 0 with each level (the scene remounts), so its time is the level time.
   const loop = useSimLoop()
+  const feel = useFeel()
+  // The level is won, waiting for the boss KO's slow motion to play out.
+  const finishing = useRef(false)
   // Summoned helpers waiting out their `delay`.
   const pending = useRef<{ def: SpawnDef; x: number; timeLeft: number }[]>([])
 
@@ -126,13 +130,38 @@ export const LevelDirector = ({
         view.lockX = null
         go.current = { fromX: player.x, timeLeft: GO_PROMPT_SECONDS }
         store.setLevelProgress({ goPrompt: true })
+      } else if (e.kind === 'bossStart') {
+        const def = getConfig().enemyTypes[e.trigger.enemy]
+        const boss = def.boss!
+        store.setLevelProgress({
+          boss: { id: e.id, title: boss.title, subtitle: boss.subtitle, thresholds: boss.phases.map((p) => p.below), startedAt: loop.time },
+          bossIntro: e.trigger.intro !== false,
+          waveLabel: null,
+        })
+        if (e.trigger.music) playMusic(e.trigger.music)
+      } else if (e.kind === 'bossDefeated') {
+        const fight = store.levelProgress.boss
+        store.setLevelProgress({ boss: null, bossTime: fight ? loop.time - fight.startedAt : null })
+        feelBossKo(feel, getConfig().feel)
+        if (e.endsLevel) {
+          // The helpers go down with the boss.
+          for (const enemy of useGameStore.getState().enemies) store.damageEnemy(enemy.id, enemy.health)
+        } else playMusic(level.music)
       } else if (e.kind === 'complete') {
-        store.completeLevel(loop.time)
-        playSound(getConfig().audio.clear)
-        return
+        finishing.current = true
       }
     }
 
+    if (finishing.current) {
+      // A boss KO plays out its slow motion before the results.
+      if (feelBusy(feel)) return
+      finishing.current = false
+      useGameStore.getState().completeLevel(loop.time)
+      playSound(getConfig().audio.clear)
+      return
+    }
+
+    if (store.levelProgress.boss) return
     // HUD wave label: the locked fight's progress, if any.
     const locked = rt.encounters.find((enc) => enc.trigger.lock)
     const label = locked ? `Wave ${locked.waveIndex + 1}/${locked.trigger.waves.length}` : null

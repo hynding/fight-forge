@@ -215,6 +215,120 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "scale": 0.9,
       "speed": 2.6,
     },
+    "HARV": {
+      "aggression": 1.5,
+      "ai": "brawler",
+      "armor": 0.4,
+      "attacks": [
+        {
+          "move": "bossSwipe",
+          "range": "near",
+          "weight": 3,
+        },
+        {
+          "cooldown": 4,
+          "move": "bossCharge",
+          "range": "far",
+          "weight": 1,
+        },
+      ],
+      "boss": {
+        "phases": [
+          {
+            "attacks": [
+              {
+                "move": "bossSwipe",
+                "range": "near",
+                "weight": 3,
+              },
+              {
+                "cooldown": 5,
+                "move": "bossSlam",
+                "range": "near",
+                "weight": 1,
+              },
+              {
+                "cooldown": 3,
+                "move": "bossCharge",
+                "range": "far",
+                "weight": 1,
+              },
+            ],
+            "below": 0.6,
+            "speed": 2.5,
+            "summon": {
+              "enemies": [
+                {
+                  "from": "right",
+                  "type": "FAST",
+                },
+                {
+                  "delay": 1,
+                  "from": "left",
+                  "type": "BASIC",
+                },
+              ],
+            },
+            "taunt": "roar",
+          },
+          {
+            "aggression": 2,
+            "armor": 0.8,
+            "below": 0.25,
+            "color": "#ff4422",
+            "speed": 3,
+            "taunt": "roar",
+          },
+        ],
+        "poise": {
+          "hits": 3,
+          "window": 2,
+        },
+        "subtitle": "Dock foreman",
+        "title": "BIG HARV",
+        "transition": {
+          "duration": 1,
+          "push": 7,
+          "radius": 4,
+        },
+      },
+      "color": "#ffaa22",
+      "drop": {
+        "chance": 1,
+        "pickup": "feast",
+      },
+      "grabbable": false,
+      "maxHealth": 400,
+      "model": {
+        "clips": {
+          "attack": "Punch",
+          "dead": "Death",
+          "getup": {
+            "name": "Standing",
+            "speed": 1,
+          },
+          "idle": "Idle",
+          "jump": "Jump",
+          "knockdown": "Death",
+          "run": "Running",
+          "walk": "Walking",
+        },
+        "kind": "gltf",
+        "offset": [
+          0,
+          -1,
+          0,
+        ],
+        "rotationY": 3.141592653589793,
+        "scale": 0.4,
+        "tintMaterials": [
+          "Main",
+        ],
+        "url": "/models/robot-expressive.glb",
+      },
+      "scale": 1.6,
+      "speed": 2,
+    },
     "HEAVY": {
       "aggression": 0.8,
       "ai": "tank",
@@ -258,6 +372,13 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     },
   },
   "feel": {
+    "bossKo": {
+      "duration": 1.5,
+      "enabled": true,
+      "hitStop": 0.5,
+      "shake": 0.4,
+      "slowMotion": 0.3,
+    },
     "damageNumbers": {
       "color": "#ffffff",
       "enabled": true,
@@ -444,6 +565,87 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "turnGrace": 0.12,
   },
   "moves": {
+    "bossCharge": {
+      "active": 0.3,
+      "clip": {
+        "name": "Running",
+        "speed": 1.4,
+      },
+      "damage": 18,
+      "hitSound": "heavy",
+      "hitbox": {
+        "forward": 0.8,
+        "halfX": 0.6,
+        "halfY": 0.6,
+        "halfZ": 0.5,
+        "up": 0.2,
+      },
+      "lunge": 7,
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 6,
+          "y": 4,
+        },
+        "knockdown": true,
+      },
+      "recovery": 0.7,
+      "sound": "whoosh",
+      "startup": 0.35,
+    },
+    "bossSlam": {
+      "active": 0.15,
+      "clip": {
+        "name": "Jump",
+        "speed": 1.2,
+      },
+      "damage": 20,
+      "hitSound": "heavy",
+      "hitbox": {
+        "forward": 0,
+        "halfX": 1.5,
+        "halfY": 0.8,
+        "halfZ": 0.7,
+        "up": 0,
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 5,
+          "y": 5,
+        },
+        "knockdown": true,
+      },
+      "recovery": 0.8,
+      "sound": "heavy",
+      "startup": 0.7,
+    },
+    "bossSwipe": {
+      "active": 0.15,
+      "clip": {
+        "name": "Punch",
+        "speed": 0.8,
+      },
+      "damage": 14,
+      "hitSound": "heavy",
+      "hitbox": {
+        "forward": 0.9,
+        "halfX": 0.8,
+        "halfY": 0.6,
+        "halfZ": 0.5,
+        "up": 0.2,
+      },
+      "reaction": {
+        "hitstun": 0.4,
+        "knockback": {
+          "x": 4,
+          "y": 0,
+        },
+      },
+      "recovery": 0.5,
+      "sound": "whoosh",
+      "startup": 0.45,
+    },
     "dashPunch": {
       "active": 0.15,
       "clip": {
@@ -854,6 +1056,23 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       ],
       "volume": 0.35,
     },
+    "boss": {
+      "kind": "pattern",
+      "tempo": 138,
+      "tracks": [
+        {
+          "notes": "E2 E2 . E2 G2 . E2 . A2 A2 . A2 G2 . F2 . E2 E2 . E2 G2 . E2 . B2 . A2 . G2 . F2 .",
+          "volume": 0.3,
+          "wave": "sawtooth",
+        },
+        {
+          "notes": "E4 - - - G4 - F4 - E4 - - - D4 - - - E4 - - - B4 - A4 - G4 - F4 - E4 - - -",
+          "volume": 0.2,
+          "wave": "square",
+        },
+      ],
+      "volume": 0.35,
+    },
     "docks": {
       "kind": "pattern",
       "tempo": 96,
@@ -1131,6 +1350,14 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "kind": "synth",
       "volume": 0.5,
       "wave": "square",
+    },
+    "roar": {
+      "duration": 0.6,
+      "freq": 110,
+      "freqEnd": 40,
+      "kind": "synth",
+      "volume": 0.6,
+      "wave": "sawtooth",
     },
     "whoosh": {
       "duration": 0.09,

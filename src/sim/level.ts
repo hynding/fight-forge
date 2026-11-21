@@ -39,6 +39,33 @@ export type Trigger =
       kind: 'goal'
       at: number
     }
+  | BossTrigger
+
+/**
+ * A boss fight: locks the screen, brings in the boss (an enemy type with a
+ * `boss` block) with an optional name card and its own music, and by default
+ * ends the level when the boss is beaten.
+ */
+export interface BossTrigger {
+  kind: 'boss'
+  at: number
+  /** Enemy type id; must have a `boss` block. */
+  enemy: EnemyType
+  from: 'right' | 'left' | 'placed'
+  /** For `placed`: X offset from the trigger point. */
+  offset?: number
+  /** Position across the depth lane: 0 = back, 1 = front (default middle). */
+  depth?: number
+  /** Music id played while the boss is alive. */
+  music?: string
+  /** Show the boss's name card (default true). */
+  intro?: boolean
+  /** Beating the boss completes the level (default true); otherwise the screen unlocks. */
+  endsLevel?: boolean
+}
+
+/** Whether beating this boss ends the level. */
+export const bossEndsLevel = (t: BossTrigger): boolean => t.endsLevel !== false
 
 /** A pickup lying on the stage from the start. */
 export interface LevelItem {
@@ -132,8 +159,11 @@ export const validateLevel = (level: Level): string[] => {
       }
     })
   })
-  const goals = level.segments.flatMap((s) => s.triggers).filter((t) => t.kind === 'goal')
-  if (goals.length !== 1) errors.push(`Level needs exactly one goal (found ${goals.length}).`)
+  const triggers = level.segments.flatMap((s) => s.triggers)
+  const goals = triggers.filter((t) => t.kind === 'goal')
+  const endingBosses = triggers.filter((t) => t.kind === 'boss' && bossEndsLevel(t))
+  if (goals.length > 1 || (goals.length === 0 && endingBosses.length === 0))
+    errors.push(`Level needs exactly one goal, or a boss that ends it (found ${goals.length} goals).`)
   return errors
 }
 
@@ -150,8 +180,18 @@ export interface Encounter {
   spawned: string[]
 }
 
+/** The boss fight under way. */
+export interface BossFight {
+  trigger: Extract<PlacedTrigger, { kind: 'boss' }>
+  id: string
+  /** Spawned this step: the caller's view of who is alive may predate it. */
+  fresh: boolean
+}
+
 export interface LevelRuntime {
   triggers: PlacedTrigger[]
+  /** The boss fight under way, if any. */
+  boss: BossFight | null
   /** Index of the next trigger not yet reached. */
   next: number
   encounters: Encounter[]
@@ -162,6 +202,7 @@ export interface LevelRuntime {
 
 export const createLevelRuntime = (level: Level): LevelRuntime => ({
   triggers: placeTriggers(level),
+  boss: null,
   next: 0,
   encounters: [],
   lockX: null,
@@ -172,6 +213,8 @@ export type LevelEvent =
   | { kind: 'lock'; x: number }
   | { kind: 'unlock' }
   | { kind: 'waveStart'; triggerX: number; wave: number; of: number }
+  | { kind: 'bossStart'; id: string; trigger: BossTrigger }
+  | { kind: 'bossDefeated'; id: string; endsLevel: boolean }
   | { kind: 'complete' }
 
 export interface LevelStepInput {
@@ -182,6 +225,8 @@ export interface LevelStepInput {
   /** Creates the enemy and returns its id. */
   spawn: (def: SpawnDef, triggerX: number) => string
 }
+
+const anyLock = (rt: LevelRuntime) => rt.boss !== null || rt.encounters.some((e) => e.trigger.lock)
 
 const queueWave = (enc: Encounter) => {
   enc.queue = enc.trigger.waves[enc.waveIndex].enemies.map((def) => ({
@@ -208,6 +253,17 @@ export const stepLevel = (rt: LevelRuntime, input: LevelStepInput, dt: number): 
       rt.complete = true
       events.push({ kind: 'complete' })
       return events
+    }
+    if (t.kind === 'boss') {
+      if (rt.boss) continue // One boss at a time; a second one behind it is skipped.
+      const id = input.spawn({ type: t.enemy, from: t.from, x: t.offset ?? 0, depth: t.depth ?? 0.5 }, t.x)
+      rt.boss = { trigger: t, id, fresh: true }
+      events.push({ kind: 'bossStart', id, trigger: t })
+      if (rt.lockX === null) {
+        rt.lockX = input.cameraX
+        events.push({ kind: 'lock', x: input.cameraX })
+      }
+      continue
     }
     const enc: Encounter = { trigger: t, waveIndex: 0, queue: [], spawned: [] }
     queueWave(enc)
@@ -242,9 +298,24 @@ export const stepLevel = (rt: LevelRuntime, input: LevelStepInput, dt: number): 
     }
   }
 
+  // The boss is down. The step it arrives counts it alive, as with wave spawns.
+  let bossDown = false
+  if (rt.boss?.fresh) rt.boss.fresh = false
+  else if (rt.boss && !input.isAlive(rt.boss.id)) {
+    const ends = bossEndsLevel(rt.boss.trigger)
+    events.push({ kind: 'bossDefeated', id: rt.boss.id, endsLevel: ends })
+    rt.boss = null
+    bossDown = true
+    if (ends) {
+      rt.complete = true
+      events.push({ kind: 'complete' })
+      return events
+    }
+  }
+
   const done = rt.encounters.filter((e) => e.waveIndex >= e.trigger.waves.length)
   rt.encounters = rt.encounters.filter((e) => e.waveIndex < e.trigger.waves.length)
-  if (rt.lockX !== null && done.some((e) => e.trigger.lock) && !rt.encounters.some((e) => e.trigger.lock)) {
+  if (rt.lockX !== null && (bossDown || done.some((e) => e.trigger.lock)) && !anyLock(rt)) {
     rt.lockX = null
     events.push({ kind: 'unlock' })
   }

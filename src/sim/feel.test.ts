@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../config/defaults'
-import { createFeel, feelHit, hitStopFor, rumbleFor, shakeFor, shakeOffset, sparkDirections, stepFeel, type FeelSettings } from './feel'
+import { createFeel, feelBossKo, feelBusy, feelHit, slowFrame, hitStopFor, rumbleFor, shakeFor, shakeOffset, sparkDirections, stepFeel, type FeelSettings } from './feel'
 
 const S: FeelSettings = DEFAULT_CONFIG.feel
 const off: FeelSettings = {
@@ -10,6 +10,7 @@ const off: FeelSettings = {
   dust: { ...S.dust, enabled: false },
   damageNumbers: { ...S.damageNumbers, enabled: false },
   rumble: { ...S.rumble, enabled: false },
+  bossKo: { ...S.bossKo, enabled: false },
 }
 const hit = { at: { x: 1, y: 1, z: 0 }, feet: { x: 1, y: 0, z: 0 }, damage: 10, guarded: false, toPlayer: false, down: false }
 
@@ -77,5 +78,28 @@ describe('game feel', () => {
     const d = sparkDirections(6, 3)
     expect(d).toHaveLength(6)
     expect(d.some((v) => v.x > 0) && d.some((v) => v.x < 0) && d.some((v) => v.y > 0) && d.some((v) => v.y < 0)).toBe(true)
+  })
+})
+
+describe('boss KO', () => {
+  it('holds, shakes, then plays at the slow-motion speed for its duration', () => {
+    const f = createFeel()
+    feelBossKo(f, S)
+    expect(f.hold).toBe(S.bossKo.hitStop)
+    expect(f.shake).toBe(S.bossKo.shake)
+    expect(feelBusy(f)).toBe(true)
+    f.hold = 0
+    const frames = Math.round(S.bossKo.duration * 60)
+    let advanced = 0
+    for (let i = 0; i < frames; i++) if (slowFrame(f, 1 / 60)) advanced++
+    expect(advanced).toBeCloseTo(frames * S.bossKo.slowMotion, -1)
+    expect(feelBusy(f)).toBe(false)
+    expect(slowFrame(f, 1 / 60)).toBe(true)
+  })
+
+  it('does nothing when turned off', () => {
+    const f = createFeel()
+    feelBossKo(f, off)
+    expect(feelBusy(f)).toBe(false)
   })
 })
