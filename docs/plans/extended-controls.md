@@ -195,7 +195,7 @@ Testing follows the usual rules: the sampler, mapping, dead zone, chord window, 
 
 Recommendations first; each can be changed later, but 1 and 2 shape the milestones.
 
-1. **Which new actions to build now.** Recommended: heavy, special and grab/throw (C5, C6), plus hold-to-run. Alternatives: only heavy + hold-run (drop C6, keep grabs in Phase 6), or plumbing only (C1–C4).
+1. **Which new actions to build now.** *Decided by Steve on 2026-11-21:* heavy, special and grab/throw (C5, C6), plus hold-to-run. All six milestones go ahead.
 2. **Fixed action list vs creator-defined actions.** Recommended: fixed list, packs fill the slots with their own moves. Creator-defined actions (a pack adds "taunt" with its own button) are possible later but complicate validation, remapping and help text.
 3. **Motion inputs** (quarter circle + attack). Recommended: no; direction + button and chords only.
 4. **Special cost.** Recommended: let each trigger choose (health, meter or cooldown), with the default pack using the classic health cost for its attack + jump move and a meter for the special button.
