@@ -221,8 +221,8 @@ export const buildApp = (store: Store, blobs: Blobs, config: ServerConfig) => {
   // ---------------------------------------------------------------- reading
 
   app.get('/packs', async (req) => {
-    const q = req.query as { q?: string; sort?: string; limit?: string; offset?: string }
-    const packs = store.listPublic({ q: q.q, sort: q.sort === 'name' ? 'name' : 'new', limit: Number(q.limit) || undefined, offset: Number(q.offset) || 0 })
+    const q = req.query as { q?: string; owner?: string; sort?: string; limit?: string; offset?: string }
+    const packs = store.listPublic({ q: q.q, owner: q.owner, sort: q.sort === 'name' ? 'name' : 'new', limit: Number(q.limit) || undefined, offset: Number(q.offset) || 0 })
     return { packs: packs.map(publicPack) }
   })
 

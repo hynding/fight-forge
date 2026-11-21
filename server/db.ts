@@ -208,18 +208,22 @@ export const openStore = (path = ':memory:') => {
       void db.prepare('update packs set visibility = ?, updated = ? where id = ?').run(visibility, Date.now(), id),
 
     /** Public, not hidden packs; newest first, or by name; optionally matching words. */
-    listPublic(opts: { q?: string; sort?: 'new' | 'name'; limit?: number; offset?: number } = {}): PackRow[] {
+    listPublic(opts: { q?: string; owner?: string; sort?: 'new' | 'name'; limit?: number; offset?: number } = {}): PackRow[] {
       const order = opts.sort === 'name' ? 'p.name collate nocase' : 'p.updated desc'
       const limit = Math.min(100, Math.max(1, opts.limit ?? 24))
       const offset = Math.max(0, opts.offset ?? 0)
       const q = opts.q ? ftsQuery(opts.q) : ''
-      const rows = q
-        ? db
-            .prepare(
-              `${PACK_SELECT} where p.visibility = 'public' and p.hidden = 0 and p.id in (select id from packs_fts where packs_fts match ?) order by ${order} limit ? offset ?`
-            )
-            .all(q, limit, offset)
-        : db.prepare(`${PACK_SELECT} where p.visibility = 'public' and p.hidden = 0 order by ${order} limit ? offset ?`).all(limit, offset)
+      const where = ["p.visibility = 'public'", 'p.hidden = 0']
+      const args: (string | number)[] = []
+      if (q) {
+        where.push('p.id in (select id from packs_fts where packs_fts match ?)')
+        args.push(q)
+      }
+      if (opts.owner) {
+        where.push('u.name = ? collate nocase')
+        args.push(opts.owner)
+      }
+      const rows = db.prepare(`${PACK_SELECT} where ${where.join(' and ')} order by ${order} limit ? offset ?`).all(...args, limit, offset)
       return (rows as Row[]).map(toPack)
     },
     listByOwner: (ownerId: string): PackRow[] =>

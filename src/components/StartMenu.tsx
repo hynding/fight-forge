@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { getLevels } from '../content/active'
 import { PackPanel } from './PackPanel'
+import { apiEnabled } from '../net/api'
 import { ControlsPanel } from './ControlsPanel'
 import { getBindings } from '../content/bindings'
 import { controlsHelp } from '../sim/input'
@@ -103,6 +104,26 @@ export const StartMenu = () => {
       >
         FORGE: MAKE A PACK
       </button>
+
+      {apiEnabled() && (
+        <button
+          onClick={() => setGameScreen('gallery')}
+          style={{
+            marginTop: '10px',
+            padding: '8px 24px',
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            letterSpacing: '3px',
+            backgroundColor: 'transparent',
+            color: '#9fd3ff',
+            border: '1px solid #9fd3ff',
+            borderRadius: '6px',
+            cursor: 'pointer',
+          }}
+        >
+          BROWSE PACKS
+        </button>
+      )}
 
       {/* Level select */}
       <div style={{ marginTop: '40px', textAlign: 'center', position: 'relative', zIndex: 1 }}>

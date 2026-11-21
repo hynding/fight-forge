@@ -86,6 +86,70 @@ export const publishBundle = async (zip: Uint8Array, visibility: Visibility): Pr
   return { ok: false, message: body.error ?? `Publishing failed (${res.status}).`, latest: body.latest }
 }
 
+export interface PackDetail {
+  pack: PublishedPack
+  versions: { version: string; bytes: number; license: string; created: number }[]
+}
+
+/** The public gallery: newest first or by name, optionally matching words or by one creator. */
+export const listPacks = async (opts: { q?: string; owner?: string; sort?: 'new' | 'name'; offset?: number } = {}): Promise<PublishedPack[]> => {
+  const params = new URLSearchParams()
+  if (opts.q) params.set('q', opts.q)
+  if (opts.owner) params.set('owner', opts.owner)
+  if (opts.sort) params.set('sort', opts.sort)
+  if (opts.offset) params.set('offset', String(opts.offset))
+  const res = await call(`/packs?${params}`)
+  if (!res.ok) throw new Error(`the gallery couldn't load (${res.status})`)
+  return (await json<{ packs: PublishedPack[] }>(res)).packs
+}
+
+export const packDetail = async (id: string): Promise<PackDetail | null> => {
+  const res = await call(`/packs/${encodeURIComponent(id)}`)
+  return res.ok ? json<PackDetail>(res) : null
+}
+
+export const coverUrl = (id: string): string => `${base()}/packs/${encodeURIComponent(id)}/cover`
+
+const bundlePath = (id: string, version: string) => `/packs/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/bundle`
+
+const CACHE = 'fight-forge-packs-v1'
+
+/**
+ * A published version's bundle. Versions never change, so a downloaded one is
+ * kept in the browser's cache and later plays don't download it again.
+ */
+export const fetchBundle = async (id: string, version: string): Promise<Uint8Array> => {
+  const url = `${base()}${bundlePath(id, version)}`
+  const cache = typeof caches === 'undefined' ? null : await caches.open(CACHE).catch(() => null)
+  const hit = await cache?.match(url)
+  if (hit) return new Uint8Array(await hit.arrayBuffer())
+  const res = await call(bundlePath(id, version))
+  if (!res.ok) throw new Error(`couldn't download ${id} v${version} (${res.status})`)
+  const bytes = new Uint8Array(await res.arrayBuffer())
+  // Private packs stay out of the shared cache.
+  if (res.headers.get('cache-control')?.includes('public')) await cache?.put(url, new Response(bytes as Uint8Array<ArrayBuffer>)).catch(() => undefined)
+  return bytes
+}
+
+/** A link that opens the game straight into a pack. */
+export const shareLink = (id: string): string => {
+  const url = new URL(window.location.href)
+  url.search = ''
+  url.hash = ''
+  url.searchParams.set('pack', id)
+  return url.toString()
+}
+
+/** The pack a link asked for (`?pack=<id>`), if any. */
+export const linkedPack = (): string | null => {
+  try {
+    const id = new URLSearchParams(window.location.search).get('pack')
+    return id && /^[A-Za-z][A-Za-z0-9_-]*$/.test(id) ? id : null
+  } catch {
+    return null
+  }
+}
+
 /** The next patch version: "1.2.3" → "1.2.4". */
 export const nextVersion = (v: string): string => {
   const [a, b, c] = v.split('.').map((n) => Number(n) || 0)
