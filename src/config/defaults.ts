@@ -4,6 +4,8 @@ import type { MoveSet } from '../sim/moves'
 import type { ReactionConfig } from '../sim/reactions'
 import type { ActionsConfig } from '../sim/defense'
 import type { AiBehavior } from '../sim/controllers'
+import type { AttackDef } from '../sim/attacks'
+import type { BossDef } from '../sim/boss'
 import { DEFAULT_CONTENT } from '../content/defaultContent'
 import type { DropDef, PickupDef } from '../sim/pickups'
 import type { ActionSettings, DeviceBindings } from '../sim/input'
@@ -56,10 +58,14 @@ export interface EnemyTypeDef {
   ai: string
   /** The move it throws when it gets an attack token; defaults to `enemy.attackMove`. */
   attackMove?: string
+  /** Several attacks, chosen by range and weight; replaces `attackMove`. */
+  attacks?: AttackDef[]
   /** Super armor: hits with at most this much hitstun (and no knockdown) don't stagger it. */
   armor?: number
   /** False: can't be grabbed (default true). */
   grabbable?: boolean
+  /** Makes the type a boss: phases, poise and its own attack slot. */
+  boss?: BossDef
   /** What it may drop when defeated. */
   drop?: DropDef
   color: string

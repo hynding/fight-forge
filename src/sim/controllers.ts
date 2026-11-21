@@ -45,6 +45,8 @@ export interface AiBehavior {
   reach: number
   standOff: number
   attackFrom: 'any' | 'behind'
+  /** How far in X a `far` attack (a charge) can start from; without it the type only attacks within `reach`. */
+  farReach?: number
 }
 
 /** What the AI can see this step. Positions are planar (X/Z). */
@@ -59,6 +61,8 @@ export interface BrawlerContext {
   tokensTaken: boolean
   /** Engage regardless of distance (e.g. the enemy is off screen, walking in or left behind). */
   forceEngage?: boolean
+  /** A `far` attack is ready: the enemy may attack from `farReach` instead of walking in. */
+  farAttack?: boolean
 }
 
 /** Per-enemy AI memory, kept between steps. */
@@ -144,12 +148,28 @@ export const inAttackPosition = (
 }
 
 /**
+ * Outside reach but within `farReach` in X (and lined up in depth, on an
+ * allowed side): where a `far` attack such as a charge can start.
+ */
+export const inFarPosition = (ctx: BrawlerContext, cfg: BrawlerConfig, behavior: AiBehavior): boolean => {
+  if (behavior.farReach === undefined) return false
+  const dx = Math.abs(ctx.target.x - ctx.self.x)
+  if (dx <= behavior.reach || dx > behavior.farReach) return false
+  return inAttackPosition(ctx, cfg, { ...behavior, reach: behavior.farReach })
+}
+
+/** Which kind of attack fits where the enemy stands now, if any. */
+export const attackRangeAt = (ctx: BrawlerContext, cfg: BrawlerConfig, behavior: AiBehavior): 'near' | 'far' | null =>
+  inAttackPosition(ctx, cfg, behavior) ? 'near' : inFarPosition(ctx, cfg, behavior) ? 'far' : null
+
+/**
  * Enemy AI shared by every archetype: once engaged, walk to the behavior's
  * approach spot (level with the target in depth), keeping spacing from other
  * enemies. In attack position, circle if crowded while someone else is
  * attacking, otherwise stand and ask to attack (the attack token). Until it
  * first comes within aggro range (or is forced to engage, as off-screen
  * enemies are), patrol to random nearby points; after that it stays engaged.
+ * With a `far` attack ready (`ctx.farAttack`) it also attacks from far reach.
  * Always faces the target horizontally.
  *
  * `move` is the walk-speed fraction, so patrol and circling are slower.
@@ -172,6 +192,11 @@ export const enemyIntent = (
     const face = { x: toTarget.x, z: 0 }
     const push = spacingPush(ctx.self, ctx.others, cfg.minSpacing)
     const crowded = len(push) > cfg.crowdedThreshold
+
+    // A charge from far reach, when one is ready.
+    if (ctx.farAttack && !ctx.tokensTaken && inFarPosition(ctx, cfg, behavior)) {
+      return { move: { x: 0, z: 0 }, face, jump: false, attack: true }
+    }
 
     if (!inAttackPosition(ctx, cfg, behavior)) {
       const spot = approachSpot(ctx, behavior)

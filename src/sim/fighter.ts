@@ -2,6 +2,7 @@
 // for (Intent), how that turns into velocity and facing, and the state machine.
 // Pure TS so it is testable without React, Rapier, or WebGL.
 
+import type { BossDef, PoiseState } from './boss'
 import { createMoveRunner, type MoveRunner } from './moves'
 import { createReactionState, type ReactionKind, type ReactionState } from './reactions'
 import { createDodgeState, isDodging, type DodgeState } from './defense'
@@ -162,6 +163,10 @@ export interface FighterRuntime {
   grab: GrabState
   /** In flight after being thrown. */
   thrown: ThrownState | null
+  /** A boss's poise: knockdowns are shrugged off until enough hits land in a row. */
+  poise: { state: PoiseState; config: BossDef['poise'] } | null
+  /** Attacks without an attack token (a boss's own slot). */
+  ownAttackSlot: boolean
 }
 
 export const createFighterRuntime = (): FighterRuntime => ({
@@ -180,6 +185,8 @@ export const createFighterRuntime = (): FighterRuntime => ({
   hurtbox: { x: 0.25, y: 1, z: 0.25 },
   grab: createGrabState(),
   thrown: null,
+  poise: null,
+  ownAttackSlot: false,
 })
 
 /** Busy with a move, a hit reaction, a dodge or a grab: the controller's movement and jumps are ignored. */

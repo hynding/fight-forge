@@ -7,6 +7,7 @@ import { nodeValue, overrideNode, type TreeNode } from '../../forge/tree'
 import { baseContent, editPack, exportBundle, type PackJson, type WorkspacePack } from '../../forge/workspace'
 import { useGameStore } from '../../store/gameStore'
 import { sectionHeading, ui } from './ui'
+import { AttacksTools } from './AttacksTools'
 
 type Json = Record<string, unknown>
 
@@ -46,7 +47,7 @@ interface Props {
   invalid: boolean
 }
 
-/** Enemy type tuning: stats and its AI archetype as sliders, and a sandbox fight against N of them. */
+/** Enemy type tuning: stats and its AI archetype as sliders, its attacks, and a sandbox fight against N of them. */
 export const EnemyTools = ({ pack, node, save, onError, invalid }: Props) => {
   const json = pack.json
   const type = String(node.path[1])
@@ -57,6 +58,10 @@ export const EnemyTools = ({ pack, node, save, onError, invalid }: Props) => {
   const sharedBy = Object.entries({ ...(baseContent().enemyTypes as Record<string, Json>), ...((json.enemyTypes ?? {}) as Record<string, Json>) }).filter(
     ([, t]) => t.ai === aiId
   ).length
+  const base = baseContent()
+  const enemySettings = ((json.settings as Json | undefined)?.enemy ?? (base.settings as Json).enemy) as Json
+  const defaultMove = String(enemySettings.attackMove)
+  const moveIds = Object.keys({ ...(base.moves as Json), ...((json.moves ?? {}) as Json) }).sort()
   const [count, setCount] = useState(3)
   const [busy, setBusy] = useState(false)
   const startSandbox = useGameStore((s) => s.startSandbox)
@@ -126,6 +131,14 @@ export const EnemyTools = ({ pack, node, save, onError, invalid }: Props) => {
         Object.entries(AI_SLIDERS).map(([key, range]) => (
           <Slider key={key} label={labelFor(key)} value={Number(ai[key] ?? 0)} range={range} onChange={(v) => setAi(key, v)} />
         ))}
+
+      <AttacksTools
+        enemy={enemy}
+        defaultMove={defaultMove}
+        moves={moveIds}
+        farReach={typeof ai?.farReach === 'number' ? ai.farReach : undefined}
+        onChange={(next) => save(editPack(pack, setIn(own(), node.path, next) as PackJson))}
+      />
     </div>
   )
 }

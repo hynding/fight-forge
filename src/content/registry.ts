@@ -412,6 +412,18 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
     const origin = `enemyType:${id}`
     expect('ai', t.ai, origin, `enemyTypes.${id}.ai`)
     expect('move', t.attackMove, origin, `enemyTypes.${id}.attackMove`)
+    const checkAttacks = (attacks: { move: string }[] | undefined, path: string) =>
+      attacks?.forEach((a, i) => expect('move', a.move, origin, `${path}[${i}].move`))
+    checkAttacks(t.attacks, `enemyTypes.${id}.attacks`)
+    t.boss?.phases.forEach((p, i) => {
+      const pp = `enemyTypes.${id}.boss.phases[${i}]`
+      const prev = t.boss!.phases[i - 1]
+      if (prev && p.below >= prev.below) err(origin, `${pp}.below`, `must be below the previous phase's ${prev.below}`)
+      expect('ai', p.ai, origin, `${pp}.ai`)
+      checkAttacks(p.attacks, `${pp}.attacks`)
+      expect('sound', p.taunt, origin, `${pp}.taunt`)
+      p.summon?.enemies.forEach((e, ei) => expect('enemyType', e.type, origin, `${pp}.summon.enemies[${ei}].type`))
+    })
     expect('pickup', t.drop?.pickup, origin, `enemyTypes.${id}.drop.pickup`)
     checkModel(t.model, origin, `enemyTypes.${id}.model`)
   }

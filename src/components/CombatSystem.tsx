@@ -11,6 +11,7 @@ import { interruptMove, movePhase } from '../sim/moves'
 import { applyBlockstun, applyHit, isInvulnerable } from '../sim/reactions'
 import { blockedHit, facesAttacker, isDodging } from '../sim/defense'
 import { rollDrop } from '../sim/pickups'
+import { poiseHit } from '../sim/boss'
 import { hurtEnemy } from './enemyDamage'
 import { combatTargets, scaledDamage } from '../sim/rules'
 import { propBox } from '../sim/props'
@@ -78,8 +79,8 @@ export const CombatSystem = ({
 
       // Read live store state; a render-time snapshot can lag the store by frames.
       const store = useGameStore.getState()
-      // Attack tokens: only an enemy holding one may hurt the player.
-      if (attackerName !== PLAYER && !store.attackTokens.holders.includes(attackerName)) return
+      // Attack tokens: only an enemy holding one (or with its own slot, a boss) may hurt the player.
+      if (attackerName !== PLAYER && !attacker.ownAttackSlot && !store.attackTokens.holders.includes(attackerName)) return
 
       const attackerBody = bodyOf(attackerName)
       if (!attackerBody) return
@@ -110,6 +111,7 @@ export const CombatSystem = ({
         const dir = knockbackDirection(a.x, t.x, attacker.facing.x)
         const v = targetBody.linvel()
         let damage = move.damage
+        let reaction = move.reaction
         const audio = getConfig().audio
         const guarded = target.blocking && facesAttacker(target.facing.x, t.x, a.x)
         if (guarded) playSound(audio.block)
@@ -121,14 +123,18 @@ export const CombatSystem = ({
           target.velocity = { x: dir * blocked.knockbackX, z: 0 }
           targetBody.setLinvel({ x: dir * blocked.knockbackX, y: v.y, z: 0 }, true)
           interruptMove(target.move)
-        } else if (move.reaction.knockdown || move.reaction.hitstun > target.armor) {
-          applyHit(target.reaction, move.reaction, getConfig().reactions)
-          const kb = move.reaction.knockback
-          target.velocity = { x: dir * kb.x, z: 0 }
-          targetBody.setLinvel({ x: dir * kb.x, y: kb.y > 0 ? kb.y : v.y, z: 0 }, true)
-          interruptMove(target.move)
+        } else {
+          // A boss's poise turns early knockdowns into staggers.
+          reaction = target.poise ? poiseHit(target.poise.state, target.poise.config, move.reaction) : move.reaction
+          if (reaction.knockdown || reaction.hitstun > target.armor) {
+            applyHit(target.reaction, reaction, getConfig().reactions)
+            const kb = reaction.knockback
+            target.velocity = { x: dir * kb.x, z: 0 }
+            targetBody.setLinvel({ x: dir * kb.x, y: kb.y > 0 ? kb.y : v.y, z: 0 }, true)
+            interruptMove(target.move)
+          }
+          // Otherwise super armor: the target takes the damage without flinching.
         }
-        // Otherwise super armor: the target takes the damage without flinching.
 
         // Hit-stop, shake, sparks, dust and the damage number.
         const shown = targetName === PLAYER ? scaledDamage(damage, rules.difficulty.damageTaken) : damage
@@ -140,7 +146,7 @@ export const CombatSystem = ({
           damage: shown,
           guarded,
           toPlayer: targetName === PLAYER,
-          down: (!guarded && !!move.reaction.knockdown) || knockedOut,
+          down: (!guarded && !!reaction.knockdown) || knockedOut,
         })
         const feelSettings = getConfig().feel
         rumble(

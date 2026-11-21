@@ -320,6 +320,45 @@ describe('bad packs: references', () => {
     ])
   })
 
+  it('checks attack lists and boss phases', () => {
+    const p = base()
+    const boss = {
+      title: 'BIG HARV',
+      poise: { hits: 3, window: 2 },
+      transition: { duration: 1, push: 6, radius: 3 },
+      phases: [
+        { below: 0.5, attacks: [{ move: 'slam', range: 'near' }], ai: 'ninja', taunt: 'roar' },
+        { below: 0.6, summon: { enemies: [{ type: 'GHOST', from: 'right' }] } },
+      ],
+    }
+    types(p).HEAVY.attacks = [{ move: 'jab', range: 'near' }, { move: 'charge', range: 'far', weight: 2, cooldown: 3 }]
+    types(p).HEAVY.boss = boss
+    expect(errorsOf(p).map((e) => `${e.path}: ${e.message}`).sort()).toEqual([
+      'enemyTypes.HEAVY.attacks[1].move: unknown move "charge"',
+      'enemyTypes.HEAVY.boss.phases[0].ai: unknown ai "ninja"',
+      'enemyTypes.HEAVY.boss.phases[0].attacks[0].move: unknown move "slam"',
+      'enemyTypes.HEAVY.boss.phases[0].taunt: unknown sound "roar"',
+      'enemyTypes.HEAVY.boss.phases[1].below: must be below the previous phase\'s 0.5',
+      'enemyTypes.HEAVY.boss.phases[1].summon.enemies[0].type: unknown enemyType "GHOST"',
+    ])
+  })
+
+  it('accepts a boss with attacks, phases and summons', () => {
+    const p = base()
+    types(p).HEAVY.attacks = [{ move: 'jab', range: 'near' }, { move: 'rushPunch', range: 'far', cooldown: 3 }]
+    types(p).HEAVY.boss = {
+      title: 'BIG HARV',
+      subtitle: 'Dock foreman',
+      poise: { hits: 3, window: 2 },
+      transition: { duration: 1, push: 6, radius: 3 },
+      phases: [
+        { below: 0.6, speed: 3, summon: { enemies: [{ type: 'FAST', from: 'right' }] } },
+        { below: 0.25, armor: 0.8, attacks: [{ move: 'shockwave', range: 'any' }] },
+      ],
+    }
+    expect(build(p).enemyTypes.HEAVY.boss?.phases).toHaveLength(2)
+  })
+
   it('catches a definition removed while still in use', () => {
     const p = base()
     delete (p.ai as Record<string, unknown>).tank
@@ -526,6 +565,11 @@ describe('key bindings', () => {
     expect(reg.settings.input.bindings.gamepad.grab).toEqual(['rs'])
     expect(reg.settings.input.actions.grab).toEqual({ enabled: true, trigger: 'contact' })
     expect(reg.settings.actions.grab).toEqual(DEFAULT_CONFIG.actions.grab)
+  })
+
+  it('loads a v8 pack unchanged (bosses only add optional fields)', () => {
+    const old = { ...addon({ enemyTypes: { BRUTE: clone(DEFAULT_CONFIG.enemyTypes.HEAVY) } }), schemaVersion: 8 }
+    expect(build(defaultPack(), old).enemyTypes.BRUTE).toEqual(DEFAULT_CONFIG.enemyTypes.HEAVY)
   })
 
   it('gives a v4 pack the analog and rumble defaults', () => {

@@ -17,6 +17,7 @@ export const ENEMY_SLIDERS: Record<string, [number, number, number]> = {
 export const AI_SLIDERS: Record<string, [number, number, number]> = {
   reach: [0.3, 5, 0.05],
   standOff: [0.3, 8, 0.1],
+  farReach: [1, 12, 0.1],
 }
 
 /**
