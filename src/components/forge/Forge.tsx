@@ -22,6 +22,7 @@ import { downloadBytes } from '../../utils/download'
 import { Field } from './SchemaForm'
 import { BindingsTools } from './BindingsTools'
 import { EnemyTools } from './EnemyTools'
+import { BossTools } from './BossTools'
 import { LevelTools } from './LevelTools'
 import { FighterTools } from './FighterTools'
 import { MoveTools } from './MoveTools'
@@ -388,6 +389,17 @@ export const Forge = () => {
                 save={(wp) => put(wp, false)}
                 onError={(text) => setMessage({ text, error: true })}
                 invalid={errors.length > 0}
+              />
+            )}
+            {node.group === 'enemyTypes' && (
+              <BossTools
+                key={`boss:${node.key}`}
+                pack={pack}
+                node={node}
+                save={(wp) => put(wp, false)}
+                onError={(text) => setMessage({ text, error: true })}
+                invalid={errors.length > 0}
+                errors={errorMap}
               />
             )}
             {(node.key === 'settings/player' || node.group === 'enemyTypes') && (

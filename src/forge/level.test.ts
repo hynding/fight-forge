@@ -71,6 +71,8 @@ describe('forge level editing', () => {
     expect(getObject(r.level, r.ref)).toMatchObject({ kind: 'wave', at: 10, lock: true })
     r = addObject(r.level, 2, { kind: 'prop', prop: 'barrel', depth: 0.33 })
     expect(getObject(r.level, r.ref)).toEqual({ at: 2, prop: 'barrel', depth: 0.35 })
+    r = addObject(r.level, 40, { kind: 'boss', enemy: 'HARV' })
+    expect(getObject(r.level, r.ref)).toEqual({ kind: 'boss', at: 20, enemy: 'HARV', from: 'right', intro: true })
     // The last enemy of a fight takes the fight with it.
     let l = removeObject(level(), { kind: 'enemy', seg: 0, index: 0, wave: 0, enemy: 0 })
     expect(l.segments[0].triggers).toHaveLength(1)

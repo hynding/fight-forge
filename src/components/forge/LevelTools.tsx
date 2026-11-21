@@ -74,6 +74,9 @@ export const LevelTools = ({ pack, node, save, onError, invalid, errors }: Props
   const [{ x: cursor, depth: cursorDepth }, setCursorState] = useState(lastCursor.get(node.key) ?? { x: spawnX, depth: 0.5 })
   const [busy, setBusy] = useState(false)
   const [enemyType, setEnemyType] = useState(Object.keys(enemyTypes)[0] ?? '')
+  const bossTypes = Object.keys(enemyTypes).filter((id) => !!(enemyTypes[id] as Json | undefined)?.boss)
+  const [bossTypePick, setBossType] = useState('')
+  const bossType = bossTypes.includes(bossTypePick) ? bossTypePick : (bossTypes[0] ?? '')
   const [pickup, setPickup] = useState(Object.keys(pickups)[0] ?? '')
   const [prop, setProp] = useState(Object.keys(props)[0] ?? '')
   const startSandbox = useGameStore((s) => s.startSandbox)
@@ -155,6 +158,15 @@ export const LevelTools = ({ pack, node, save, onError, invalid, errors }: Props
         <button style={ui.button} onClick={() => add({ kind: 'goal' })}>
           + Goal
         </button>
+        <button
+          style={ui.button}
+          disabled={bossTypes.length === 0}
+          title={bossTypes.length ? 'A boss fight; beating the boss ends the level' : 'Make an enemy type a boss first (its BOSS card)'}
+          onClick={() => add({ kind: 'boss', enemy: bossType })}
+        >
+          + Boss
+        </button>
+        {bossTypes.length > 0 && <IdSelect label="Boss enemy" ids={bossTypes} value={bossType} onChange={setBossType} />}
         <button style={ui.button} title="Cut the segment under the cursor in two" onClick={() => setLevel(splitSegment(level, cursor))}>
           Split segment
         </button>
@@ -300,7 +312,7 @@ export const LevelTools = ({ pack, node, save, onError, invalid, errors }: Props
       </div>
       <div style={{ color: '#667', marginTop: '3px' }}>
         Seen from above: left to right is the stage, the top is the back wall. Click to set the cursor, drag to move, drag a segment's end to resize it.
-        Fights: 🔒 holds the screen until cleared.
+        Fights: 🔒 holds the screen until cleared. 👑 is a boss fight.
       </div>
 
       {sel && selected !== undefined && (
@@ -312,6 +324,7 @@ export const LevelTools = ({ pack, node, save, onError, invalid, errors }: Props
           path={[...node.path, ...refPath(sel)]}
           errors={errors}
           enemyTypes={Object.keys(enemyTypes)}
+          bossTypes={bossTypes}
           pickups={Object.keys(pickups)}
           props={Object.keys(props)}
           onSelect={setSel}
@@ -353,6 +366,7 @@ const Selection = ({
   path,
   errors,
   enemyTypes,
+  bossTypes,
   pickups,
   props,
   onSelect,
@@ -365,6 +379,7 @@ const Selection = ({
   path: (string | number)[]
   errors: ReadonlyMap<string, string[]>
   enemyTypes: string[]
+  bossTypes: string[]
   pickups: string[]
   props: string[]
   onSelect: (ref: LevelRef) => void
@@ -393,6 +408,17 @@ const Selection = ({
     const t = value as Extract<Trigger, { kind: 'wave' }>
     title = 'Fight'
     quick = <WaveEditor trigger={t} sel={sel} enemyTypes={enemyTypes} onSelect={onSelect} set={set} />
+  } else if (sel.kind === 'trigger' && v.kind === 'boss') {
+    title = '👑 Boss fight'
+    quick = (
+      <>
+        <IdSelect label="Boss" ids={bossTypes} value={String(v.enemy)} onChange={(id) => set({ ...v, enemy: id })} />
+        <label>
+          <input type="checkbox" aria-label="Boss ends the level" checked={v.endsLevel !== false} onChange={(e) => set({ ...v, endsLevel: e.target.checked ? undefined : false })} />{' '}
+          Beating it ends the level
+        </label>
+      </>
+    )
   } else if (sel.kind === 'trigger') title = 'Goal'
   else if (sel.kind === 'item') {
     title = 'Pickup'

@@ -1,6 +1,6 @@
 # Plan: bosses
 
-Status: **accepted** (2026-11-21; Steve took the recommended answer to every decision in section 8). Expands the Phase 6 stretch goal "Bosses: scripted phases and health-bar UI driven by level triggers" (picked by Steve on 2026-11-21) into three PRs. B1 (attack patterns and the boss fighter) and B2 (boss trigger, HUD and the default boss; schema v10 for `feel.bossKo`) are built; B3 is next. The choices only Steve can make are in [section 8](#8-decisions-for-steve).
+Status: **accepted** (2026-11-21; Steve took the recommended answer to every decision in section 8). Expands the Phase 6 stretch goal "Bosses: scripted phases and health-bar UI driven by level triggers" (picked by Steve on 2026-11-21) into three PRs. All three milestones are built: B1 (attack patterns and the boss fighter), B2 (boss trigger, HUD and the default boss; schema v10 for `feel.bossKo`) and B3 (Forge boss tools). The choices only Steve can make are in [section 8](#8-decisions-for-steve).
 
 ## 1. Goal
 

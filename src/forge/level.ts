@@ -151,6 +151,7 @@ export const moveObject = (level: Level, ref: LevelRef, x: number, depth?: numbe
 export type NewObject =
   | { kind: 'wave'; enemyType: string }
   | { kind: 'goal' }
+  | { kind: 'boss'; enemy: string }
   | { kind: 'item'; pickup: string; depth?: number }
   | { kind: 'prop'; prop: string; depth?: number }
 
@@ -168,6 +169,8 @@ export const addObject = (level: Level, x: number, what: NewObject): { level: Le
     }
     case 'goal':
       return push('triggers', { kind: 'goal', at } satisfies Trigger, 'trigger')
+    case 'boss':
+      return push('triggers', { kind: 'boss', at, enemy: what.enemy, from: 'right', intro: true } satisfies Trigger, 'trigger')
     case 'item':
       return push('items', { at, pickup: what.pickup, depth: snapDepth(what.depth ?? 0.5) } satisfies LevelItem, 'item')
     case 'prop':
