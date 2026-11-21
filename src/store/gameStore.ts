@@ -86,6 +86,8 @@ interface GameState {
 
   // Actions
   damagePlayer: (damage: number) => void
+  /** Pay health for a move: never below 1, and never a lost life. */
+  spendHealth: (amount: number) => void
   healPlayer: (amount: number) => void
   addScore: (points: number) => void
   spawnEnemy: (enemy: Enemy) => void
@@ -213,6 +215,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   setPacks: (packs, contentError) => set({ packs, contentError }),
 
+  spendHealth: (amount) => set((s) => ({ playerHealth: Math.max(1, s.playerHealth - amount) })),
   damagePlayer: (damage) =>
     set((state) => {
       if (state.isGameOver || state.levelProgress.complete) return {}

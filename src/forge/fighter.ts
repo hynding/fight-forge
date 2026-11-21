@@ -118,12 +118,27 @@ export const effectiveMoves = (json: PackJson): Record<string, Json> => ({
   ...((json.moves ?? {}) as Record<string, Json>),
 })
 
-/** The player's light-attack chain: `lightAttack`, then each move's `next`, stopping at a loop or a missing move. */
+/**
+ * The moveset row that starts the light combo: the last plain attack (on the
+ * ground, any direction, no cost), the one a press falls through to.
+ */
+export const comboRoot = (moveset: readonly Json[]): number => {
+  for (let i = moveset.length - 1; i >= 0; i--) {
+    const t = moveset[i]
+    if (t.action === 'attack' && (t.when ?? 'ground') === 'ground' && t.direction === undefined && t.cost === undefined) return i
+  }
+  return -1
+}
+
+const playerOf = (json: PackJson): Json => (getIn(json, ['settings', 'player']) ?? baseContent().settings.player) as Json
+
+/** The player's light-attack chain: the combo root's move, then each move's `next`, stopping at a loop or a missing move. */
 export const comboChain = (json: PackJson): string[] => {
   const moves = effectiveMoves(json)
-  const player = (getIn(json, ['settings', 'player']) ?? baseContent().settings.player) as Json
+  const moveset = (playerOf(json).moveset ?? []) as Json[]
+  const root = comboRoot(moveset)
   const chain: string[] = []
-  let id = player.lightAttack as string | undefined
+  let id = root >= 0 ? (moveset[root].move as string | undefined) : undefined
   while (id && moves[id] && !chain.includes(id)) {
     chain.push(id)
     id = moves[id].next as string | undefined
@@ -132,17 +147,23 @@ export const comboChain = (json: PackJson): string[] => {
 }
 
 /**
- * Make `chain` the light-attack combo: the player's `lightAttack` is its first
- * move and each move's `next` the one after (the last has none). Default
- * moves and the player settings it touches are copied into the pack.
+ * Make `chain` the light-attack combo: the combo root's move (a plain attack
+ * row, added at the end if there is none) is its first move and each move's
+ * `next` the one after (the last has none). Default moves and the player
+ * settings it touches are copied into the pack.
  */
 export const setComboChain = (json: PackJson, chain: string[]): PackJson => {
   if (chain.length === 0) return json
   const moves = effectiveMoves(json)
   let out = json
-  const player = (getIn(json, ['settings', 'player']) ?? baseContent().settings.player) as Json
-  if (getIn(json, ['settings', 'player']) === undefined || player.lightAttack !== chain[0])
-    out = setIn(out, ['settings', 'player'], { ...structuredClone(player), lightAttack: chain[0] }) as PackJson
+  const player = playerOf(json)
+  const moveset = structuredClone((player.moveset ?? []) as Json[])
+  const root = comboRoot(moveset)
+  if (getIn(json, ['settings', 'player']) === undefined || root < 0 || moveset[root].move !== chain[0]) {
+    if (root < 0) moveset.push({ action: 'attack', move: chain[0] })
+    else moveset[root] = { ...moveset[root], move: chain[0] }
+    out = setIn(out, ['settings', 'player'], { ...structuredClone(player), moveset }) as PackJson
+  }
   chain.forEach((id, i) => {
     const move = moves[id]
     if (!move) return

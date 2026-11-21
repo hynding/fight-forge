@@ -4,7 +4,8 @@ import { useGameStore } from '../store/gameStore'
 import { getConfig } from '../content/active'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
-import { interruptMove, stepMoveRunner } from '../sim/moves'
+import { interruptMove, stepMoves } from '../sim/moves'
+import { createChordBuffer, matchTrigger, MOVESET_ACTIONS, relativeDirection, stepChords, type Direction, type MoveTrigger } from '../sim/moveset'
 import { createRunDetector, stepRunDetector } from '../sim/defense'
 import { inputIntent } from '../sim/controllers'
 import { frameControls } from '../sim/actions'
@@ -41,6 +42,15 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   const [runDetector] = useState(createRunDetector)
   // One air attack per jump.
   const airAttackUsed = useRef(false)
+  // Moveset input, worked out in the fighter step (before it turns) and used by the attack system.
+  const [chords] = useState(createChordBuffer)
+  const presses = useRef<string[]>([])
+  const direction = useRef<Direction | null>(null)
+  const facingBefore = useRef(1)
+  // When the fighter last turned round, and which way it faced before.
+  const turn = useRef({ seen: 1, at: -Infinity, from: 1 })
+  // Game time each trigger (by index) can fire again.
+  const cooldowns = useRef(new Map<number, number>())
   const respawnSeen = useRef(useGameStore.getState().respawnCount)
   const playerHealth = useGameStore((state) => state.playerHealth)
 
@@ -75,14 +85,40 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
     const intent = runtime.intent
     if (runtime.grounded) airAttackUsed.current = false
     const inAir = !runtime.grounded
-    // Which move a fresh press starts: in the air, running, or the light combo.
-    const first = inAir ? P.jumpAttack : intent?.run ? P.dashAttack : P.lightAttack
-    const wants =
-      (intent?.attack ?? false) &&
-      runtime.reaction.kind === null &&
-      !runtime.blocking &&
-      !(inAir && airAttackUsed.current)
-    const event = stepMoveRunner(runtime.move, wants, dt, config.moves, first)
+    const stepPresses = presses.current
+    presses.current = []
+    // A press while free starts the first moveset trigger it matches; during a
+    // move it's buffered for the move's `next` or `branches`.
+    let press: string | null = null
+    let trigger: MoveTrigger | null = null
+    let index = -1
+    if (runtime.move.move !== null) press = stepPresses[0] ?? null
+    else if (runtime.reaction.kind === null && !(inAir && airAttackUsed.current)) {
+      const playerHealth = useGameStore.getState().playerHealth
+      const ctx = {
+        air: inAir,
+        running: !!intent?.run,
+        blocking: runtime.blocking,
+        direction: direction.current,
+        canPay: (t: MoveTrigger, i: number) =>
+          (t.cost?.health === undefined || playerHealth > t.cost.health) && (cooldowns.current.get(i) ?? -Infinity) <= loop.time,
+      }
+      for (const p of stepPresses) {
+        index = matchTrigger(P.moveset, p, ctx)
+        if (index >= 0) {
+          press = p
+          trigger = P.moveset[index]
+          break
+        }
+      }
+    }
+    const event = stepMoves(runtime.move, press, dt, config.moves, trigger?.move ?? null)
+    if (event === 'started' && trigger) {
+      if (trigger.cost?.health) useGameStore.getState().spendHealth(trigger.cost.health)
+      if (trigger.cost?.cooldown) cooldowns.current.set(index, loop.time + trigger.cost.cooldown)
+      // A move for "away" comes out behind without turning round.
+      if (trigger.direction === 'away') runtime.facing.x = facingBefore.current
+    }
     if (event === 'started' && inAir) airAttackUsed.current = true
     // Also catches a move that combat interrupted.
     const attacking = runtime.move.move !== null
@@ -108,11 +144,30 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       isAttacking={isAttacking}
       getIntent={() => {
         const frame = input.frame
-        const intent = inputIntent(frameControls(frame))
+        const controls = frameControls(frame)
+        // Actions in a chord wait briefly to see if the chord completes.
+        const chord = stepChords(
+          chords,
+          new Set(MOVESET_ACTIONS.filter((a) => frame.pressed[a])),
+          new Set(MOVESET_ACTIONS.filter((a) => frame.held[a])),
+          loop.time,
+          config.input.chordWindow,
+          P.moveset
+        )
+        for (const a of chord.hidden) controls[a] = false
+        for (const a of chord.tapped) controls[a] = true
+        const intent = inputIntent(controls)
         // A stick walks at its tilt and runs when pushed past the threshold.
         if (frame.analog) intent.move = frame.move
         const pushed = frame.analog && Math.hypot(frame.move.x, frame.move.z) >= config.input.analog.runThreshold
         intent.run = stepRunDetector(runDetector, intent.move.x, loop.time, config.actions.run) || pushed
+        presses.current = chord.presses
+        // Back + attack pressed together: the fighter turns on the first step
+        // the direction is held, so judge "away" against the facing before a recent turn.
+        if (runtime.facing.x !== turn.current.seen) turn.current = { seen: runtime.facing.x, at: loop.time, from: turn.current.seen }
+        const recent = loop.time - turn.current.at <= config.input.turnGrace
+        facingBefore.current = recent ? turn.current.from : runtime.facing.x
+        direction.current = relativeDirection(intent.move, facingBefore.current)
         return intent
       }}
       isDead={() => useGameStore.getState().playerHealth <= 0}

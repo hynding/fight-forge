@@ -81,10 +81,10 @@ describe('pack library', () => {
     // `needs-move` uses a move that only `has-move` defines; disabling `has-move` breaks it.
     const move = { ...DEFAULT_CONTENT.config.moves.jab, damage: 1 }
     await installBundle(await tiny('has-move', { moves: { poke: move } }))
-    await installBundle(await tiny('needs-move', { settings: { player: { ...DEFAULT_CONTENT.config.player, lightAttack: 'poke' } } }))
+    await installBundle(await tiny('needs-move', { settings: { player: { ...DEFAULT_CONTENT.config.player, moveset: [{ action: 'attack', move: 'poke' }] } } }))
     expect(loadActivePacks().ok).toBe(true)
     setPackEnabled('has-move', false)
-    expect(useGameStore.getState().contentError).toBe('[needs-move] settings.player.lightAttack: unknown move "poke"')
+    expect(useGameStore.getState().contentError).toBe('[needs-move] settings.player.moveset[0].move: unknown move "poke"')
     setPackEnabled('has-move', true)
     expect(useGameStore.getState().contentError).toBeNull()
   })

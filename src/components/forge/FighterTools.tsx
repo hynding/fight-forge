@@ -7,6 +7,8 @@ import { editPack, type PackJson, type WorkspacePack } from '../../forge/workspa
 import { ONE_SHOT_STATES, resolveClip, type ClipMap } from '../../sim/animation'
 import type { FighterStateName } from '../../sim/fighter'
 import { ModelPreview } from './ModelPreview'
+import { MovesetTools } from './MovesetTools'
+import type { Moveset } from '../../sim/moveset'
 import { sectionHeading, ui } from './ui'
 import { usePreviewModel } from './useModelUrl'
 
@@ -25,7 +27,7 @@ interface Props {
 /**
  * Fighter tools for the player and enemy types: a 3D preview of the model in
  * any state, importing a .glb into the pack, fitting it to the body, mapping
- * its animation clips to states, and (for the player) the light-attack combo.
+ * its animation clips to states, and (for the player) the moveset and the light-attack combo.
  */
 export const FighterTools = ({ pack, node, save, onError }: Props) => {
   const json = pack.json
@@ -155,6 +157,13 @@ export const FighterTools = ({ pack, node, save, onError }: Props) => {
         </>
       )}
 
+      {isPlayer && (
+        <MovesetTools
+          moveset={(fighter.moveset ?? []) as Moveset}
+          moves={Object.keys(effectiveMoves(json))}
+          onChange={(moveset) => setFighter({ ...fighter, moveset })}
+        />
+      )}
       {isPlayer && <ComboEditor json={json} onChange={(next) => save(editPack(pack, next))} />}
     </div>
   )
@@ -206,7 +215,7 @@ const ComboEditor = ({ json, onChange }: { json: PackJson; onChange: (json: Pack
             ))}
         </select>
       </div>
-      <div style={{ color: '#667', marginTop: '3px' }}>Each press of attack during a move's cancel window goes to the next move.</div>
+      <div style={{ color: '#667', marginTop: '3px' }}>The plain attack row starts this combo; each press of attack during a move's cancel window goes to the next move.</div>
     </div>
   )
 }

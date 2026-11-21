@@ -1,3 +1,4 @@
+import type { Moveset } from '../sim/moveset'
 import type { ClipMap } from '../sim/animation'
 import type { MoveSet } from '../sim/moves'
 import type { ReactionConfig } from '../sim/reactions'
@@ -110,12 +111,11 @@ export interface GameConfig {
     /** Velocity multiplier per 60 Hz frame while no direction is held. */
     deceleration: number
     linearDamping: number
-    /** First move of the light-attack combo (J); the rest chain through each move's `next`. */
-    lightAttack: string
-    /** J in the air (once per jump). */
-    jumpAttack: string
-    /** J while running (double-tap a direction). */
-    dashAttack: string
+    /**
+     * Which move each press starts: the first matching trigger wins. Combos
+     * then chain through each move's `next` (and `branches`). One air move per jump.
+     */
+    moveset: Moveset
   }
   enemy: {
     /** Base aggro radius, multiplied by the type's aggression. */
@@ -213,6 +213,13 @@ export interface GameConfig {
     bindings: DeviceBindings
     /** Analog sticks: no movement inside `deadZone` (0-1); past `runThreshold` the fighter runs. */
     analog: { deadZone: number; runThreshold: number }
+    /** Seconds within which a chord's actions count as pressed together. */
+    chordWindow: number
+    /**
+     * Seconds after turning round during which a held direction still counts
+     * against the old facing, so back + attack pressed together is an `away` move.
+     */
+    turnGrace: number
   }
   /** Items by name, placed by levels or dropped by enemies. */
   pickups: Record<string, PickupDef>

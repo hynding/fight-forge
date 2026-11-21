@@ -41,9 +41,7 @@ describe('DEFAULT_CONFIG', () => {
     const enemyMoves = Object.values(DEFAULT_CONFIG.enemyTypes).flatMap((t) => (t.attackMove ? [t.attackMove] : []))
     expect(
       validateMoves(moves, [
-        player.lightAttack,
-        player.jumpAttack,
-        player.dashAttack,
+        ...player.moveset.map((t) => t.move),
         enemy.attackMove,
         ...enemyMoves,
       ])

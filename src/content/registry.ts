@@ -11,6 +11,7 @@ import type { Level } from '../sim/level'
 import { cancelTime, moveDuration } from '../sim/moves'
 import { migratePack } from './migrations'
 import { bindingConflicts, DEVICES } from '../sim/input'
+import { pressKeys, triggerActions } from '../sim/moveset'
 import {
   packSchema,
   type AiBehaviorDef,
@@ -362,8 +363,13 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
   }
 
   const { player, enemy } = reg.settings
-  for (const key of ['lightAttack', 'jumpAttack', 'dashAttack'] as const)
-    expect('move', player[key], 'settings:player', `settings.player.${key}`)
+  // Each trigger's move exists, and a chord names different actions.
+  player.moveset.forEach((t, i) => {
+    expect('move', t.move, 'settings:player', `settings.player.moveset[${i}].move`)
+    const actions = triggerActions(t)
+    if (new Set(actions).size !== actions.length) err('settings:player', `settings.player.moveset[${i}].action`, 'a chord needs different actions')
+  })
+  const presses = new Set(pressKeys(player.moveset))
   checkModel(player.model, 'settings:player', 'settings.player.model')
   expect('move', enemy.attackMove, 'settings:enemy', 'settings.enemy.attackMove')
   // An input does one thing per device; the keyboard must be able to play the
@@ -390,6 +396,10 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
   for (const [id, m] of Object.entries(reg.moves)) {
     const origin = `move:${id}`
     expect('move', m.next, origin, `moves.${id}.next`)
+    for (const [press, target] of Object.entries(m.branches ?? {})) {
+      if (!presses.has(press)) err(origin, `moves.${id}.branches.${press}`, `"${press}" isn't an action or a chord the player's moveset uses`)
+      expect('move', target, origin, `moves.${id}.branches.${press}`)
+    }
     expect('sound', m.sound, origin, `moves.${id}.sound`)
     expect('sound', m.hitSound, origin, `moves.${id}.hitSound`)
     const cancel = cancelTime(m)

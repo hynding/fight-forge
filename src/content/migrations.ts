@@ -75,6 +75,27 @@ export const MIGRATIONS: MigrationTable = {
       next.feel = { rumble: { enabled: true, base: 0.25, perDamage: 0.02, max: 0.8, duration: 0.15, dealt: 0.4, ko: 0.6 }, ...(settings.feel as Json) }
     return { ...pack, settings: next }
   },
+  // v6: the player's three attack slots became a moveset (air, running, then
+  // the light combo, which is how they were picked), and `input` gained the chord window and turn grace.
+  5: (pack) => {
+    const settings = pack.settings as Json | undefined
+    if (!settings || (!settings.player && !settings.input)) return pack
+    const next = { ...settings }
+    const player = settings.player as Json | undefined
+    if (player && !('moveset' in player)) {
+      const { lightAttack, jumpAttack, dashAttack, ...rest } = player
+      next.player = {
+        ...rest,
+        moveset: [
+          { action: 'attack', when: 'air', move: jumpAttack },
+          { action: 'attack', when: 'running', move: dashAttack },
+          { action: 'attack', move: lightAttack },
+        ],
+      }
+    }
+    if (settings.input) next.input = { chordWindow: 0.06, turnGrace: 0.12, ...(settings.input as Json) }
+    return { ...pack, settings: next }
+  },
 }
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }
