@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react'
-import { getBindings, getOverride, getPackBindings, setOverride } from '../content/bindings'
-import { ACTION_NAMES, INPUT_ACTIONS, actionLabel, rebind, type InputAction } from '../sim/input'
+import { getBindings, getOverride, getPackBindings, setDeviceOverride } from '../content/bindings'
+import { bindKey, unbindKey } from '../forge/bindings'
+import {
+  ACTION_NAMES,
+  GAMEPAD_INPUTS,
+  INPUT_ACTIONS,
+  MOUSE_BUTTONS,
+  actionLabel,
+  inputLabel,
+  rebind,
+  type InputAction,
+  type InputDevice,
+} from '../sim/input'
 import { VolumeControls } from './VolumeControls'
 
 const small = {
@@ -20,9 +31,19 @@ const small = {
  * run. Choosing CHANGE then pressing a key binds it to that action alone,
  * taking it off any other action.
  */
+type Tab = 'keyboard' | 'gamepad'
+
+/**
+ * Remapping on the start menu, per device. The pack sets the defaults;
+ * changes here are this browser's preference (localStorage) and apply to the
+ * next run. On the keyboard & mouse tab, CHANGE then a key or a mouse button
+ * (or the wheel) binds it to that action alone, taking it off any other
+ * action. The controller tab adds and removes buttons from lists.
+ */
 export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
   const [open, setOpen] = useState(false)
   const [soundOpen, setSoundOpen] = useState(false)
+  const [tab, setTab] = useState<Tab>('keyboard')
   const [listening, setListening] = useState<InputAction | null>(null)
   // The bindings live outside React; bump to re-render after a change.
   const [, setVersion] = useState(0)
@@ -30,24 +51,56 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
     setVersion((v) => v + 1)
     onChange()
   }
+  const rebindOn = (device: InputDevice, action: InputAction, input: string) => {
+    setDeviceOverride(device, rebind(getOverride()[device] ?? {}, getPackBindings()[device], action, input))
+    setListening(null)
+    changed()
+  }
 
   useEffect(() => {
     if (!listening) return
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault()
       e.stopPropagation()
-      setOverride(rebind(getOverride(), getPackBindings(), listening, e.key))
-      setListening(null)
-      changed()
+      rebindOn('keyboard', listening, e.key)
     }
-    // Capture, so the key never reaches anything else on the page.
+    const onMouse = (e: MouseEvent) => {
+      // The row's CANCEL button cancels instead of binding the click.
+      if ((e.target as Element | null)?.closest?.('[data-cancel-capture]')) return
+      const button = MOUSE_BUTTONS[e.button]
+      if (!button) return
+      e.preventDefault()
+      e.stopPropagation()
+      rebindOn('mouse', listening, button)
+    }
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return
+      e.preventDefault()
+      rebindOn('mouse', listening, e.deltaY < 0 ? 'wheelup' : 'wheeldown')
+    }
+    const noMenu = (e: Event) => e.preventDefault()
+    // Capture, so the input never reaches anything else on the page.
     window.addEventListener('keydown', onKey, { capture: true })
-    return () => window.removeEventListener('keydown', onKey, { capture: true })
+    window.addEventListener('mousedown', onMouse, { capture: true })
+    window.addEventListener('wheel', onWheel, { capture: true, passive: false })
+    window.addEventListener('contextmenu', noMenu, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', onKey, { capture: true })
+      window.removeEventListener('mousedown', onMouse, { capture: true })
+      window.removeEventListener('wheel', onWheel, { capture: true })
+      window.removeEventListener('contextmenu', noMenu, { capture: true })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listening])
 
   const bindings = getBindings()
-  const customized = Object.keys(getOverride()).length > 0
+  const override = getOverride()
+  const customized = Object.keys(override).length > 0
+  const tabCustomized = tab === 'keyboard' ? !!(override.keyboard || override.mouse) : !!override.gamepad
+  const setPad = (next: typeof bindings.gamepad) => {
+    setDeviceOverride('gamepad', next)
+    changed()
+  }
 
   return (
     <div
@@ -56,7 +109,7 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
         position: 'absolute',
         top: '20px',
         left: '20px',
-        width: open || soundOpen ? '320px' : 'auto',
+        width: open || soundOpen ? '340px' : 'auto',
         maxHeight: 'calc(100vh - 40px)',
         overflowY: 'auto',
         padding: '14px',
@@ -79,30 +132,94 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
       </button>
       {open && (
         <div style={{ marginTop: '10px' }}>
-          {INPUT_ACTIONS.map((action) => (
-            <div key={action} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <span style={{ flex: 1, color: '#bbbbbb' }}>{ACTION_NAMES[action]}</span>
-              <span style={{ minWidth: '90px', textAlign: 'right' }}>
-                {listening === action ? 'press a key…' : actionLabel(bindings, action)}
-              </span>
+          <div role="tablist" style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+            {(
+              [
+                ['keyboard', 'KEYBOARD & MOUSE'],
+                ['gamepad', 'CONTROLLER'],
+              ] as const
+            ).map(([id, label]) => (
               <button
-                style={small}
-                aria-label={`Change ${ACTION_NAMES[action]}`}
-                onClick={() => setListening(listening === action ? null : action)}
+                key={id}
+                role="tab"
+                aria-selected={tab === id}
+                style={{ ...small, color: tab === id ? '#ffd27a' : '#aaaaaa', borderColor: tab === id ? '#ffd27a' : '#555555' }}
+                onClick={() => {
+                  setTab(id)
+                  setListening(null)
+                }}
               >
-                {listening === action ? 'CANCEL' : 'CHANGE'}
+                {label}
               </button>
-            </div>
-          ))}
+            ))}
+          </div>
+          {tab === 'keyboard' &&
+            INPUT_ACTIONS.map((action) => {
+              const mouse = bindings.mouse[action].length ? actionLabel(bindings.mouse, action, 'mouse') : ''
+              const keys = bindings.keyboard[action].length ? actionLabel(bindings.keyboard, action) : ''
+              return (
+                <div key={action} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span style={{ flex: 1, color: '#bbbbbb' }}>{ACTION_NAMES[action]}</span>
+                  <span style={{ minWidth: '110px', textAlign: 'right' }}>
+                    {listening === action ? 'press a key or click…' : [keys, mouse].filter(Boolean).join(' / ') || '—'}
+                  </span>
+                  <button
+                    style={small}
+                    data-cancel-capture={listening === action ? '' : undefined}
+                    aria-label={`Change ${ACTION_NAMES[action]}`}
+                    onClick={() => setListening(listening === action ? null : action)}
+                  >
+                    {listening === action ? 'CANCEL' : 'CHANGE'}
+                  </button>
+                </div>
+              )
+            })}
+          {tab === 'gamepad' && (
+            <>
+              <div style={{ color: '#888888', marginBottom: '8px' }}>Button names follow the Xbox layout (A is the bottom face button).</div>
+              {INPUT_ACTIONS.map((action) => (
+                <div key={action} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ flex: '1 0 120px', color: '#bbbbbb' }}>{ACTION_NAMES[action]}</span>
+                  {bindings.gamepad[action].map((b) => (
+                    <button
+                      key={b}
+                      style={{ ...small, padding: '1px 5px' }}
+                      aria-label={`Remove ${inputLabel('gamepad', b)} from ${ACTION_NAMES[action]}`}
+                      onClick={() => setPad(unbindKey(bindings.gamepad, action, b))}
+                    >
+                      {inputLabel('gamepad', b)} ×
+                    </button>
+                  ))}
+                  <select
+                    style={{ ...small, padding: '1px 2px' }}
+                    aria-label={`Add a button to ${ACTION_NAMES[action]}`}
+                    value=""
+                    onChange={(e) => e.target.value && setPad(bindKey(bindings.gamepad, action, e.target.value))}
+                  >
+                    <option value="">+</option>
+                    {GAMEPAD_INPUTS.filter((b) => !bindings.gamepad[action].includes(b)).map((b) => (
+                      <option key={b} value={b}>
+                        {inputLabel('gamepad', b)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </>
+          )}
           <button
             style={{ ...small, marginTop: '6px' }}
-            disabled={!customized}
+            disabled={!tabCustomized}
             onClick={() => {
-              setOverride({})
+              if (tab === 'keyboard') {
+                setDeviceOverride('keyboard', {})
+                setDeviceOverride('mouse', {})
+              } else setDeviceOverride('gamepad', {})
+              setListening(null)
               changed()
             }}
           >
-            Reset to pack defaults
+            Reset this device
           </button>
         </div>
       )}

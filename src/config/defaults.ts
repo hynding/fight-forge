@@ -5,7 +5,7 @@ import type { ActionsConfig } from '../sim/defense'
 import type { AiBehavior } from '../sim/controllers'
 import { DEFAULT_CONTENT } from '../content/defaultContent'
 import type { DropDef, PickupDef } from '../sim/pickups'
-import type { Bindings } from '../sim/input'
+import type { DeviceBindings } from '../sim/input'
 import type { BackdropLayer } from '../sim/backdrop'
 import type { PropDef } from '../sim/props'
 import type { AudioSettings, MusicDef, SoundDef } from '../audio/types'
@@ -208,9 +208,9 @@ export interface GameConfig {
       enemyHealth: number
     }
   }
-  /** Key bindings (lowercase `KeyboardEvent.key` values); the player can remap them. */
+  /** Bindings per device (keyboard keys as lowercase `KeyboardEvent.key` values, mouse buttons, gamepad buttons); the player can remap them. */
   input: {
-    bindings: Bindings
+    bindings: DeviceBindings
   }
   /** Items by name, placed by levels or dropped by enemies. */
   pickups: Record<string, PickupDef>

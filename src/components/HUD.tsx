@@ -167,9 +167,9 @@ export const HUD = ({ input }: { input: InputManager }) => {
 
       {/* Controls */}
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
-        {controlsHelp(getBindings(), true)}
+        {controlsHelp(getBindings().keyboard, true)}
         <br />
-        {actionLabel(getBindings(), 'hitboxes')} - Hitboxes{showHitboxes ? ' (ON)' : ''}
+        {actionLabel(getBindings().keyboard, 'hitboxes')} - Hitboxes{showHitboxes ? ' (ON)' : ''}
       </div>
 
       {/* Game over / level results */}

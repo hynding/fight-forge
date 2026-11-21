@@ -279,40 +279,94 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   },
   "input": {
     "bindings": {
-      "attack": [
-        "j",
-      ],
-      "backward": [
-        "s",
-        "arrowdown",
-      ],
-      "block": [
-        "k",
-      ],
-      "dodge": [
-        "shift",
-      ],
-      "forward": [
-        "w",
-        "arrowup",
-      ],
-      "hitboxes": [
-        "h",
-      ],
-      "jump": [
-        " ",
-      ],
-      "left": [
-        "a",
-        "arrowleft",
-      ],
-      "pause": [
-        "escape",
-      ],
-      "right": [
-        "d",
-        "arrowright",
-      ],
+      "gamepad": {
+        "attack": [
+          "x",
+        ],
+        "backward": [
+          "down",
+          "ls-down",
+        ],
+        "block": [
+          "lb",
+          "lt",
+        ],
+        "dodge": [
+          "rb",
+          "rt",
+        ],
+        "forward": [
+          "up",
+          "ls-up",
+        ],
+        "hitboxes": [],
+        "jump": [
+          "a",
+        ],
+        "left": [
+          "left",
+          "ls-left",
+        ],
+        "pause": [
+          "start",
+        ],
+        "right": [
+          "right",
+          "ls-right",
+        ],
+      },
+      "keyboard": {
+        "attack": [
+          "j",
+        ],
+        "backward": [
+          "s",
+          "arrowdown",
+        ],
+        "block": [
+          "k",
+        ],
+        "dodge": [
+          "shift",
+        ],
+        "forward": [
+          "w",
+          "arrowup",
+        ],
+        "hitboxes": [
+          "h",
+        ],
+        "jump": [
+          " ",
+        ],
+        "left": [
+          "a",
+          "arrowleft",
+        ],
+        "pause": [
+          "escape",
+        ],
+        "right": [
+          "d",
+          "arrowright",
+        ],
+      },
+      "mouse": {
+        "attack": [
+          "left",
+        ],
+        "backward": [],
+        "block": [
+          "right",
+        ],
+        "dodge": [],
+        "forward": [],
+        "hitboxes": [],
+        "jump": [],
+        "left": [],
+        "pause": [],
+        "right": [],
+      },
     },
   },
   "moves": {

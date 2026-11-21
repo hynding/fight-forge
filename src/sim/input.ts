@@ -1,7 +1,8 @@
-// Input bindings: which keys drive which action. Bindings come from the
-// content (`input.bindings`), with the player's own remapping layered on top.
-// Keys are `KeyboardEvent.key` values, lowercased (so Shift+W and Caps Lock
-// still map). Pure TS.
+// Input bindings: which inputs drive which action, per device. Bindings come
+// from the content (`input.bindings`, one map per device), with the player's
+// own remapping layered on top. Keyboard inputs are `KeyboardEvent.key`
+// values, lowercased (so Shift+W and Caps Lock still map); mouse and gamepad
+// inputs are the names in MOUSE_INPUTS and GAMEPAD_INPUTS. Pure TS.
 
 export const INPUT_ACTIONS = [
   'left',
@@ -18,11 +19,42 @@ export const INPUT_ACTIONS = [
 
 export type InputAction = (typeof INPUT_ACTIONS)[number]
 
-/** Action to keys. Every action has at least one key. */
+/** One device's bindings: action to inputs (keys, buttons). */
 export type Bindings = Record<InputAction, string[]>
 
-/** The player's remapping: actions they changed, each to its full new key list. */
+/** The player's remapping of one device: actions they changed, each to its full new input list. */
 export type BindingOverride = Partial<Bindings>
+
+export const DEVICES = ['keyboard', 'mouse', 'gamepad'] as const
+export type InputDevice = (typeof DEVICES)[number]
+
+/** Bindings for every device. */
+export type DeviceBindings = Record<InputDevice, Bindings>
+
+/** The player's remapping, per device. */
+export type DeviceOverride = Partial<Record<InputDevice, BindingOverride>>
+
+/** Mouse inputs: buttons and the wheel. */
+export const MOUSE_INPUTS = ['left', 'right', 'middle', 'back', 'forward', 'wheelup', 'wheeldown'] as const
+
+/** `MouseEvent.button` to mouse input. */
+export const MOUSE_BUTTONS: readonly string[] = ['left', 'middle', 'right', 'back', 'forward']
+
+/** Gamepad inputs, by W3C standard-mapping position (Xbox names), plus stick directions. */
+export const GAMEPAD_INPUTS = [
+  'a', 'b', 'x', 'y', 'lb', 'rb', 'lt', 'rt', 'select', 'start', 'ls', 'rs', 'up', 'down', 'left', 'right', 'home',
+  'ls-left', 'ls-right', 'ls-up', 'ls-down', 'rs-left', 'rs-right', 'rs-up', 'rs-down',
+] as const
+
+/** A non-standard pad's raw inputs: button `b7`, axis direction `axis2+`. */
+export const RAW_PAD_INPUT = /^(b\d{1,2}|axis\d{1,2}[+-])$/
+
+export const isPadInput = (name: string): boolean => (GAMEPAD_INPUTS as readonly string[]).includes(name) || RAW_PAD_INPUT.test(name)
+
+const PREFIX: Record<InputDevice, string> = { keyboard: 'key', mouse: 'mouse', gamepad: 'pad' }
+
+/** The sampler's name for an input on a device: `key:j`, `mouse:left`, `pad:a`. */
+export const inputName = (device: InputDevice, name: string): string => `${PREFIX[device]}:${normalizeKey(name)}`
 
 export const normalizeKey = (key: string): string => key.toLowerCase()
 
@@ -52,6 +84,13 @@ export const bindingConflicts = (bindings: Bindings): { key: string; actions: In
   return [...byKey].filter(([, actions]) => actions.length > 1).map(([key, actions]) => ({ key, actions }))
 }
 
+/** Every device's pack bindings with the player's changes on top. */
+export const mergeDeviceBindings = (base: DeviceBindings, override: DeviceOverride = {}): DeviceBindings => ({
+  keyboard: mergeBindings(base.keyboard, override.keyboard),
+  mouse: mergeBindings(base.mouse, override.mouse),
+  gamepad: mergeBindings(base.gamepad, override.gamepad),
+})
+
 /** Rebind one action to a single key, taking that key off any other action. Returns the new override. */
 export const rebind = (override: BindingOverride, base: Bindings, action: InputAction, key: string): BindingOverride => {
   const k = normalizeKey(key)
@@ -79,9 +118,36 @@ const LABELS: Record<string, string> = {
 /** How a key is shown on screen. */
 export const keyLabel = (key: string): string => LABELS[normalizeKey(key)] ?? key.toUpperCase()
 
+const MOUSE_LABELS: Record<string, string> = {
+  left: 'MOUSE L',
+  right: 'MOUSE R',
+  middle: 'MOUSE M',
+  back: 'MOUSE 4',
+  forward: 'MOUSE 5',
+  wheelup: 'WHEEL ↑',
+  wheeldown: 'WHEEL ↓',
+}
+
+const ARROWS: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓' }
+
+const padLabel = (name: string): string => {
+  const stick = /^(ls|rs)-(left|right|up|down)$/.exec(name)
+  if (stick) return `${stick[1].toUpperCase()} ${ARROWS[stick[2]]}`
+  if (ARROWS[name]) return `D-PAD ${ARROWS[name]}`
+  const raw = /^b(\d+)$/.exec(name)
+  if (raw) return `BUTTON ${raw[1]}`
+  const axis = /^axis(\d+)([+-])$/.exec(name)
+  if (axis) return `AXIS ${axis[1]}${axis[2]}`
+  return name.toUpperCase()
+}
+
+/** How an input on a device is shown on screen. */
+export const inputLabel = (device: InputDevice, name: string): string =>
+  device === 'keyboard' ? keyLabel(name) : device === 'mouse' ? (MOUSE_LABELS[name] ?? name.toUpperCase()) : padLabel(name)
+
 /** All of an action's keys for display, e.g. "A / ←", or "—" if unbound. */
-export const actionLabel = (bindings: Bindings, action: InputAction): string =>
-  bindings[action].length ? bindings[action].map(keyLabel).join(' / ') : '—'
+export const actionLabel = (bindings: Bindings, action: InputAction, device: InputDevice = 'keyboard'): string =>
+  bindings[action].length ? bindings[action].map((k) => inputLabel(device, k)).join(' / ') : '—'
 
 /** The one-line controls help, from each action's first key. */
 export const controlsHelp = (b: Bindings, combo = false): string => {

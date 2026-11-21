@@ -10,7 +10,7 @@ import type { MusicDef, SoundDef } from '../audio/types'
 import type { Level } from '../sim/level'
 import { cancelTime, moveDuration } from '../sim/moves'
 import { migratePack } from './migrations'
-import { bindingConflicts } from '../sim/input'
+import { bindingConflicts, DEVICES } from '../sim/input'
 import {
   packSchema,
   type AiBehaviorDef,
@@ -366,10 +366,16 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
     expect('move', player[key], 'settings:player', `settings.player.${key}`)
   checkModel(player.model, 'settings:player', 'settings.player.model')
   expect('move', enemy.attackMove, 'settings:enemy', 'settings.enemy.attackMove')
-  for (const { key, actions } of bindingConflicts(reg.settings.input.bindings))
-    err('settings:input', 'settings.input.bindings', `"${key}" is bound to both ${actions.join(' and ')}`)
+  // An input does one thing per device; the keyboard must be able to play the
+  // game on its own, and a gamepad must at least move and pause.
+  const bindings = reg.settings.input.bindings
+  for (const device of DEVICES)
+    for (const { key, actions } of bindingConflicts(bindings[device]))
+      err('settings:input', `settings.input.bindings.${device}`, `"${key}" is bound to both ${actions.join(' and ')}`)
   for (const action of ['left', 'right', 'attack', 'pause'] as const)
-    if (reg.settings.input.bindings[action].length === 0) err('settings:input', `settings.input.bindings.${action}`, 'needs at least one key')
+    if (bindings.keyboard[action].length === 0) err('settings:input', `settings.input.bindings.keyboard.${action}`, 'needs at least one key')
+  for (const action of ['left', 'right', 'pause'] as const)
+    if (bindings.gamepad[action].length === 0) err('settings:input', `settings.input.bindings.gamepad.${action}`, 'needs at least one button')
 
   const checkAudioFile = (d: { kind: string; asset?: string }, origin: string, path: string) => {
     if (d.kind !== 'file' || d.asset === undefined) return

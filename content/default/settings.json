@@ -120,16 +120,42 @@
   },
   "input": {
     "bindings": {
-      "left": ["a", "arrowleft"],
-      "right": ["d", "arrowright"],
-      "forward": ["w", "arrowup"],
-      "backward": ["s", "arrowdown"],
-      "jump": [" "],
-      "attack": ["j"],
-      "block": ["k"],
-      "dodge": ["shift"],
-      "pause": ["escape"],
-      "hitboxes": ["h"]
+      "keyboard": {
+        "left": ["a", "arrowleft"],
+        "right": ["d", "arrowright"],
+        "forward": ["w", "arrowup"],
+        "backward": ["s", "arrowdown"],
+        "jump": [" "],
+        "attack": ["j"],
+        "block": ["k"],
+        "dodge": ["shift"],
+        "pause": ["escape"],
+        "hitboxes": ["h"]
+      },
+      "mouse": {
+        "left": [],
+        "right": [],
+        "forward": [],
+        "backward": [],
+        "jump": [],
+        "attack": ["left"],
+        "block": ["right"],
+        "dodge": [],
+        "pause": [],
+        "hitboxes": []
+      },
+      "gamepad": {
+        "left": ["left", "ls-left"],
+        "right": ["right", "ls-right"],
+        "forward": ["up", "ls-up"],
+        "backward": ["down", "ls-down"],
+        "jump": ["a"],
+        "attack": ["x"],
+        "block": ["lb", "lt"],
+        "dodge": ["rb", "rt"],
+        "pause": ["start"],
+        "hitboxes": []
+      }
     }
   },
   "feel": {

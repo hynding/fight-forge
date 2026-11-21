@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../config/defaults'
-import { actionForKey, getBindings, getOverride, sanitizeOverride, setOverride } from './bindings'
+import { actionForKey, getBindings, getOverride, reloadOverride, sanitizeOverride, setDeviceOverride, setOverride } from './bindings'
 
 // A minimal localStorage for the node test environment.
 const store = new Map<string, string>()
@@ -26,14 +26,25 @@ describe('key bindings in effect', () => {
   })
 
   it('apply the remapping and remember it in localStorage', () => {
-    setOverride({ attack: ['z'] })
+    setOverride({ keyboard: { attack: ['z'] } })
     expect(actionForKey('z')).toBe('attack')
     expect(actionForKey('j')).toBeUndefined()
-    expect(JSON.parse(store.get('fight-forge.input-override.v1')!)).toEqual({ attack: ['z'] })
+    expect(JSON.parse(store.get('fight-forge.input-override.v2')!)).toEqual({ keyboard: { attack: ['z'] } })
+  })
+
+  it('keep each device separate', () => {
+    setDeviceOverride('gamepad', { jump: ['b'] })
+    setDeviceOverride('mouse', { block: ['middle'] })
+    const b = getBindings()
+    expect(b.gamepad.jump).toEqual(['b'])
+    expect(b.mouse.block).toEqual(['middle'])
+    expect(b.keyboard).toEqual(DEFAULT_CONFIG.input.bindings.keyboard)
+    setDeviceOverride('gamepad', {})
+    expect(getOverride()).toEqual({ mouse: { block: ['middle'] } })
   })
 
   it('forget the remapping on reset', () => {
-    setOverride({ attack: ['z'] })
+    setOverride({ keyboard: { attack: ['z'] } })
     setOverride({})
     expect(store.size).toBe(0)
     expect(getOverride()).toEqual({})
@@ -41,9 +52,25 @@ describe('key bindings in effect', () => {
 })
 
 describe('sanitizeOverride', () => {
-  it('keeps only known actions with key lists', () => {
-    expect(sanitizeOverride({ attack: ['Z'], fly: ['f'], jump: 'x', block: [3], dodge: [''] })).toEqual({ attack: ['z'] })
+  it('keeps only known devices and actions with valid input lists', () => {
+    expect(sanitizeOverride({ keyboard: { attack: ['Z'], fly: ['f'], jump: 'x', block: [3], dodge: [''] } })).toEqual({ keyboard: { attack: ['z'] } })
+    expect(sanitizeOverride({ mouse: { attack: ['left'], block: ['thumb'] }, gamepad: { jump: ['a'], dodge: ['b3'], block: ['nope'] }, joystick: {} })).toEqual({
+      mouse: { attack: ['left'] },
+      gamepad: { jump: ['a'], dodge: ['b3'] },
+    })
     expect(sanitizeOverride('nonsense')).toEqual({})
     expect(sanitizeOverride(null)).toEqual({})
+  })
+})
+
+describe('an older, keyboard-only remapping', () => {
+  it('is moved into the keyboard once', () => {
+    setOverride({})
+    store.set('fight-forge.input-override.v1', JSON.stringify({ attack: ['z'] }))
+    reloadOverride()
+    expect(getOverride()).toEqual({ keyboard: { attack: ['z'] } })
+    expect(actionForKey('z')).toBe('attack')
+    expect(store.has('fight-forge.input-override.v1')).toBe(false)
+    expect(JSON.parse(store.get('fight-forge.input-override.v2')!)).toEqual({ keyboard: { attack: ['z'] } })
   })
 })

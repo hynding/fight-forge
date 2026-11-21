@@ -164,7 +164,7 @@ export const StartMenu = () => {
         <div style={{ marginBottom: '10px' }}>
           <strong>CONTROLS:</strong>
         </div>
-        <div>{controlsHelp(getBindings())}</div>
+        <div>{controlsHelp(getBindings().keyboard)}</div>
       </div>
 
       {/* Visual Effects */}

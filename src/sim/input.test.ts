@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../config/defaults'
 import { actionLabel, bindingConflicts, controlsHelp, keyLabel, keyMap, mergeBindings, rebind, type Bindings } from './input'
 
-const base: Bindings = DEFAULT_CONFIG.input.bindings
+const base: Bindings = DEFAULT_CONFIG.input.bindings.keyboard
 
 describe('mergeBindings', () => {
   it('is the pack bindings without an override', () => {
