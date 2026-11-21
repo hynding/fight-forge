@@ -32,6 +32,40 @@
       }
     }
   },
+  "BRUISER": {
+    "maxHealth": 60,
+    "scale": 1,
+    "speed": 2,
+    "aggression": 1,
+    "ai": "brawler",
+    "weapon": "pipe",
+    "drop": {
+      "pickup": "coin",
+      "chance": 0.2
+    },
+    "color": "#99773a",
+    "model": {
+      "kind": "gltf",
+      "url": "/models/robot-expressive.glb",
+      "scale": 0.4,
+      "offset": [0, -1, 0],
+      "rotationY": 3.141592653589793,
+      "tintMaterials": ["Main"],
+      "clips": {
+        "idle": "Idle",
+        "walk": "Walking",
+        "run": "Running",
+        "jump": "Jump",
+        "attack": "Punch",
+        "knockdown": "Death",
+        "getup": {
+          "name": "Standing",
+          "speed": 1
+        },
+        "dead": "Death"
+      }
+    }
+  },
   "FAST": {
     "maxHealth": 30,
     "scale": 0.8,

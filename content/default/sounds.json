@@ -70,5 +70,13 @@
     "freqEnd": 40,
     "duration": 0.6,
     "volume": 0.6
+  },
+  "crack": {
+    "kind": "synth",
+    "wave": "noise",
+    "freq": 900,
+    "freqEnd": 200,
+    "duration": 0.25,
+    "volume": 0.6
   }
 }

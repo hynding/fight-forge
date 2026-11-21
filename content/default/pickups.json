@@ -16,5 +16,19 @@
     "amount": 500,
     "color": "#ffdd33",
     "size": 0.3
+  },
+  "pipe": {
+    "effect": "weapon",
+    "amount": 0,
+    "color": "#8a8f96",
+    "size": 0.3,
+    "weapon": "pipe"
+  },
+  "knife": {
+    "effect": "weapon",
+    "amount": 0,
+    "color": "#c0c8d0",
+    "size": 0.25,
+    "weapon": "knife"
   }
 }

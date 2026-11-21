@@ -14,6 +14,7 @@ import type { FighterRuntime } from '../sim/fighter'
 import { feelHit } from '../sim/feel'
 import { playSound } from '../audio/engine'
 import { hurtEnemy } from './enemyDamage'
+import { dropWeapon } from './weaponDrops'
 import { poiseHit } from '../sim/boss'
 
 const PLAYER = 'player'
@@ -76,6 +77,7 @@ export const GrabSystem = ({ playerRef, runtimes, enemyRefs }: GrabSystemProps) 
           target.reaction.timeLeft = config.reactions.knockdownDuration
           target.velocity = { x: launch.x, z: 0 }
           body.setLinvel({ x: launch.x, y: launch.y, z: 0 }, true)
+          dropWeapon(target, at)
           target.thrown = { by: PLAYER, damage: move.throw.hitDamage, dirX: launch.dirX, hit: new Set([grab.target]) }
           playSound(move.hitSound ?? config.audio.hit)
           feelHit(feel, config.feel, {
@@ -106,7 +108,7 @@ export const GrabSystem = ({ playerRef, runtimes, enemyRefs }: GrabSystemProps) 
       // Try to grab: free, on the ground, not guarding, and the pack has moves for it.
       const actions = config.input.actions
       const usable = actions.grab.enabled && config.player.moveset.some((t) => t.when === 'grabbing')
-      const free = player.move.move === null && player.reaction.kind === null && !isDodging(player.dodge) && player.grounded && !player.blocking
+      const free = !player.weapon && player.move.move === null && player.reaction.kind === null && !isDodging(player.dodge) && player.grounded && !player.blocking
       const intent = player.intent
       let candidate: string | null = null
       if (usable && free && grab.cooldownLeft <= 0) {
@@ -160,6 +162,7 @@ export const GrabSystem = ({ playerRef, runtimes, enemyRefs }: GrabSystemProps) 
         const reaction = other.poise ? poiseHit(other.poise.state, other.poise.config, knock) : knock
         if (reaction.knockdown) {
           applyHit(other.reaction, reaction, config.reactions)
+          dropWeapon(other, t)
           const kb = Math.abs(thrown.velocity.x) * 0.6
           other.velocity = { x: flight.dirX * kb, z: 0 }
           ob.setLinvel({ x: flight.dirX * kb, y: 3, z: 0 }, true)

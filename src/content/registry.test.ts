@@ -617,6 +617,45 @@ describe('key bindings', () => {
     ])
   })
 
+  it('loads a v11 pack unchanged (weapons are new and optional)', () => {
+    const old = { ...addon({ pickups: { gem: { effect: 'score', amount: 1, color: '#ffffff', size: 0.2 } } }), schemaVersion: 11 }
+    expect(build(defaultPack(), old).pickups.gem.effect).toBe('score')
+  })
+
+  it('checks weapons, weapon pickups, armed enemies and liftable props', () => {
+    const b = base()
+    const weapons = b.weapons as Record<string, Record<string, unknown>>
+    const enemyTypes = b.enemyTypes as Record<string, Record<string, unknown>>
+    const props = b.props as Record<string, Record<string, unknown>>
+    const errors = errorsOf(
+      b,
+      addon({
+        weapons: {
+          club: { ...weapons.pipe, moveset: [{ action: 'attack', move: 'nope' }, { action: 'attack', when: 'grabbing', move: 'jab' }], throw: { move: 'jab' } },
+          rock: { ...weapons.knife, throw: { move: 'missing' } },
+        },
+        pickups: {
+          empty: { effect: 'weapon', amount: 0, color: '#ffffff', size: 0.2 },
+          odd: { effect: 'heal', amount: 1, color: '#ffffff', size: 0.2, weapon: 'pipe' },
+          ghost: { effect: 'weapon', amount: 0, color: '#ffffff', size: 0.2, weapon: 'ghost' },
+        },
+        enemyTypes: { ARMED: { ...enemyTypes.BASIC, weapon: 'sword' } },
+        props: { rock: { ...props.crate, liftable: 'boulder' } },
+      })
+    )
+    expect(errors.map((e) => `${e.path}: ${e.message}`).sort()).toEqual([
+      'enemyTypes.ARMED.weapon: unknown weapon "sword"',
+      'pickups.empty.weapon: a weapon pickup needs the weapon it puts on the floor',
+      'pickups.ghost.weapon: unknown weapon "ghost"',
+      'pickups.odd.weapon: only a pickup with effect "weapon" names a weapon',
+      'props.rock.liftable: unknown weapon "boulder"',
+      'weapons.club.moveset[0].move: unknown move "nope"',
+      'weapons.club.moveset[1].when: a weapon\'s rows can\'t be for grabbing (the hands are full)',
+      'weapons.club.throw.move: "jab" doesn\'t fire a projectile',
+      'weapons.rock.throw.move: unknown move "missing"',
+    ])
+  })
+
   it('gives a v4 pack the analog and rumble defaults', () => {
     const { rumble: _r, ...feel } = DEFAULT_CONFIG.feel
     void _r

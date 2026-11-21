@@ -65,6 +65,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   },
   "audio": {
     "block": "block",
+    "break": "crack",
     "clear": "clear",
     "hit": "punch",
     "hurt": "hurt",
@@ -150,6 +151,46 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       },
       "scale": 1,
       "speed": 2,
+    },
+    "BRUISER": {
+      "aggression": 1,
+      "ai": "brawler",
+      "color": "#99773a",
+      "drop": {
+        "chance": 0.2,
+        "pickup": "coin",
+      },
+      "maxHealth": 60,
+      "model": {
+        "clips": {
+          "attack": "Punch",
+          "dead": "Death",
+          "getup": {
+            "name": "Standing",
+            "speed": 1,
+          },
+          "idle": "Idle",
+          "jump": "Jump",
+          "knockdown": "Death",
+          "run": "Running",
+          "walk": "Walking",
+        },
+        "kind": "gltf",
+        "offset": [
+          0,
+          -1,
+          0,
+        ],
+        "rotationY": 3.141592653589793,
+        "scale": 0.4,
+        "tintMaterials": [
+          "Main",
+        ],
+        "url": "/models/robot-expressive.glb",
+      },
+      "scale": 1,
+      "speed": 2,
+      "weapon": "pipe",
     },
     "FAST": {
       "aggression": 1.2,
@@ -645,6 +686,34 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "turnGrace": 0.12,
   },
   "moves": {
+    "barrelHurl": {
+      "active": 0.1,
+      "damage": 0,
+      "hitbox": {
+        "forward": 0.6,
+        "halfX": 0.2,
+        "halfY": 0.2,
+        "halfZ": 0.2,
+        "up": 0.3,
+      },
+      "projectile": {
+        "from": [
+          0.6,
+          1.1,
+        ],
+        "id": "thrownBarrel",
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 0,
+          "y": 0,
+        },
+      },
+      "recovery": 0.35,
+      "sound": "whoosh",
+      "startup": 0.2,
+    },
     "bossBarrel": {
       "active": 0.1,
       "damage": 0,
@@ -1000,6 +1069,84 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "sound": "whoosh",
       "startup": 0.06,
     },
+    "knifeSlash": {
+      "active": 0.07,
+      "clip": {
+        "name": "Punch",
+        "speed": 3,
+      },
+      "damage": 9,
+      "hitbox": {
+        "forward": 0.9,
+        "halfX": 0.5,
+        "halfY": 0.45,
+        "halfZ": 0.45,
+        "up": 0.2,
+      },
+      "next": "knifeSlash2",
+      "reaction": {
+        "hitstun": 0.3,
+        "knockback": {
+          "x": 0.8,
+          "y": 0,
+        },
+      },
+      "recovery": 0.14,
+      "sound": "whoosh",
+      "startup": 0.04,
+    },
+    "knifeSlash2": {
+      "active": 0.08,
+      "clip": {
+        "name": "Punch",
+        "speed": 3,
+      },
+      "damage": 11,
+      "hitbox": {
+        "forward": 0.9,
+        "halfX": 0.55,
+        "halfY": 0.45,
+        "halfZ": 0.45,
+        "up": 0.2,
+      },
+      "next": "knifeStab",
+      "reaction": {
+        "hitstun": 0.35,
+        "knockback": {
+          "x": 1.2,
+          "y": 0,
+        },
+      },
+      "recovery": 0.2,
+      "sound": "whoosh",
+      "startup": 0.05,
+    },
+    "knifeStab": {
+      "active": 0.08,
+      "clip": {
+        "name": "Punch",
+        "speed": 2,
+      },
+      "damage": 15,
+      "hitbox": {
+        "forward": 1,
+        "halfX": 0.6,
+        "halfY": 0.4,
+        "halfZ": 0.45,
+        "up": 0.2,
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 4,
+          "y": 2,
+        },
+        "knockdown": true,
+      },
+      "recovery": 0.3,
+      "sound": "whoosh",
+      "startup": 0.1,
+    },
     "knifeThrow": {
       "active": 0.1,
       "damage": 0,
@@ -1027,6 +1174,178 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "recovery": 0.55,
       "sound": "whoosh",
       "startup": 0.45,
+    },
+    "knifeToss": {
+      "active": 0.1,
+      "clip": {
+        "name": "Punch",
+        "speed": 2,
+      },
+      "damage": 0,
+      "hitbox": {
+        "forward": 0.6,
+        "halfX": 0.2,
+        "halfY": 0.2,
+        "halfZ": 0.2,
+        "up": 0.3,
+      },
+      "projectile": {
+        "from": [
+          0.6,
+          0.3,
+        ],
+        "id": "knife",
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 0,
+          "y": 0,
+        },
+      },
+      "recovery": 0.25,
+      "sound": "whoosh",
+      "startup": 0.1,
+    },
+    "pipeAirSwing": {
+      "active": 0.25,
+      "air": true,
+      "clip": {
+        "name": "Punch",
+        "speed": 2,
+      },
+      "damage": 16,
+      "hitSound": "heavy",
+      "hitbox": {
+        "forward": 0.9,
+        "halfX": 0.75,
+        "halfY": 0.65,
+        "halfZ": 0.45,
+        "up": -0.3,
+      },
+      "reaction": {
+        "hitstun": 0.5,
+        "knockback": {
+          "x": 3,
+          "y": 0,
+        },
+      },
+      "recovery": 0.1,
+      "sound": "whoosh",
+      "startup": 0.06,
+    },
+    "pipeSmash": {
+      "active": 0.12,
+      "clip": {
+        "name": "Punch",
+        "speed": 1.1,
+      },
+      "damage": 24,
+      "hitSound": "heavy",
+      "hitbox": {
+        "forward": 1.1,
+        "halfX": 0.8,
+        "halfY": 0.7,
+        "halfZ": 0.5,
+        "up": 0.1,
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 6,
+          "y": 4,
+        },
+        "knockdown": true,
+      },
+      "recovery": 0.42,
+      "sound": "whoosh",
+      "startup": 0.28,
+    },
+    "pipeSwing": {
+      "active": 0.1,
+      "clip": {
+        "name": "Punch",
+        "speed": 2.2,
+      },
+      "damage": 12,
+      "hitSound": "heavy",
+      "hitbox": {
+        "forward": 1.05,
+        "halfX": 0.7,
+        "halfY": 0.55,
+        "halfZ": 0.45,
+        "up": 0.25,
+      },
+      "next": "pipeSwing2",
+      "reaction": {
+        "hitstun": 0.4,
+        "knockback": {
+          "x": 1.5,
+          "y": 0,
+        },
+      },
+      "recovery": 0.22,
+      "sound": "whoosh",
+      "startup": 0.1,
+    },
+    "pipeSwing2": {
+      "active": 0.1,
+      "clip": {
+        "name": "Punch",
+        "speed": 1.8,
+      },
+      "damage": 16,
+      "hitSound": "heavy",
+      "hitbox": {
+        "forward": 1.05,
+        "halfX": 0.75,
+        "halfY": 0.55,
+        "halfZ": 0.45,
+        "up": 0.25,
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 5,
+          "y": 3,
+        },
+        "knockdown": true,
+      },
+      "recovery": 0.32,
+      "sound": "whoosh",
+      "startup": 0.12,
+    },
+    "pipeToss": {
+      "active": 0.1,
+      "clip": {
+        "name": "Punch",
+        "speed": 1.5,
+      },
+      "damage": 0,
+      "hitbox": {
+        "forward": 0.6,
+        "halfX": 0.2,
+        "halfY": 0.2,
+        "halfZ": 0.2,
+        "up": 0.3,
+      },
+      "projectile": {
+        "from": [
+          0.6,
+          0.4,
+        ],
+        "id": "pipeSpin",
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 0,
+          "y": 0,
+        },
+      },
+      "recovery": 0.3,
+      "sound": "whoosh",
+      "startup": 0.15,
     },
     "rushPunch": {
       "active": 0.15,
@@ -1253,6 +1572,20 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "effect": "heal",
       "size": 0.35,
     },
+    "knife": {
+      "amount": 0,
+      "color": "#c0c8d0",
+      "effect": "weapon",
+      "size": 0.25,
+      "weapon": "knife",
+    },
+    "pipe": {
+      "amount": 0,
+      "color": "#8a8f96",
+      "effect": "weapon",
+      "size": 0.3,
+      "weapon": "pipe",
+    },
   },
   "player": {
     "color": "#4444ff",
@@ -1396,6 +1729,65 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "speed": 11,
       "spin": 0,
     },
+    "pipeSpin": {
+      "color": "#8a8f96",
+      "damage": 14,
+      "gravity": 10,
+      "hitSound": "heavy",
+      "hitbox": {
+        "halfX": 0.5,
+        "halfY": 0.3,
+        "halfZ": 0.4,
+      },
+      "lifetime": 1.5,
+      "lift": 2,
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 4,
+          "y": 3,
+        },
+        "knockdown": true,
+      },
+      "shape": "box",
+      "size": [
+        1,
+        0.1,
+        0.1,
+      ],
+      "speed": 10,
+      "spin": 3,
+    },
+    "thrownBarrel": {
+      "color": "#7a2e1f",
+      "damage": 20,
+      "gravity": 12,
+      "hitSound": "heavy",
+      "hitbox": {
+        "halfX": 0.45,
+        "halfY": 0.55,
+        "halfZ": 0.5,
+      },
+      "lifetime": 2.5,
+      "lift": 3,
+      "pierce": 2,
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 5,
+          "y": 3,
+        },
+        "knockdown": true,
+      },
+      "shape": "cylinder",
+      "size": [
+        0.8,
+        1.1,
+        0.8,
+      ],
+      "speed": 9,
+      "spin": -1.5,
+    },
   },
   "props": {
     "barrel": {
@@ -1407,6 +1799,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "health": 16,
       },
       "color": "#7a2e1f",
+      "liftable": "barrel",
       "shape": "cylinder",
       "size": [
         0.8,
@@ -1449,6 +1842,23 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         3,
         0.8,
         1.5,
+      ],
+      "solid": true,
+    },
+    "toolbox": {
+      "breakable": {
+        "drop": {
+          "chance": 1,
+          "pickup": "pipe",
+        },
+        "health": 8,
+      },
+      "color": "#3a6ea5",
+      "shape": "box",
+      "size": [
+        0.9,
+        0.6,
+        0.6,
       ],
       "solid": true,
     },
@@ -1506,6 +1916,14 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "kind": "synth",
       "volume": 0.5,
       "wave": "triangle",
+    },
+    "crack": {
+      "duration": 0.25,
+      "freq": 900,
+      "freqEnd": 200,
+      "kind": "synth",
+      "volume": 0.6,
+      "wave": "noise",
     },
     "heavy": {
       "duration": 0.2,
@@ -1672,6 +2090,84 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "accent": "#b03a2e",
         "color": "#5d6b78",
         "pillar": "#44525e",
+      },
+    },
+  },
+  "weapons": {
+    "barrel": {
+      "hold": "overhead",
+      "kind": "heavy",
+      "model": {
+        "color": "#7a2e1f",
+        "shape": "cylinder",
+        "size": [
+          0.8,
+          1.1,
+          0.8,
+        ],
+      },
+      "moveset": [],
+      "name": "Barrel",
+      "throw": {
+        "move": "barrelHurl",
+      },
+    },
+    "knife": {
+      "durability": 10,
+      "hold": "hand",
+      "kind": "melee",
+      "model": {
+        "color": "#c0c8d0",
+        "shape": "box",
+        "size": [
+          0.06,
+          0.4,
+          0.1,
+        ],
+      },
+      "moveset": [
+        {
+          "action": "attack",
+          "move": "knifeSlash",
+        },
+      ],
+      "name": "Knife",
+      "throw": {
+        "move": "knifeToss",
+      },
+    },
+    "pipe": {
+      "durability": 12,
+      "hold": "hand",
+      "kind": "melee",
+      "model": {
+        "color": "#8a8f96",
+        "shape": "cylinder",
+        "size": [
+          0.08,
+          1,
+          0.08,
+        ],
+      },
+      "moveset": [
+        {
+          "action": "attack",
+          "move": "pipeAirSwing",
+          "when": "air",
+        },
+        {
+          "action": "heavy",
+          "move": "pipeSmash",
+        },
+        {
+          "action": "attack",
+          "move": "pipeSwing",
+        },
+      ],
+      "name": "Lead pipe",
+      "throw": {
+        "move": "pipeToss",
+        "returns": true,
       },
     },
   },

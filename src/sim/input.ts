@@ -246,6 +246,13 @@ export const padHelp = (b: Bindings, padSet: PadLabelSet = 'xbox', combo = false
   ].join(' | ')
 }
 
+/** An action's first input on the device last used (keyboard for keyboard and mouse), for prompts like "J: pick up". */
+export const promptLabel = (all: DeviceBindings, action: InputAction, device: InputDevice, padSet: PadLabelSet = 'xbox'): string => {
+  const d = device === 'gamepad' ? 'gamepad' : 'keyboard'
+  const first = all[d][action][0]
+  return first === undefined ? '—' : inputLabel(d, first, padSet)
+}
+
 /** The help line for the device last used: the controller's, or the keyboard's for keyboard and mouse. */
 export const deviceHelp = (
   all: DeviceBindings,

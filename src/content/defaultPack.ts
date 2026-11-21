@@ -11,6 +11,7 @@ import pickups from '../../content/default/pickups.json'
 import themes from '../../content/default/themes.json'
 import props from '../../content/default/props.json'
 import projectiles from '../../content/default/projectiles.json'
+import weapons from '../../content/default/weapons.json'
 import sounds from '../../content/default/sounds.json'
 import music from '../../content/default/music.json'
 import levels from '../../content/default/levels.json'
@@ -26,6 +27,7 @@ export const defaultPack = (): Record<string, unknown> => ({
   themes,
   props,
   projectiles,
+  weapons,
   sounds,
   music,
   levels,

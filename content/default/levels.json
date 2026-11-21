@@ -90,6 +90,13 @@
             "at": 24,
             "depth": 0.92
           }
+        ],
+        "items": [
+          {
+            "at": 20,
+            "pickup": "pipe",
+            "depth": 0.5
+          }
         ]
       },
       {
@@ -99,6 +106,11 @@
             "at": 5,
             "pickup": "coin",
             "depth": 0.3
+          },
+          {
+            "at": 30,
+            "pickup": "knife",
+            "depth": 0.6
           }
         ],
         "triggers": [
@@ -199,7 +211,7 @@
                     "delay": 0.5
                   },
                   {
-                    "type": "BASIC",
+                    "type": "BRUISER",
                     "from": "right",
                     "depth": 0.6,
                     "delay": 1.5
@@ -244,6 +256,11 @@
             "prop": "barrel",
             "at": 26,
             "depth": 0.08
+          },
+          {
+            "prop": "toolbox",
+            "at": 14,
+            "depth": 0.9
           }
         ]
       }
@@ -262,6 +279,11 @@
             "at": 20,
             "pickup": "coin",
             "depth": 0.8
+          },
+          {
+            "at": 10,
+            "pickup": "knife",
+            "depth": 0.4
           }
         ],
         "triggers": [
@@ -365,6 +387,11 @@
             "at": 30,
             "pickup": "coin",
             "depth": 0.5
+          },
+          {
+            "at": 16,
+            "pickup": "pipe",
+            "depth": 0.7
           }
         ],
         "triggers": [
@@ -391,6 +418,11 @@
                     "from": "right",
                     "depth": 0.1,
                     "delay": 2
+                  },
+                  {
+                    "type": "BRUISER",
+                    "from": "right",
+                    "delay": 1
                   }
                 ]
               }
@@ -495,6 +527,11 @@
             "prop": "barrel",
             "at": 22,
             "depth": 0.08
+          },
+          {
+            "prop": "toolbox",
+            "at": 6,
+            "depth": 0.1
           }
         ]
       }

@@ -7,6 +7,7 @@
 
 import type { Box } from './combat'
 import type { HitReaction } from './moves'
+import type { HeldWeapon } from './weapons'
 
 // Float slack so a lifetime ends on a whole 60 Hz step.
 const EPSILON = 1e-9
@@ -70,6 +71,8 @@ export interface Projectile {
    * token (or had its own slot). It keeps this until it lands.
    */
   hurtsPlayer: boolean
+  /** A thrown weapon that lands as a pickup again where the projectile ends. */
+  carries?: HeldWeapon
 }
 
 export interface ProjectileWorld {

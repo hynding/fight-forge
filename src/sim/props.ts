@@ -15,6 +15,8 @@ export interface PropDef {
   solid: boolean
   /** Can be broken by the player's attacks. */
   breakable?: { health: number; drop?: DropDef }
+  /** Weapon id: grab beside it to lift it (it becomes that weapon). */
+  liftable?: string
 }
 
 /** A prop as placed in a level segment. */

@@ -12,6 +12,7 @@ import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
 import { GrabSystem } from './GrabSystem'
 import { Projectiles } from './Projectiles'
+import { HeldWeapons } from './HeldWeapons'
 import { createProjectileWorld } from '../sim/projectiles'
 import { PerfMonitor } from './PerfMonitor'
 import { HealthBars } from './HealthBars'
@@ -202,6 +203,7 @@ export const GameScene = () => {
             playerPositionRef={playerPositionRef}
           />
           <GrabSystem playerRef={playerRef} runtimes={runtimes} enemyRefs={enemyRefs.current} />
+          <HeldWeapons playerRef={playerRef} runtimes={runtimes} enemyRefs={enemyRefs.current} />
           <Projectiles world={projectiles} playerRef={playerRef} runtimes={runtimes} enemyRefs={enemyRefs.current} stageLength={STAGE_LENGTH} />
           <Pickups playerPositionRef={playerPositionRef} />
         </ScenePhysics>
