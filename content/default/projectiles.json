@@ -1,0 +1,60 @@
+{
+  "knife": {
+    "shape": "box",
+    "size": [
+      0.5,
+      0.08,
+      0.12
+    ],
+    "color": "#c0c8d0",
+    "speed": 11,
+    "lift": 0,
+    "gravity": 0,
+    "hitbox": {
+      "halfX": 0.3,
+      "halfY": 0.2,
+      "halfZ": 0.35
+    },
+    "damage": 8,
+    "reaction": {
+      "hitstun": 0.3,
+      "knockback": {
+        "x": 2.5,
+        "y": 0
+      }
+    },
+    "lifetime": 1.1,
+    "hitSound": "punch",
+    "spin": 0
+  },
+  "barrel": {
+    "shape": "cylinder",
+    "size": [
+      0.8,
+      1.1,
+      0.8
+    ],
+    "color": "#7a2e1f",
+    "speed": 7,
+    "lift": 5,
+    "gravity": 14,
+    "hitbox": {
+      "halfX": 0.45,
+      "halfY": 0.55,
+      "halfZ": 0.5
+    },
+    "damage": 16,
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 5,
+        "y": 3
+      },
+      "knockdown": true
+    },
+    "lifetime": 2.5,
+    "pierce": 1,
+    "hitSound": "heavy",
+    "spin": -1.5
+  }
+}

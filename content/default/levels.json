@@ -114,7 +114,7 @@
                     "depth": 0.2
                   },
                   {
-                    "type": "FAST",
+                    "type": "THROWER",
                     "from": "right",
                     "depth": 0.8,
                     "delay": 1
@@ -220,7 +220,7 @@
                     "delay": 1
                   },
                   {
-                    "type": "FAST",
+                    "type": "THROWER",
                     "from": "right",
                     "depth": 0.9,
                     "delay": 2

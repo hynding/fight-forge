@@ -46,7 +46,7 @@ export interface BlockedHit {
 }
 
 /** What a hit does when blocked: chip damage, blockstun, reduced knockback, no launch or knockdown. */
-export const blockedHit = (move: MoveDef, cfg: ActionsConfig['block']): BlockedHit => ({
+export const blockedHit = (move: Pick<MoveDef, 'damage' | 'reaction'>, cfg: ActionsConfig['block']): BlockedHit => ({
   damage: Math.round(move.damage * cfg.damageFactor),
   blockstun: cfg.blockstun,
   knockbackX: move.reaction.knockback.x * cfg.knockbackFactor,

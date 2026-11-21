@@ -23,6 +23,7 @@ import {
   type Pack,
   type PickupDefData,
   type PropDefData,
+  type ProjectileDefData,
   type SoundDefData,
   type MusicDefData,
   type ThemeDefData,
@@ -40,7 +41,7 @@ export interface ContentError {
 export type Result<T> = { ok: true; value: T } | { ok: false; errors: ContentError[] }
 
 /** Kinds of definitions a reference like `move:jab` can name. */
-export type ContentKind = 'move' | 'ai' | 'enemyType' | 'pickup' | 'theme' | 'prop' | 'sound' | 'music' | 'level' | 'asset'
+export type ContentKind = 'move' | 'ai' | 'enemyType' | 'pickup' | 'theme' | 'prop' | 'projectile' | 'sound' | 'music' | 'level' | 'asset'
 
 interface KindMap {
   move: MoveDefData
@@ -49,6 +50,7 @@ interface KindMap {
   pickup: PickupDefData
   theme: ThemeDefData
   prop: PropDefData
+  projectile: ProjectileDefData
   sound: SoundDefData
   music: MusicDefData
   level: LevelDef
@@ -111,6 +113,7 @@ export interface ContentData {
   pickups: Readonly<Record<string, PickupDefData>>
   themes: Readonly<Record<string, ThemeDefData>>
   props: Readonly<Record<string, PropDefData>>
+  projectiles: Readonly<Record<string, ProjectileDefData>>
   sounds: Readonly<Record<string, SoundDefData>>
   music: Readonly<Record<string, MusicDefData>>
   /** In play order. */
@@ -130,6 +133,7 @@ export class ContentRegistry {
   readonly pickups: Readonly<Record<string, PickupDefData>>
   readonly themes: Readonly<Record<string, ThemeDefData>>
   readonly props: Readonly<Record<string, PropDefData>>
+  readonly projectiles: Readonly<Record<string, ProjectileDefData>>
   readonly sounds: Readonly<Record<string, SoundDefData>>
   readonly music: Readonly<Record<string, MusicDefData>>
   readonly levels: readonly LevelDef[]
@@ -145,6 +149,7 @@ export class ContentRegistry {
     this.pickups = data.pickups
     this.themes = data.themes
     this.props = data.props
+    this.projectiles = data.projectiles
     this.sounds = data.sounds
     this.music = data.music
     this.levels = data.levels
@@ -166,6 +171,8 @@ export class ContentRegistry {
         return this.themes
       case 'prop':
         return this.props
+      case 'projectile':
+        return this.projectiles
       case 'sound':
         return this.sounds
       case 'music':
@@ -230,6 +237,7 @@ export class ContentRegistry {
       pickups: { ...this.pickups },
       themes: { ...this.themes },
       props: { ...this.props },
+      projectiles: { ...this.projectiles },
       sounds: Object.fromEntries(Object.entries(this.sounds).map(([id, d]) => [id, sound(d)])),
       music: Object.fromEntries(Object.entries(this.music).map(([id, d]) => [id, music(d)])),
     }
@@ -268,6 +276,7 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
   const pickups: Record<string, PickupDefData> = {}
   const themes: Record<string, ThemeDefData> = {}
   const props: Record<string, PropDefData> = {}
+  const projectiles: Record<string, ProjectileDefData> = {}
   const sounds: Record<string, SoundDefData> = {}
   const music: Record<string, MusicDefData> = {}
   const assets: Record<string, AssetDef> = {}
@@ -295,6 +304,7 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
     merge('pickup', pickups, pack.pickups)
     merge('theme', themes, pack.themes)
     merge('prop', props, pack.props)
+    merge('projectile', projectiles, pack.projectiles)
     merge('sound', sounds, pack.sounds)
     merge('music', music, pack.music)
 
@@ -333,6 +343,7 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
     pickups,
     themes,
     props,
+    projectiles,
     sounds,
     music,
     levels,
@@ -406,6 +417,8 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
     if (cancel < m.startup || cancel > moveDuration(m))
       err(origin, `moves.${id}.cancelFrom`, `${cancel}s is outside the move (startup ${m.startup}s to end ${moveDuration(m)}s)`)
     if (m.air && m.lunge) err(origin, `moves.${id}`, 'a move can\'t be both "air" and "lunge"')
+    expect('projectile', m.projectile?.id, origin, `moves.${id}.projectile.id`)
+    if (m.projectile && m.throw) err(origin, `moves.${id}`, 'a move can\'t both "throw" a held enemy and fire a "projectile"')
   }
 
   for (const [id, t] of Object.entries(reg.enemyTypes)) {
@@ -435,6 +448,8 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
     else if (a.kind !== 'texture')
       errors.push({ pack: pack.id, path: 'meta.cover', message: `asset "${a.id}" is a ${a.kind}, not a texture` })
   }
+
+  for (const [id, p] of Object.entries(reg.projectiles)) expect('sound', p.hitSound, `projectile:${id}`, `projectiles.${id}.hitSound`)
 
   for (const [id, p] of Object.entries(reg.props))
     expect('pickup', p.breakable?.drop?.pickup, `prop:${id}`, `props.${id}.breakable.drop.pickup`)

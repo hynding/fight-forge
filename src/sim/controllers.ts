@@ -105,6 +105,9 @@ export const spacingPush = (self: Vec2, others: Iterable<Vec2>, minSpacing: numb
 // Another enemy this close to a spot (and closer than us) has it.
 const SPOT_TAKEN = 1.5
 
+// Closer than this to its approach spot, an enemy stops walking.
+const SPOT_ARRIVED = 0.15
+
 // How far a flanker swings out in depth to get around the target.
 const FLANK_DETOUR = 1.6
 
@@ -200,7 +203,10 @@ export const enemyIntent = (
 
     if (!inAttackPosition(ctx, cfg, behavior)) {
       const spot = approachSpot(ctx, behavior)
-      let move = normalize({ x: spot.x - ctx.self.x, z: spot.z - ctx.self.z })
+      const toSpot = { x: spot.x - ctx.self.x, z: spot.z - ctx.self.z }
+      // At a spot outside reach (a thrower keeping its distance): wait there.
+      if (len(toSpot) < SPOT_ARRIVED && !crowded) return { move: { x: 0, z: 0 }, face, jump: false, attack: false }
+      let move = normalize(toSpot)
       if (crowded) {
         const p = scale(normalize(push), cfg.avoidanceWeight)
         const d = scale(move, 1 - cfg.avoidanceWeight)
