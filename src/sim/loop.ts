@@ -13,6 +13,8 @@ const EPSILON = 1e-9
  * slot systems in between.
  */
 export const SYSTEM_ORDER = {
+  /** Device input is sampled into this step's action frame. */
+  input: 10,
   /** Controllers decide intents; fighters move, jump, face, and update their state. */
   fighters: 50,
   /** The scrolling camera follows the player (and so moves the player's screen bounds). */

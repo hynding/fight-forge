@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { getLevels } from '../content/active'
-import { actionForKey, getBindings } from '../content/bindings'
+import { getBindings } from '../content/bindings'
+import type { InputManager } from '../input/InputManager'
 import { actionLabel, controlsHelp } from '../sim/input'
 import { formatTime } from '../utils/format'
 
@@ -41,7 +42,7 @@ const MenuButton = ({
   )
 }
 
-export const HUD = () => {
+export const HUD = ({ input }: { input: InputManager }) => {
   const playerHealth = useGameStore((state) => state.playerHealth)
   const playerMaxHealth = useGameStore((state) => state.playerMaxHealth)
   const score = useGameStore((state) => state.score)
@@ -62,13 +63,13 @@ export const HUD = () => {
   const lastLevel = sandbox || levelIndex >= getLevels().length - 1
 
   // The hitbox key (H by default) toggles the debug overlay.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (actionForKey(e.key) === 'hitboxes' && !e.repeat && !useGameStore.getState().editing) useGameStore.getState().toggleHitboxes()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  useEffect(
+    () =>
+      input.onPress((action) => {
+        if (action === 'hitboxes') useGameStore.getState().toggleHitboxes()
+      }),
+    [input]
+  )
 
   const handleReturnToMenu = () => {
     useGameStore.getState().quitRun()

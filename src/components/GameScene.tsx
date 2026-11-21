@@ -24,6 +24,15 @@ import { sceneProbe } from '../sim/probe'
 import { duckMusic, playMusic, stopMusic } from '../audio/engine'
 import { ScenePhysics } from './ScenePhysics'
 import { Effects } from './Effects'
+import { InputManager } from '../input/InputManager'
+import { useSimSystem } from '../sim/simContext'
+import { SYSTEM_ORDER } from '../sim/loop'
+
+/** The `input` sim system: samples the scene's input first in every step. */
+const InputSystem = ({ input }: { input: InputManager }) => {
+  useSimSystem('input', SYSTEM_ORDER.input, () => input.step())
+  return null
+}
 
 export const GameScene = () => {
   // The scene remounts for each level (keyed on gameId), so read the level once.
@@ -46,6 +55,9 @@ export const GameScene = () => {
   // Every fighter's live runtime (moves, reactions, facing) by name, for combat.
   // Fighters register themselves; mutable, so no re-render sits between a move and its hit.
   const [runtimes] = useState(() => new Map<string, FighterRuntime>())
+  // Keyboard (and later mouse and gamepad) input, sampled once per sim step.
+  const [input] = useState(() => new InputManager())
+  useEffect(() => input.attach(window), [input])
 
   const enemies = useGameStore((state) => state.enemies)
   const frozen = useGameStore(isFrozen)
@@ -111,6 +123,7 @@ export const GameScene = () => {
         <Backdrop theme={THEME} length={STAGE_LENGTH} view={view} />
 
         <SimLoopDriver>
+        <InputSystem input={input} />
         <CameraRig
           view={view}
           stageLength={STAGE_LENGTH}
@@ -129,6 +142,7 @@ export const GameScene = () => {
           <Player
             ref={playerRef}
             runtimes={runtimes}
+            input={input}
             view={view}
           />
 
@@ -164,8 +178,8 @@ export const GameScene = () => {
         <Effects />
         </SimLoopDriver>
       </Canvas>
-      <HUD />
-      <PauseMenu />
+      <HUD input={input} />
+      <PauseMenu input={input} />
     </>
   )
 }

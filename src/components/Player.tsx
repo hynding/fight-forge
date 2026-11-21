@@ -1,6 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
-import { useControls } from '../hooks/useControls'
 import { useGameStore } from '../store/gameStore'
 import { getConfig } from '../content/active'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
@@ -8,6 +7,8 @@ import { SYSTEM_ORDER } from '../sim/loop'
 import { interruptMove, stepMoveRunner } from '../sim/moves'
 import { createRunDetector, stepRunDetector } from '../sim/defense'
 import { inputIntent } from '../sim/controllers'
+import { frameControls } from '../sim/actions'
+import type { InputManager } from '../input/InputManager'
 import { createFighterRuntime, type FighterRuntime } from '../sim/fighter'
 import { screenBounds, type StageView } from '../sim/stage'
 import { FighterBody } from './FighterBody'
@@ -18,10 +19,12 @@ interface PlayerProps {
   runtimes: Map<string, FighterRuntime>
   /** The scrolling view; the player stays on screen. */
   view: StageView
+  /** The scene's input; its frame is sampled first in every sim step. */
+  input: InputManager
 }
 
-/** The player: a FighterBody driven by the keyboard (InputController). */
-export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view }, ref) => {
+/** The player: a FighterBody driven by the scene's input. */
+export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view, input }, ref) => {
   // Re-render when packs are reinstalled (a Forge playtest edit), so the steps below see the new tuning.
   useGameStore((state) => state.packs)
   const config = getConfig()
@@ -30,7 +33,6 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
     () => ({ walkSpeed: P.walkSpeed, deceleration: P.deceleration, stopSpeed: config.body.stopSpeed }),
     [P.walkSpeed, P.deceleration, config.body.stopSpeed]
   )
-  const controls = useControls()
   const [runtime] = useState(createFighterRuntime)
   // Visual only (attack tint); gameplay reads `runtime.move`.
   const [isAttacking, setIsAttacking] = useState(false)
@@ -105,7 +107,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       health={playerHealth}
       isAttacking={isAttacking}
       getIntent={() => {
-        const intent = inputIntent(controls)
+        const intent = inputIntent(frameControls(input.frame))
         intent.run = stepRunDetector(runDetector, intent.move.x, loop.time, config.actions.run)
         return intent
       }}

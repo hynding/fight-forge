@@ -1,23 +1,20 @@
 import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
-import { actionForKey } from '../content/bindings'
+import type { InputManager } from '../input/InputManager'
 import { VolumeControls } from './VolumeControls'
 
-export const PauseMenu = () => {
+export const PauseMenu = ({ input }: { input: InputManager }) => {
   const isPaused = useGameStore((state) => state.isPaused)
   const togglePause = useGameStore((state) => state.togglePause)
   const inSandbox = useGameStore((state) => state.sandbox !== null)
 
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (actionForKey(e.key) === 'pause' && !e.repeat && !useGameStore.getState().editing) {
-        togglePause()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyPress)
-    return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [togglePause])
+  useEffect(
+    () =>
+      input.onPress((action) => {
+        if (action === 'pause') togglePause()
+      }),
+    [input, togglePause]
+  )
 
   const handleReturnToMenu = () => {
     togglePause()
