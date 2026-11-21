@@ -62,5 +62,13 @@
     "freqEnd": 1046,
     "duration": 0.6,
     "volume": 0.5
+  },
+  "roar": {
+    "kind": "synth",
+    "wave": "sawtooth",
+    "freq": 110,
+    "freqEnd": 40,
+    "duration": 0.6,
+    "volume": 0.6
   }
 }

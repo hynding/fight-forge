@@ -125,5 +125,119 @@
         "dead": "Death"
       }
     }
+  },
+  "HARV": {
+    "maxHealth": 400,
+    "scale": 1.6,
+    "speed": 2,
+    "aggression": 1.5,
+    "ai": "brawler",
+    "attacks": [
+      {
+        "move": "bossSwipe",
+        "range": "near",
+        "weight": 3
+      },
+      {
+        "move": "bossCharge",
+        "range": "far",
+        "weight": 1,
+        "cooldown": 4
+      }
+    ],
+    "armor": 0.4,
+    "boss": {
+      "title": "BIG HARV",
+      "subtitle": "Dock foreman",
+      "poise": {
+        "hits": 3,
+        "window": 2
+      },
+      "transition": {
+        "duration": 1,
+        "push": 7,
+        "radius": 4
+      },
+      "phases": [
+        {
+          "below": 0.6,
+          "speed": 2.5,
+          "attacks": [
+            {
+              "move": "bossSwipe",
+              "range": "near",
+              "weight": 3
+            },
+            {
+              "move": "bossSlam",
+              "range": "near",
+              "weight": 1,
+              "cooldown": 5
+            },
+            {
+              "move": "bossCharge",
+              "range": "far",
+              "weight": 1,
+              "cooldown": 3
+            }
+          ],
+          "summon": {
+            "enemies": [
+              {
+                "type": "FAST",
+                "from": "right"
+              },
+              {
+                "type": "BASIC",
+                "from": "left",
+                "delay": 1
+              }
+            ]
+          },
+          "taunt": "roar"
+        },
+        {
+          "below": 0.25,
+          "speed": 3,
+          "aggression": 2,
+          "armor": 0.8,
+          "color": "#ff4422",
+          "taunt": "roar"
+        }
+      ]
+    },
+    "grabbable": false,
+    "drop": {
+      "pickup": "feast",
+      "chance": 1
+    },
+    "color": "#ffaa22",
+    "model": {
+      "kind": "gltf",
+      "url": "/models/robot-expressive.glb",
+      "scale": 0.4,
+      "offset": [
+        0,
+        -1,
+        0
+      ],
+      "rotationY": 3.141592653589793,
+      "tintMaterials": [
+        "Main"
+      ],
+      "clips": {
+        "idle": "Idle",
+        "walk": "Walking",
+        "run": "Running",
+        "jump": "Jump",
+        "attack": "Punch",
+        "knockdown": "Death",
+        "getup": {
+          "name": "Standing",
+          "speed": 1
+        },
+        "dead": "Death"
+      }
+    }
   }
 }

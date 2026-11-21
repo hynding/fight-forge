@@ -202,7 +202,8 @@
     "sparks": { "enabled": true, "count": 6, "color": "#ffe08a", "blockColor": "#8ad4ff", "life": 0.25 },
     "dust": { "enabled": true, "color": "#b8aa94", "life": 0.45 },
     "damageNumbers": { "enabled": true, "color": "#ffffff", "playerColor": "#ff6060", "life": 0.7 },
-    "rumble": { "enabled": true, "base": 0.25, "perDamage": 0.02, "max": 0.8, "duration": 0.15, "dealt": 0.4, "ko": 0.6 }
+    "rumble": { "enabled": true, "base": 0.25, "perDamage": 0.02, "max": 0.8, "duration": 0.15, "dealt": 0.4, "ko": 0.6 },
+    "bossKo": { "enabled": true, "hitStop": 0.5, "shake": 0.4, "slowMotion": 0.3, "duration": 1.5 }
   },
   "audio": {
     "hit": "punch",

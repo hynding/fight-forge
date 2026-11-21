@@ -11,7 +11,7 @@ import { DIRECTIONS, MOVESET_ACTIONS, SITUATIONS } from '../sim/moveset'
 import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 9
+export const SCHEMA_VERSION = 10
 
 // ---------------------------------------------------------------- primitives
 
@@ -469,6 +469,9 @@ export const settingsSchema = z
             ko: unit,
           })
           .strict(),
+        bossKo: z
+          .object({ enabled: z.boolean(), hitStop: nonNegative, shake: nonNegative, slowMotion: z.number().gt(0).max(1), duration: nonNegative })
+          .strict(),
       })
       .strict(),
     /** Which sound plays for each game event (ids in the content's `sounds`); leave one out for silence. */
@@ -542,6 +545,21 @@ export const triggerSchema = z.discriminatedUnion('kind', [
     .object({ kind: z.literal('wave'), at: nonNegative, lock: z.boolean().optional(), waves: z.array(waveSchema).min(1) })
     .strict(),
   z.object({ kind: z.literal('goal'), at: nonNegative }).strict(),
+  z
+    .object({
+      kind: z.literal('boss'),
+      at: nonNegative,
+      /** Enemy type id; must have a `boss` block. */
+      enemy: idSchema,
+      from: z.enum(['right', 'left', 'placed']),
+      offset: finite.optional(),
+      depth: fraction.optional(),
+      /** Music id played while the boss is alive. */
+      music: idSchema.optional(),
+      intro: z.boolean().optional(),
+      endsLevel: z.boolean().optional(),
+    })
+    .strict(),
 ])
 
 export const levelItemSchema = z.object({ at: nonNegative, pickup: idSchema, depth: fraction.optional() }).strict()

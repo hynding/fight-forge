@@ -85,7 +85,7 @@ describe('level layout', () => {
     const errors = validateLevel(bad)
     expect(errors).toContain('Segment 1, trigger 1 is outside its segment.')
     expect(errors).toContain('Segment 1, trigger 1, wave 1 has no enemies.')
-    expect(errors).toContain('Level needs exactly one goal (found 0).')
+    expect(errors).toContain('Level needs exactly one goal, or a boss that ends it (found 0 goals).')
   })
 })
 
@@ -197,9 +197,10 @@ describe('stepLevel', () => {
         w.killAll()
       }
       expect(rt.complete).toBe(true)
-      expect(locks).toBe(triggers.filter((t) => t.kind === 'wave' && t.lock).length)
+      // Locking waves and boss fights each lock once; every enemy and boss spawns.
+      expect(locks).toBe(triggers.filter((t) => (t.kind === 'wave' && t.lock) || t.kind === 'boss').length)
       expect(w.spawned).toHaveLength(
-        triggers.flatMap((t) => (t.kind === 'wave' ? t.waves.flatMap((wv) => wv.enemies) : [])).length
+        triggers.flatMap((t): unknown[] => (t.kind === 'wave' ? t.waves.flatMap((wv) => wv.enemies) : t.kind === 'boss' ? [t.enemy] : [])).length
       )
     }
   )
@@ -226,5 +227,70 @@ describe('placeProps', () => {
       { id: 'prop-0-0', prop: 'crate', x: 3, y: 0, depth: 0.5 },
       { id: 'prop-1-0', prop: 'barrel', x: 12, y: 1, depth: 0.1 },
     ])
+  })
+})
+
+describe('boss trigger', () => {
+  const bossLevel = (extra: Partial<Extract<Level['segments'][0]['triggers'][0], { kind: 'boss' }>> = {}): Level => ({
+    id: 'boss',
+    name: 'Boss',
+    theme: 'default',
+    segments: [
+      {
+        length: 30,
+        triggers: [
+          { kind: 'boss', at: 10, enemy: 'BIG', from: 'placed', offset: 4, music: 'boss', ...extra },
+          { kind: 'wave', at: 12, waves: [{ enemies: [{ type: B, from: 'right' }] }] },
+        ],
+      },
+      { length: 10, triggers: extra.endsLevel === false ? [{ kind: 'goal', at: 8 }] : [] },
+    ],
+  })
+
+  it('counts as the goal when it ends the level', () => {
+    expect(validateLevel(bossLevel())).toEqual([])
+    expect(validateLevel(bossLevel({ endsLevel: false }))).toEqual([])
+  })
+
+  it('locks, brings in the boss, and completes the level when it is beaten', () => {
+    const rt = createLevelRuntime(bossLevel())
+    const w = world()
+    // Like the game, who is alive is read before the step spawns anyone.
+    const step = (playerX: number) => {
+      const alive = new Set(w.alive)
+      return stepLevel(rt, { playerX, cameraX: 9, isAlive: (id) => alive.has(id), spawn: w.spawn }, SIM_STEP)
+    }
+    expect(step(5)).toEqual([])
+    const start = step(10)
+    expect(start.map((e) => e.kind)).toEqual(['bossStart', 'lock'])
+    expect(w.spawned[0]).toMatchObject({ def: { type: 'BIG', from: 'placed', x: 4 }, x: 10 })
+    // Walking on while it's alive starts the next fight, but the level waits.
+    expect(step(12).map((e) => e.kind)).toEqual(['waveStart'])
+    for (let i = 0; i < 30; i++) expect(step(14)).toEqual([])
+    w.alive.delete(w.spawned[0].id)
+    expect(step(14)).toEqual([
+      { kind: 'bossDefeated', id: w.spawned[0].id, endsLevel: true },
+      { kind: 'complete' },
+    ])
+    expect(step(40)).toEqual([])
+  })
+
+  it('unlocks instead when the boss doesn\'t end the level', () => {
+    const rt = createLevelRuntime(bossLevel({ endsLevel: false }))
+    const w = world()
+    const step = (playerX: number) => stepLevel(rt, { playerX, cameraX: 9, isAlive: w.isAlive, spawn: w.spawn }, SIM_STEP)
+    step(10)
+    // The goal waits while the boss is alive.
+    expect(step(38).map((e) => e.kind)).toEqual(['waveStart'])
+    w.alive.delete(w.spawned[0].id)
+    expect(step(38).map((e) => e.kind)).toEqual(['bossDefeated', 'unlock'])
+    expect(step(38).map((e) => e.kind)).toEqual(['complete'])
+  })
+})
+
+describe('the shipped levels', () => {
+  it('end level 2 with a boss fight', () => {
+    const boss = LEVELS[1].segments.flatMap((s) => s.triggers).find((t) => t.kind === 'boss')
+    expect(boss).toMatchObject({ kind: 'boss', enemy: 'HARV', music: 'boss' })
   })
 })

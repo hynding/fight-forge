@@ -389,5 +389,86 @@
       "damage": 14,
       "hitDamage": 10
     }
+  },
+  "bossSwipe": {
+    "sound": "whoosh",
+    "hitSound": "heavy",
+    "startup": 0.45,
+    "active": 0.15,
+    "recovery": 0.5,
+    "damage": 14,
+    "hitbox": {
+      "forward": 0.9,
+      "up": 0.2,
+      "halfX": 0.8,
+      "halfY": 0.6,
+      "halfZ": 0.5
+    },
+    "reaction": {
+      "hitstun": 0.4,
+      "knockback": {
+        "x": 4,
+        "y": 0
+      }
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 0.8
+    }
+  },
+  "bossCharge": {
+    "sound": "whoosh",
+    "hitSound": "heavy",
+    "startup": 0.35,
+    "active": 0.3,
+    "recovery": 0.7,
+    "damage": 18,
+    "hitbox": {
+      "forward": 0.8,
+      "up": 0.2,
+      "halfX": 0.6,
+      "halfY": 0.6,
+      "halfZ": 0.5
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 6,
+        "y": 4
+      },
+      "knockdown": true
+    },
+    "clip": {
+      "name": "Running",
+      "speed": 1.4
+    },
+    "lunge": 7
+  },
+  "bossSlam": {
+    "sound": "heavy",
+    "hitSound": "heavy",
+    "startup": 0.7,
+    "active": 0.15,
+    "recovery": 0.8,
+    "damage": 20,
+    "hitbox": {
+      "forward": 0,
+      "up": 0,
+      "halfX": 1.5,
+      "halfY": 0.8,
+      "halfZ": 0.7
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 5,
+        "y": 5
+      },
+      "knockdown": true
+    },
+    "clip": {
+      "name": "Jump",
+      "speed": 1.2
+    }
   }
 }

@@ -475,8 +475,14 @@
             ]
           },
           {
-            "kind": "goal",
-            "at": 31
+            "kind": "boss",
+            "at": 26,
+            "enemy": "HARV",
+            "from": "right",
+            "depth": 0.5,
+            "music": "boss",
+            "intro": true,
+            "endsLevel": true
           }
         ],
         "props": [

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { SimLoop } from './loop'
 import { FeelContext, HitStopContext, SimLoopContext } from './simContext'
-import { createFeel } from './feel'
+import { createFeel, slowFrame } from './feel'
 import { isFrozen, useGameStore } from '../store/gameStore'
 import { gameStep } from '../utils/gameTime'
 
@@ -14,6 +14,7 @@ import { gameStep } from '../utils/gameTime'
  * It also owns the scene's game feel: during a hit-stop (`feel.hold`) the
  * loop doesn't advance and physics pauses (`HitStopContext`), so the whole
  * fight holds for a moment, then carries on from exactly where it was.
+ * Slow motion (`feel.slow`) works the same way on only some of the frames.
  */
 export const SimLoopDriver = ({ children }: { children: ReactNode }) => {
   const [loop] = useState(() => new SimLoop())
@@ -27,8 +28,10 @@ export const SimLoopDriver = ({ children }: { children: ReactNode }) => {
       if (!stopped) setStopped(true)
       return
     }
-    if (stopped) setStopped(false)
-    loop.advance(delta)
+    // Slow motion (a boss KO): only some frames advance the fight and physics.
+    const advance = slowFrame(feel, gameStep(delta))
+    if (advance === stopped) setStopped(!advance)
+    if (advance) loop.advance(delta)
   })
 
   return (

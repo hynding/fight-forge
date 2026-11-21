@@ -8,6 +8,9 @@ import { SCHEMA_VERSION } from './schemas'
 
 type Json = Record<string, unknown>
 
+/** The boss KO feel a v9 pack's `feel` gets. */
+const BOSS_KO_V10 = { enabled: true, hitStop: 0.5, shake: 0.4, slowMotion: 0.3, duration: 1.5 }
+
 /** `MIGRATIONS[n]` upgrades a pack from schemaVersion n to n + 1. */
 export type MigrationTable = Readonly<Record<number, (pack: Json) => Json>>
 
@@ -148,6 +151,12 @@ export const MIGRATIONS: MigrationTable = {
   },
   // v9: bosses. Enemy `attacks`, the `boss` block and archetype `farReach` are new and optional.
   8: (pack) => pack,
+  // v10: boss triggers in levels (new, nothing to change) and the boss KO feel.
+  9: (pack) => {
+    const settings = pack.settings as Json | undefined
+    if (!settings?.feel) return pack
+    return { ...pack, settings: { ...settings, feel: { bossKo: BOSS_KO_V10, ...(settings.feel as Json) } } }
+  },
 }
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }
