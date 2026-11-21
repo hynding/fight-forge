@@ -5,6 +5,7 @@
 import { createMoveRunner, type MoveRunner } from './moves'
 import { createReactionState, type ReactionKind, type ReactionState } from './reactions'
 import { createDodgeState, isDodging, type DodgeState } from './defense'
+import { createGrabState, type GrabState, type ThrownState } from './grab'
 
 /** Planar vector on the ground (X right, Z toward the camera). */
 export interface Vec2 {
@@ -28,6 +29,8 @@ export interface Intent {
   dodge?: boolean
   /** Run instead of walk (the player double-taps a direction). */
   run?: boolean
+  /** Pressed grab this step (button grabs). */
+  grab?: boolean
 }
 
 export const idleIntent = (): Intent => ({ move: { x: 0, z: 0 }, jump: false, attack: false })
@@ -44,6 +47,8 @@ export type FighterStateName =
   | 'hitstun'
   | 'knockdown'
   | 'getup'
+  | 'grab'
+  | 'held'
   | 'dead'
 
 export interface FighterStateInputs {
@@ -52,6 +57,8 @@ export interface FighterStateInputs {
   reaction?: ReactionKind | null
   dodging?: boolean
   attacking: boolean
+  /** Holding an enemy. */
+  grabbing?: boolean
   blocking?: boolean
   grounded: boolean
   moving: boolean
@@ -64,6 +71,7 @@ export const nextFighterState = ({
   reaction,
   dodging,
   attacking,
+  grabbing,
   blocking,
   grounded,
   moving,
@@ -74,6 +82,7 @@ export const nextFighterState = ({
   if (reaction) return reaction === 'blockstun' ? 'block' : reaction
   if (dodging) return 'dodge'
   if (attacking) return 'attack'
+  if (grabbing) return 'grab'
   if (blocking) return 'block'
   if (!grounded) return 'jump'
   if (moving) return running ? 'run' : 'walk'
@@ -149,6 +158,10 @@ export interface FighterRuntime {
   scale: number
   /** Hurtbox half extents (the collider's, scaled). Set by the body. */
   hurtbox: { x: number; y: number; z: number }
+  /** Who this fighter holds, and grab timing. */
+  grab: GrabState
+  /** In flight after being thrown. */
+  thrown: ThrownState | null
 }
 
 export const createFighterRuntime = (): FighterRuntime => ({
@@ -165,8 +178,10 @@ export const createFighterRuntime = (): FighterRuntime => ({
   armor: 0,
   scale: 1,
   hurtbox: { x: 0.25, y: 1, z: 0.25 },
+  grab: createGrabState(),
+  thrown: null,
 })
 
-/** Busy with a move, a hit reaction or a dodge: the controller's movement and jumps are ignored. */
+/** Busy with a move, a hit reaction, a dodge or a grab: the controller's movement and jumps are ignored. */
 export const isBusy = (rt: FighterRuntime): boolean =>
-  rt.move.move !== null || rt.reaction.kind !== null || isDodging(rt.dodge)
+  rt.move.move !== null || rt.reaction.kind !== null || isDodging(rt.dodge) || rt.grab.target !== null

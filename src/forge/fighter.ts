@@ -183,11 +183,17 @@ export const setComboChain = (json: PackJson, chain: string[]): PackJson => {
 export const effectiveActions = (json: PackJson): ActionSettings =>
   (getIn(json, ['settings', 'input', 'actions']) as ActionSettings | undefined) ?? baseContent().settings.input.actions
 
-/** Heavy or special turned on, but no moveset row or move branch uses them: the button would do nothing. */
-export const unusedActions = (moveset: Moveset, moves: Record<string, Json>, actions: ActionSettings): ('heavy' | 'special')[] =>
-  (['heavy', 'special'] as const).filter(
+/**
+ * Optional actions turned on but doing nothing: heavy or special with no
+ * moveset row or move branch using them, or grabs with no `grabbing` row
+ * (grabs only happen when the moveset says what to do while holding).
+ */
+export const unusedActions = (moveset: Moveset, moves: Record<string, Json>, actions: ActionSettings): ('heavy' | 'special' | 'grab')[] => [
+  ...(['heavy', 'special'] as const).filter(
     (a) =>
       actions[a].enabled &&
       !moveset.some((t) => (Array.isArray(t.action) ? t.action : [t.action]).includes(a)) &&
       !Object.values(moves).some((m) => Object.keys(((m as { branches?: object }).branches ?? {}) as object).some((k) => k.split('+').includes(a)))
-  )
+  ),
+  ...(actions.grab?.enabled && !moveset.some((t) => t.when === 'grabbing') ? (['grab'] as const) : []),
+]

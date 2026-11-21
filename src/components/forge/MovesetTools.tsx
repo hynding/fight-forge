@@ -2,7 +2,7 @@ import { addRow, actionFor, moveRow, PRESS_CHOICES, removeRow, setRow } from '..
 import { DIRECTIONS, SITUATIONS, shadowedTriggers, triggerKey, type MoveTrigger, type Moveset } from '../../sim/moveset'
 import { sectionHeading, ui } from './ui'
 
-const SITUATION_NAMES: Record<string, string> = { ground: 'on the ground', air: 'in the air', running: 'running', blocking: 'blocking' }
+const SITUATION_NAMES: Record<string, string> = { ground: 'on the ground', air: 'in the air', running: 'running', blocking: 'blocking', grabbing: 'holding an enemy' }
 const DIRECTION_NAMES: Record<string, string> = { toward: 'toward the enemy', away: 'away (behind)', up: 'up (into the screen)', down: 'down (out of it)' }
 
 interface Props {
@@ -111,7 +111,9 @@ export const MovesetTools = ({ moveset, moves, unused = [], onChange }: Props) =
       ))}
       {unused.map((a) => (
         <div key={a} style={ui.error}>
-          {a} is on (Input settings) but no row or combo branch uses it, so its button does nothing.
+          {a === 'grab'
+            ? 'Grabs are on (Input settings) but no row is for "holding an enemy", so the player never grabs.'
+            : `${a} is on (Input settings) but no row or combo branch uses it, so its button does nothing.`}
         </div>
       ))}
       <button style={ui.button} onClick={() => onChange(addRow(moveset, moves[0] ?? 'jab'))}>

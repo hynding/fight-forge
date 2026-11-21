@@ -3,6 +3,7 @@
 // combat call into it, and the tuning lives in the content's `actions` settings.
 
 import type { MoveDef } from './moves'
+import type { GrabConfig } from './grab'
 
 const EPSILON = 1e-9
 
@@ -29,6 +30,7 @@ export interface ActionsConfig {
     /** Seconds after a dodge before the next. */
     cooldown: number
   }
+  grab: GrabConfig
 }
 
 /** True when a fighter facing `facingX` (±1) at `defenderX` faces an attacker at `attackerX`. */

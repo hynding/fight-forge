@@ -21,6 +21,8 @@ export const STATE_FALLBACK: Partial<Record<FighterStateName, FighterStateName>>
   hitstun: 'idle',
   knockdown: 'hitstun',
   getup: 'idle',
+  grab: 'idle',
+  held: 'hitstun',
 }
 
 /** States whose clip plays once and holds its last frame instead of looping. */

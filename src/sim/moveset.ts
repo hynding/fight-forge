@@ -10,7 +10,7 @@ export const MOVESET_ACTIONS = ['attack', 'heavy', 'special', 'jump', 'block', '
 export type MovesetAction = (typeof MOVESET_ACTIONS)[number]
 
 /** Where the fighter is: `ground` (the default; not blocking), `air`, `running` or `blocking`. */
-export const SITUATIONS = ['ground', 'air', 'running', 'blocking'] as const
+export const SITUATIONS = ['ground', 'air', 'running', 'blocking', 'grabbing'] as const
 export type Situation = (typeof SITUATIONS)[number]
 
 /** The held direction, relative to the way the fighter faces; `up` is into the depth. */
@@ -61,12 +61,15 @@ export interface TriggerContext {
   air: boolean
   running: boolean
   blocking: boolean
+  /** Holding an enemy: only `grabbing` rows match. */
+  grabbing?: boolean
   direction: Direction | null
   /** Whether trigger `index` can be paid for now (health, cooldown). */
   canPay: (trigger: MoveTrigger, index: number) => boolean
 }
 
 const situationMatches = (when: Situation, c: TriggerContext): boolean => {
+  if (when === 'grabbing' || c.grabbing) return when === 'grabbing' && !!c.grabbing
   switch (when) {
     case 'air':
       return c.air

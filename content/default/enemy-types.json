@@ -69,6 +69,7 @@
     "aggression": 0.8,
     "ai": "tank",
     "armor": 0.4,
+    "grabbable": false,
     "drop": {
       "pickup": "food",
       "chance": 0.5

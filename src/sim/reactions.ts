@@ -15,7 +15,8 @@ export interface ReactionConfig {
   knockbackFriction: number
 }
 
-export type ReactionKind = 'hitstun' | 'blockstun' | 'knockdown' | 'getup'
+/** `held`: in another fighter's grab, until it breaks free (`timeLeft`) or is thrown. */
+export type ReactionKind = 'hitstun' | 'blockstun' | 'knockdown' | 'getup' | 'held'
 
 export interface ReactionState {
   kind: ReactionKind | null
@@ -36,9 +37,11 @@ export const isInvulnerable = (s: ReactionState): boolean =>
 /**
  * Applies a hit's reaction. Returns false (and changes nothing) if the target
  * is invulnerable. A hit during hitstun restarts it, so combos keep the target stunned.
+ * A held target stays held unless the hit knocks it down.
  */
 export const applyHit = (s: ReactionState, hit: HitReaction, cfg: ReactionConfig): boolean => {
   if (isInvulnerable(s)) return false
+  if (s.kind === 'held' && !hit.knockdown) return true
   if (hit.knockdown) {
     s.kind = 'knockdown'
     s.timeLeft = cfg.knockdownDuration

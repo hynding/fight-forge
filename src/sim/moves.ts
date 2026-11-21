@@ -3,6 +3,7 @@
 // timing is unit-testable without React, Rapier or WebGL.
 
 import type { ClipRef } from './animation'
+import type { ThrowDef } from './grab'
 
 // Float slack so phase boundaries land on whole 60 Hz steps.
 const EPSILON = 1e-9
@@ -58,6 +59,8 @@ export interface MoveDef {
   branches?: Record<string, string>
   /** Seconds into the move from which a buffered press cancels into `next`; defaults to the end of the active phase. */
   cancelFrom?: number
+  /** A throw: launches the held enemy as the active frames begin. */
+  throw?: ThrowDef
   /** Sound id played when the move starts. */
   sound?: string
   /** Sound id played when it lands, instead of the audio settings' `hit`. */
