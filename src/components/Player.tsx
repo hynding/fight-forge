@@ -103,6 +103,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
         air: inAir,
         running: !!intent?.run,
         blocking: runtime.blocking,
+        grabbing: runtime.grab.target !== null,
         direction: direction.current,
         canPay: (t: MoveTrigger, i: number) =>
           (t.cost?.health === undefined || playerHealth > t.cost.health) &&
@@ -156,6 +157,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
         const controls = frameControls(frame)
         // Actions the pack turned off do nothing, even if an old binding remains.
         for (const a of ['heavy', 'special'] as const) if (!actionEnabled(actions, a)) controls[a] = false
+        const grabPressed = !!frame.pressed.grab && actionEnabled(actions, 'grab')
         // Toggle block: a press raises or lowers the guard.
         if (actions.block.mode === 'toggle' || prefs.toggleBlock) {
           if (frame.pressed.block) blockOn.current = !blockOn.current
@@ -187,6 +189,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
           const screenX = (body.translation().x - view.cameraX) / view.halfWidth
           if (Math.abs(pointer - screenX) > 0.02) intent.face = { x: Math.sign(pointer - screenX), z: 0 }
         }
+        intent.grab = grabPressed
         presses.current = chord.presses
         // Back + attack pressed together: the fighter turns on the first step
         // the direction is held, so judge "away" against the facing before a recent turn.

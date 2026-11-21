@@ -88,7 +88,7 @@ describe('labels', () => {
 
 describe('optional actions', () => {
   const on = DEFAULT_CONFIG.input.actions
-  const off: ActionSettings = { heavy: { enabled: false }, special: { enabled: false }, run: { mode: 'doubleTap' }, block: { mode: 'toggle' } }
+  const off: ActionSettings = { heavy: { enabled: false }, special: { enabled: false }, grab: { enabled: false, trigger: 'contact' }, run: { mode: 'doubleTap' }, block: { mode: 'toggle' } }
 
   it('turns heavy, special and the run button on and off', () => {
     expect(enabledActions(on)).toContain('heavy')
@@ -98,6 +98,10 @@ describe('optional actions', () => {
     expect(actionEnabled({ ...off, run: { mode: 'hold' } }, 'run')).toBe(true)
     expect(helpExtras(on)).toEqual(['heavy', 'special', 'run'])
     expect(helpExtras(off)).toEqual([])
+    // Contact grabs need no button; button grabs show it.
+    expect(actionEnabled(on, 'grab')).toBe(false)
+    expect(actionEnabled({ ...on, grab: { enabled: true, trigger: 'button' } }, 'grab')).toBe(true)
+    expect(actionEnabled({ ...on, grab: { enabled: false, trigger: 'button' } }, 'grab')).toBe(false)
   })
 
   it('adds the extras to the help text after Attack, and Run after Dodge on the keyboard', () => {

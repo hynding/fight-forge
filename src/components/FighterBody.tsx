@@ -158,8 +158,8 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
       const move = runtime.move.move ? getConfig().moves[runtime.move.move] : null
       let next
       if (reaction !== null) {
-        // Slide with the knockback that combat set on the runtime.
-        const f = Math.pow(getConfig().reactions.knockbackFriction, dt * 60)
+        // Slide with the knockback that combat set on the runtime; a thrown fighter keeps its speed until it lands.
+        const f = runtime.thrown && !grounded ? 1 : Math.pow(getConfig().reactions.knockbackFriction, dt * 60)
         next = { x: runtime.velocity.x * f, z: runtime.velocity.z * f }
       } else if (isDodging(runtime.dodge)) {
         next = { x: 0, z: runtime.dodge.dirZ * getConfig().actions.dodge.speed }
@@ -201,6 +201,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
         reaction,
         dodging: isDodging(runtime.dodge),
         attacking: runtime.move.move !== null,
+        grabbing: runtime.grab.target !== null,
         blocking: runtime.blocking,
         grounded,
         moving: isMoving(next, movement.stopSpeed),

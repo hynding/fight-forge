@@ -58,6 +58,8 @@ export interface EnemyTypeDef {
   attackMove?: string
   /** Super armor: hits with at most this much hitstun (and no knockdown) don't stagger it. */
   armor?: number
+  /** False: can't be grabbed (default true). */
+  grabbable?: boolean
   /** What it may drop when defeated. */
   drop?: DropDef
   color: string

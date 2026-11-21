@@ -11,7 +11,7 @@ import { DIRECTIONS, MOVESET_ACTIONS, SITUATIONS } from '../sim/moveset'
 import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
 
 // ---------------------------------------------------------------- primitives
 
@@ -57,6 +57,8 @@ export const fighterStateSchema = z.enum([
   'hitstun',
   'knockdown',
   'getup',
+  'grab',
+  'held',
   'dead',
 ])
 
@@ -183,6 +185,17 @@ export const moveSchema = z
     sound: idSchema.optional(),
     /** Sound played when it lands, instead of the audio settings' `hit`. */
     hitSound: idSchema.optional(),
+    /** A throw: launches the held enemy as the active frames begin (only while grabbing). */
+    throw: z
+      .object({
+        direction: z.enum(['forward', 'back']),
+        speed: nonNegative,
+        lift: nonNegative,
+        damage: nonNegative,
+        hitDamage: nonNegative,
+      })
+      .strict()
+      .optional(),
   })
   .strict()
 
@@ -214,6 +227,8 @@ export const enemyTypeSchema = z
     /** Move id; defaults to `enemy.attackMove`. */
     attackMove: idSchema.optional(),
     armor: nonNegative.optional(),
+    /** False: can't be grabbed (default true). */
+    grabbable: z.boolean().optional(),
     drop: dropSchema.optional(),
     color,
     model: modelRefSchema,
@@ -306,6 +321,16 @@ export const settingsSchema = z
         run: z.object({ speedFactor: positive, doubleTapWindow: positive }).strict(),
         block: z.object({ damageFactor: fraction, blockstun: nonNegative, knockbackFactor: nonNegative }).strict(),
         dodge: z.object({ duration: positive, speed: nonNegative, cooldown: nonNegative }).strict(),
+        grab: z
+          .object({
+            range: nonNegative,
+            depthTolerance: nonNegative,
+            contactTime: nonNegative,
+            holdTime: positive,
+            cooldown: nonNegative,
+            releasePush: nonNegative,
+          })
+          .strict(),
       })
       .strict(),
     spawning: z.object({ offscreenMargin: nonNegative, height: nonNegative }).strict(),
@@ -360,6 +385,7 @@ export const settingsSchema = z
           .object({
             heavy: z.object({ enabled: z.boolean() }).strict(),
             special: z.object({ enabled: z.boolean() }).strict(),
+            grab: z.object({ enabled: z.boolean(), trigger: z.enum(['contact', 'button']) }).strict(),
             run: z.object({ mode: z.enum(['doubleTap', 'hold', 'both']) }).strict(),
             block: z.object({ mode: z.enum(['hold', 'toggle']) }).strict(),
           })

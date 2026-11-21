@@ -17,6 +17,8 @@ export const SYSTEM_ORDER = {
   input: 10,
   /** Controllers decide intents; fighters move, jump, face, and update their state. */
   fighters: 50,
+  /** Grabs: contact and button grabs start, held fighters are pinned, throws launch and land. */
+  grab: 55,
   /** The scrolling camera follows the player (and so moves the player's screen bounds). */
   camera: 60,
   /** Player swing timers: a swing started this step is visible to combat this step. */

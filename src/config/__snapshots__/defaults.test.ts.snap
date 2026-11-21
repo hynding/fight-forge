@@ -13,6 +13,14 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "duration": 0.3,
       "speed": 7,
     },
+    "grab": {
+      "contactTime": 0.2,
+      "cooldown": 0.6,
+      "depthTolerance": 0.4,
+      "holdTime": 2.5,
+      "range": 0.15,
+      "releasePush": 3,
+    },
     "run": {
       "doubleTapWindow": 0.25,
       "speedFactor": 1.8,
@@ -212,6 +220,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "chance": 0.5,
         "pickup": "food",
       },
+      "grabbable": false,
       "maxHealth": 100,
       "model": {
         "clips": {
@@ -291,6 +300,10 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "block": {
         "mode": "hold",
       },
+      "grab": {
+        "enabled": true,
+        "trigger": "contact",
+      },
       "heavy": {
         "enabled": true,
       },
@@ -325,6 +338,9 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "forward": [
           "up",
           "ls-up",
+        ],
+        "grab": [
+          "rs",
         ],
         "heavy": [
           "y",
@@ -369,6 +385,9 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
           "w",
           "arrowup",
         ],
+        "grab": [
+          "o",
+        ],
         "heavy": [
           "l",
         ],
@@ -406,6 +425,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         ],
         "dodge": [],
         "forward": [],
+        "grab": [],
         "heavy": [],
         "hitboxes": [],
         "jump": [],
@@ -472,6 +492,58 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "recovery": 0.4,
       "sound": "whoosh",
       "startup": 0.4,
+    },
+    "grabKnee": {
+      "active": 0.08,
+      "clip": {
+        "name": "Punch",
+        "speed": 2.4,
+      },
+      "damage": 6,
+      "hitbox": {
+        "forward": 0.6,
+        "halfX": 0.45,
+        "halfY": 0.5,
+        "halfZ": 0.45,
+        "up": -0.1,
+      },
+      "next": "grabKnee2",
+      "reaction": {
+        "hitstun": 0.3,
+        "knockback": {
+          "x": 0,
+          "y": 0,
+        },
+      },
+      "recovery": 0.22,
+      "sound": "whoosh",
+      "startup": 0.08,
+    },
+    "grabKnee2": {
+      "active": 0.08,
+      "clip": {
+        "name": "Punch",
+        "speed": 2.4,
+      },
+      "damage": 6,
+      "hitbox": {
+        "forward": 0.6,
+        "halfX": 0.45,
+        "halfY": 0.5,
+        "halfZ": 0.45,
+        "up": -0.1,
+      },
+      "next": "throwForward",
+      "reaction": {
+        "hitstun": 0.3,
+        "knockback": {
+          "x": 0,
+          "y": 0,
+        },
+      },
+      "recovery": 0.22,
+      "sound": "whoosh",
+      "startup": 0.08,
     },
     "haymaker": {
       "active": 0.1,
@@ -668,6 +740,70 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "sound": "heavy",
       "startup": 0.15,
     },
+    "throwBack": {
+      "active": 0.05,
+      "clip": {
+        "name": "Punch",
+        "speed": 1.4,
+      },
+      "damage": 0,
+      "hitbox": {
+        "forward": 0.6,
+        "halfX": 0.3,
+        "halfY": 0.5,
+        "halfZ": 0.3,
+        "up": 0,
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 0,
+          "y": 0,
+        },
+      },
+      "recovery": 0.4,
+      "sound": "heavy",
+      "startup": 0.12,
+      "throw": {
+        "damage": 14,
+        "direction": "back",
+        "hitDamage": 10,
+        "lift": 5,
+        "speed": 8,
+      },
+    },
+    "throwForward": {
+      "active": 0.05,
+      "clip": {
+        "name": "Punch",
+        "speed": 1.4,
+      },
+      "damage": 0,
+      "hitbox": {
+        "forward": 0.6,
+        "halfX": 0.3,
+        "halfY": 0.5,
+        "halfZ": 0.3,
+        "up": 0,
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 0,
+          "y": 0,
+        },
+      },
+      "recovery": 0.4,
+      "sound": "heavy",
+      "startup": 0.12,
+      "throw": {
+        "damage": 14,
+        "direction": "forward",
+        "hitDamage": 10,
+        "lift": 5,
+        "speed": 8,
+      },
+    },
     "uppercut": {
       "active": 0.1,
       "clip": {
@@ -793,6 +929,22 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "url": "/models/robot-expressive.glb",
     },
     "moveset": [
+      {
+        "action": "attack",
+        "direction": "away",
+        "move": "throwBack",
+        "when": "grabbing",
+      },
+      {
+        "action": "heavy",
+        "move": "throwForward",
+        "when": "grabbing",
+      },
+      {
+        "action": "attack",
+        "move": "grabKnee",
+        "when": "grabbing",
+      },
       {
         "action": "special",
         "cost": {

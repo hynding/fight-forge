@@ -11,6 +11,7 @@ import { interruptMove, movePhase } from '../sim/moves'
 import { applyBlockstun, applyHit, isInvulnerable } from '../sim/reactions'
 import { blockedHit, facesAttacker, isDodging } from '../sim/defense'
 import { rollDrop } from '../sim/pickups'
+import { hurtEnemy } from './enemyDamage'
 import { combatTargets, scaledDamage } from '../sim/rules'
 import { propBox } from '../sim/props'
 import type { FighterRuntime } from '../sim/fighter'
@@ -72,6 +73,8 @@ export const CombatSystem = ({
       if (!moveName) return
       const move = getConfig().moves[moveName]
       if (movePhase(move, attacker.move.time) !== 'active') return
+      // A throw's effect is the throw (GrabSystem); its hitbox hits nothing.
+      if (move.throw) return
 
       // Read live store state; a render-time snapshot can lag the store by frames.
       const store = useGameStore.getState()
@@ -153,16 +156,7 @@ export const CombatSystem = ({
         if (targetName === PLAYER) {
           if (shown > 0) store.damagePlayer(shown)
         } else {
-          store.damageEnemy(targetName, damage)
-          const defeated = !!enemy && !useGameStore.getState().enemies.some((e) => e.id === targetName)
-          if (defeated) playSound(audio.ko)
-          // Defeated: maybe drop a pickup where it fell.
-          const dropped = defeated ? rollDrop(getConfig().enemyTypes[enemy.type].drop) : null
-          if (dropped) {
-            useGameStore
-              .getState()
-              .spawnPickup({ id: `drop-${targetName}`, pickup: dropped, x: t.x, z: t.z })
-          }
+          hurtEnemy(targetName, damage, t)
         }
       }
 

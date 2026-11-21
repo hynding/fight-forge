@@ -512,6 +512,22 @@ describe('key bindings', () => {
     expect(reg.settings.rules.meter).toEqual(DEFAULT_CONFIG.rules.meter)
   })
 
+  it('gives a v7 pack grab inputs it doesn\'t already use, contact grabs and grab tuning', () => {
+    const strip = (b: Record<string, string[]>) => Object.fromEntries(Object.entries(b).filter(([a]) => a !== 'grab'))
+    const { grab: _g, ...actions } = DEFAULT_CONFIG.input.actions
+    const { grab: _t, ...tuning } = DEFAULT_CONFIG.actions
+    void [_g, _t]
+    const b = DEFAULT_CONFIG.input.bindings
+    const bindings = { keyboard: { ...strip(b.keyboard), heavy: ['o'] }, mouse: strip(b.mouse), gamepad: strip(b.gamepad) }
+    const old = { ...addon({ settings: { input: { ...DEFAULT_CONFIG.input, actions, bindings }, actions: tuning } }), schemaVersion: 7 }
+    const reg = build(defaultPack(), old)
+    // O was taken by heavy, so grab gets nothing on the keyboard.
+    expect(reg.settings.input.bindings.keyboard).toMatchObject({ heavy: ['o'], grab: [] })
+    expect(reg.settings.input.bindings.gamepad.grab).toEqual(['rs'])
+    expect(reg.settings.input.actions.grab).toEqual({ enabled: true, trigger: 'contact' })
+    expect(reg.settings.actions.grab).toEqual(DEFAULT_CONFIG.actions.grab)
+  })
+
   it('gives a v4 pack the analog and rumble defaults', () => {
     const { rumble: _r, ...feel } = DEFAULT_CONFIG.feel
     void _r

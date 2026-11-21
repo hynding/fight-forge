@@ -10,6 +10,7 @@ import { CameraRig } from './CameraRig'
 import { HUD } from './HUD'
 import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
+import { GrabSystem } from './GrabSystem'
 import { isFrozen, useGameStore } from '../store/gameStore'
 import { getConfig, getLevels } from '../content/active'
 import { SimLoopDriver } from '../sim/SimLoopDriver'
@@ -66,10 +67,12 @@ export const GameScene = () => {
   // Let the Forge (open over a paused playtest) see where the player stands.
   useEffect(() => {
     sceneProbe.playerX = () => playerPositionRef.current.x
+    sceneProbe.runtime = (name) => runtimes.get(name) ?? null
     return () => {
       sceneProbe.playerX = () => null
+      sceneProbe.runtime = () => null
     }
-  }, [])
+  }, [runtimes])
   // The level's music loops while the scene is up, quieter while it's frozen (paused, results, editing).
   useEffect(() => {
     playMusic(LEVEL.music)
@@ -174,6 +177,7 @@ export const GameScene = () => {
             enemyRefs={enemyRefs.current}
             playerPositionRef={playerPositionRef}
           />
+          <GrabSystem playerRef={playerRef} runtimes={runtimes} enemyRefs={enemyRefs.current} />
           <Pickups playerPositionRef={playerPositionRef} />
         </ScenePhysics>
         <Effects />

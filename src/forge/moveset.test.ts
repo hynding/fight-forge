@@ -29,12 +29,12 @@ describe('moveset editing', () => {
 describe('unusedActions', () => {
   const actions = DEFAULT_CONFIG.input.actions
   it('flags heavy and special when they are on but nothing uses them', () => {
-    expect(unusedActions(set, {}, actions)).toEqual(['heavy', 'special'])
-    expect(unusedActions(set, {}, { ...actions, special: { enabled: false } })).toEqual(['heavy'])
+    expect(unusedActions(set, {}, actions)).toEqual(['heavy', 'special', 'grab'])
+    expect(unusedActions(set, {}, { ...actions, special: { enabled: false }, grab: { enabled: false, trigger: 'contact' } })).toEqual(['heavy'])
   })
 
   it('counts moveset rows, chords and move branches as uses', () => {
-    const withRows: Moveset = [...set, { action: ['special', 'jump'], move: 'shockwave' }]
+    const withRows: Moveset = [...set, { action: ['special', 'jump'], move: 'shockwave' }, { action: 'attack', when: 'grabbing', move: 'grabKnee' }]
     expect(unusedActions(withRows, { jab: { branches: { heavy: 'haymaker' } } }, actions)).toEqual([])
     expect(unusedActions(DEFAULT_CONFIG.player.moveset, {}, actions)).toEqual([])
   })

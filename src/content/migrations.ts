@@ -35,6 +35,21 @@ const NEW_INPUTS_V7: Record<string, Record<string, string[]>> = {
 }
 const ACTIONS_V7 = { heavy: { enabled: true }, special: { enabled: true }, run: { mode: 'both' }, block: { mode: 'hold' } }
 
+const NEW_INPUTS_V8: Record<string, Record<string, string[]>> = { keyboard: { grab: ['o'] }, mouse: { grab: [] }, gamepad: { grab: ['rs'] } }
+const GRAB_TUNING_V8 = { range: 0.15, depthTolerance: 0.4, contactTime: 0.2, holdTime: 2.5, cooldown: 0.6, releasePush: 3 }
+
+/** Adds each device's default inputs for new actions, skipping inputs the device already uses. */
+const addInputs = (bindings: Record<string, Record<string, string[]>>, added: Record<string, Record<string, string[]>>) => {
+  const next = { ...bindings }
+  for (const [device, defaults] of Object.entries(added)) {
+    const map = { ...(next[device] ?? {}) }
+    const used = new Set(Object.values(map).flat())
+    for (const [action, inputs] of Object.entries(defaults)) if (!(action in map)) map[action] = inputs.filter((i) => !used.has(i))
+    next[device] = map
+  }
+  return next
+}
+
 export const MIGRATIONS: MigrationTable = {
   // v2: the attacker limit moved from `enemy` to `rules`, which also gained
   // friendly fire and difficulty; key bindings arrived as `input` (a pack
@@ -111,16 +126,24 @@ export const MIGRATIONS: MigrationTable = {
     const next = { ...settings }
     const input = settings.input as Json | undefined
     if (input) {
-      const bindings = { ...(input.bindings as Record<string, Record<string, string[]>>) }
-      for (const [device, defaults] of Object.entries(NEW_INPUTS_V7)) {
-        const map = { ...(bindings[device] ?? {}) }
-        const used = new Set(Object.values(map).flat())
-        for (const [action, inputs] of Object.entries(defaults)) if (!(action in map)) map[action] = inputs.filter((i) => !used.has(i))
-        bindings[device] = map
-      }
+      const bindings = addInputs(input.bindings as Record<string, Record<string, string[]>>, NEW_INPUTS_V7)
       next.input = { actions: ACTIONS_V7, ...input, bindings }
     }
     if (settings.rules) next.rules = { meter: { max: 100, start: 0, perDamageDealt: 1, perDamageTaken: 0.5 }, ...(settings.rules as Json) }
+    return { ...pack, settings: next }
+  },
+  // v8: grabs and throws: a grab action (button grabs; contact grabs need no
+  // button), `input.actions.grab`, and grab tuning in `actions`.
+  7: (pack) => {
+    const settings = pack.settings as Json | undefined
+    if (!settings || (!settings.input && !settings.actions)) return pack
+    const next = { ...settings }
+    const input = settings.input as Json | undefined
+    if (input) {
+      const actions = { ...(input.actions as Json), grab: { enabled: true, trigger: 'contact' } }
+      next.input = { ...input, actions, bindings: addInputs(input.bindings as Record<string, Record<string, string[]>>, NEW_INPUTS_V8) }
+    }
+    if (settings.actions) next.actions = { ...(settings.actions as Json), grab: GRAB_TUNING_V8 }
     return { ...pack, settings: next }
   },
 }

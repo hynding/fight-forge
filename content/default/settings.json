@@ -38,6 +38,9 @@
     "deceleration": 0.85,
     "linearDamping": 0,
     "moveset": [
+      { "action": "attack", "when": "grabbing", "direction": "away", "move": "throwBack" },
+      { "action": "heavy", "when": "grabbing", "move": "throwForward" },
+      { "action": "attack", "when": "grabbing", "move": "grabKnee" },
       { "action": "special", "move": "shockwave", "cost": { "meter": 50 } },
       { "action": "attack", "when": "air", "move": "jumpKick" },
       { "action": "attack", "when": "running", "move": "dashPunch" },
@@ -85,6 +88,14 @@
       "duration": 0.3,
       "speed": 7,
       "cooldown": 0.25
+    },
+    "grab": {
+      "range": 0.15,
+      "depthTolerance": 0.4,
+      "contactTime": 0.2,
+      "holdTime": 2.5,
+      "cooldown": 0.6,
+      "releasePush": 3
     }
   },
   "spawning": {
@@ -136,6 +147,7 @@
         "dodge": ["shift"],
         "heavy": ["l"],
         "special": ["i"],
+        "grab": ["o"],
         "run": ["q"],
         "pause": ["escape"],
         "hitboxes": ["h"]
@@ -151,6 +163,7 @@
         "dodge": [],
         "heavy": [],
         "special": [],
+        "grab": [],
         "run": [],
         "pause": [],
         "hitboxes": []
@@ -166,6 +179,7 @@
         "dodge": ["rb", "rt"],
         "heavy": ["y"],
         "special": ["b"],
+        "grab": ["rs"],
         "run": ["ls"],
         "pause": ["start"],
         "hitboxes": []
@@ -175,6 +189,7 @@
     "actions": {
       "heavy": { "enabled": true },
       "special": { "enabled": true },
+      "grab": { "enabled": true, "trigger": "contact" },
       "run": { "mode": "both" },
       "block": { "mode": "hold" }
     },

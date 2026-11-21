@@ -15,27 +15,34 @@ export const INPUT_ACTIONS = [
   'dodge',
   'heavy',
   'special',
+  'grab',
   'run',
   'pause',
   'hitboxes',
 ] as const
 
 /** Actions a pack can turn off (`input.actions`); turned-off ones are hidden from remapping and help. */
-export const OPTIONAL_ACTIONS = ['heavy', 'special', 'run'] as const
+export const OPTIONAL_ACTIONS = ['heavy', 'special', 'grab', 'run'] as const
 
 /** The pack's switches for optional actions and how some actions behave. */
 export interface ActionSettings {
   heavy: { enabled: boolean }
   special: { enabled: boolean }
+  /** `contact`: walk into a free or stunned enemy to grab it; `button`: press grab beside one. */
+  grab: { enabled: boolean; trigger: 'contact' | 'button' }
   /** `doubleTap` a direction, `hold` the run button, or `both`. A stick pushed past the run threshold always runs. */
   run: { mode: 'doubleTap' | 'hold' | 'both' }
   /** `hold` to guard, or `toggle` it with a press. */
   block: { mode: 'hold' | 'toggle' }
 }
 
-/** Whether an action is in use under the pack's settings (run is a button only in hold modes). */
-export const actionEnabled = (s: ActionSettings, a: InputAction): boolean =>
-  a === 'heavy' || a === 'special' ? s[a].enabled : a === 'run' ? s.run.mode !== 'doubleTap' : true
+/** Whether an action is in use under the pack's settings (run is a button only in hold modes, grab only for button grabs). */
+export const actionEnabled = (s: ActionSettings, a: InputAction): boolean => {
+  if (a === 'heavy' || a === 'special') return s[a].enabled
+  if (a === 'grab') return s.grab.enabled && s.grab.trigger === 'button'
+  if (a === 'run') return s.run.mode !== 'doubleTap'
+  return true
+}
 
 /** The actions in use, in INPUT_ACTIONS order. */
 export const enabledActions = (s: ActionSettings): InputAction[] => INPUT_ACTIONS.filter((a) => actionEnabled(s, a))
@@ -260,6 +267,7 @@ export const ACTION_NAMES: Record<InputAction, string> = {
   dodge: 'Dodge',
   heavy: 'Heavy attack',
   special: 'Special',
+  grab: 'Grab',
   run: 'Run (hold)',
   pause: 'Pause',
   hitboxes: 'Hitbox overlay',
