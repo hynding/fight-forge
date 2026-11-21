@@ -30,24 +30,28 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "brawler": {
       "approach": "beside",
       "attackFrom": "any",
+      "farReach": 5,
       "reach": 1.5,
       "standOff": 0.8,
     },
     "flanker": {
       "approach": "behind",
       "attackFrom": "behind",
+      "farReach": 5,
       "reach": 1.5,
       "standOff": 0.8,
     },
     "rusher": {
       "approach": "beside",
       "attackFrom": "any",
+      "farReach": 7,
       "reach": 4,
       "standOff": 0.9,
     },
     "tank": {
       "approach": "beside",
       "attackFrom": "any",
+      "farReach": 5,
       "reach": 1.7,
       "standOff": 0.8,
     },

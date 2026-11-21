@@ -146,6 +146,8 @@ export const MIGRATIONS: MigrationTable = {
     if (settings.actions) next.actions = { ...(settings.actions as Json), grab: GRAB_TUNING_V8 }
     return { ...pack, settings: next }
   },
+  // v9: bosses. Enemy `attacks`, the `boss` block and archetype `farReach` are new and optional.
+  8: (pack) => pack,
 }
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }

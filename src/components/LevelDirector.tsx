@@ -8,6 +8,7 @@ import { createLevelRuntime, placeItems, placeProps, stepLevel, type Level, type
 import { offscreenSpawn, type StageView } from '../sim/stage'
 import { scaledHealth } from '../sim/rules'
 import { playSound } from '../audio/engine'
+import type { SummonRequest } from '../sim/boss'
 
 // The "GO →" prompt hides once the player has walked this far past the
 // released lock, or after this long.
@@ -23,23 +24,29 @@ interface LevelDirectorProps {
   stageLength: number
   view: StageView
   playerPositionRef: RefObject<Vector3>
+  /** Boss phase summons to spawn (taken from the queue as they come in). */
+  summons: SummonRequest[]
 }
 
 /**
  * Runs the level script as a sim system: spawns waves when the player reaches
  * triggers, locks and releases the camera, and completes the level at the
- * goal. The pure logic is `stepLevel` in src/sim/level.ts.
+ * goal, and spawns the helpers a boss summons as it changes phase. The pure
+ * logic is `stepLevel` in src/sim/level.ts.
  */
 export const LevelDirector = ({
   level,
   stageLength,
   view,
   playerPositionRef,
+  summons,
 }: LevelDirectorProps) => {
   const [rt] = useState(() => createLevelRuntime(level))
   const go = useRef<{ fromX: number; timeLeft: number } | null>(null)
   // The loop starts at 0 with each level (the scene remounts), so its time is the level time.
   const loop = useSimLoop()
+  // Summoned helpers waiting out their `delay`.
+  const pending = useRef<{ def: SpawnDef; x: number; timeLeft: number }[]>([])
 
   const spawn = (def: SpawnDef, triggerX: number): string => {
     const depth = def.depth ?? Math.random()
@@ -100,6 +107,15 @@ export const LevelDirector = ({
       { playerX: player.x, cameraX: view.cameraX, isAlive: (id) => alive.has(id), spawn },
       dt
     )
+
+    // Boss summons: each helper comes in after its delay, placed ones beside the boss.
+    for (const req of summons.splice(0)) for (const def of req.enemies) pending.current.push({ def, x: req.x, timeLeft: def.delay ?? 0 })
+    pending.current = pending.current.filter((p) => {
+      p.timeLeft -= dt
+      if (p.timeLeft > 1e-9) return true
+      spawn(p.def, p.x)
+      return false
+    })
 
     for (const e of events) {
       if (e.kind === 'lock') {

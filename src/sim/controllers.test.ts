@@ -3,6 +3,7 @@ import { SIM_STEP } from './loop'
 import { DEFAULT_CONFIG } from '../config/defaults'
 import {
   approachSpot,
+  attackRangeAt,
   createBrawlerMemory,
   enemyIntent,
   inAttackPosition,
@@ -176,5 +177,25 @@ describe('spacingPush', () => {
     const far = spacingPush({ x: 0, z: 0 }, [{ x: 2, z: 0 }], 2.5)
     expect(near.x).toBeLessThan(far.x)
     expect(far.x).toBeLessThan(0)
+  })
+})
+
+describe('far attacks', () => {
+  const fighting = () => ({ ...createBrawlerMemory(), engaged: true })
+
+  it('attacks from far reach only when a far attack is ready', () => {
+    const at = ctx({ x: 4, z: 0 })
+    expect(enemyIntent({ ...at, farAttack: true }, fighting(), AI, BRAWLER, SIM_STEP).attack).toBe(true)
+    expect(enemyIntent(at, fighting(), AI, BRAWLER, SIM_STEP).attack).toBe(false)
+    // Beyond far reach, or someone else has the token: walk in.
+    expect(enemyIntent({ ...ctx({ x: 9, z: 0 }), farAttack: true }, fighting(), AI, BRAWLER, SIM_STEP).attack).toBe(false)
+    expect(enemyIntent({ ...ctx({ x: 4, z: 0 }, [], true), farAttack: true }, fighting(), AI, BRAWLER, SIM_STEP).attack).toBe(false)
+  })
+
+  it('tells near from far, and an archetype without farReach has no far band', () => {
+    expect(attackRangeAt(ctx({ x: 1, z: 0 }), AI, BRAWLER)).toBe('near')
+    expect(attackRangeAt(ctx({ x: 4, z: 0 }), AI, BRAWLER)).toBe('far')
+    expect(attackRangeAt(ctx({ x: 4, z: 2 }), AI, BRAWLER)).toBe(null)
+    expect(attackRangeAt(ctx({ x: 4, z: 0 }), AI, { ...BRAWLER, farReach: undefined })).toBe(null)
   })
 })

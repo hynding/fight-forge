@@ -14,6 +14,7 @@ import type { FighterRuntime } from '../sim/fighter'
 import { feelHit } from '../sim/feel'
 import { playSound } from '../audio/engine'
 import { hurtEnemy } from './enemyDamage'
+import { poiseHit } from '../sim/boss'
 
 const PLAYER = 'player'
 
@@ -154,10 +155,15 @@ export const GrabSystem = ({ playerRef, runtimes, enemyRefs }: GrabSystemProps) 
         const half = { ...thrown.hurtbox, z: thrown.hurtbox.z + cfg.depthTolerance }
         if (!boxesOverlap({ center: a, half }, { center: t, half: other.hurtbox })) return
         flight.hit.add(otherId)
-        applyHit(other.reaction, { hitstun: 0, knockback: { x: 0, y: 0 }, knockdown: true }, config.reactions)
-        const kb = Math.abs(thrown.velocity.x) * 0.6
-        other.velocity = { x: flight.dirX * kb, z: 0 }
-        ob.setLinvel({ x: flight.dirX * kb, y: 3, z: 0 }, true)
+        const knock = { hitstun: 0, knockback: { x: 0, y: 0 }, knockdown: true }
+        // A boss's poise can shrug off the knockdown.
+        const reaction = other.poise ? poiseHit(other.poise.state, other.poise.config, knock) : knock
+        if (reaction.knockdown) {
+          applyHit(other.reaction, reaction, config.reactions)
+          const kb = Math.abs(thrown.velocity.x) * 0.6
+          other.velocity = { x: flight.dirX * kb, z: 0 }
+          ob.setLinvel({ x: flight.dirX * kb, y: 3, z: 0 }, true)
+        }
         playSound(config.audio.hit)
         feelHit(feel, config.feel, {
           at: { x: (a.x + t.x) / 2, y: t.y, z: t.z + 0.3 },
@@ -165,7 +171,7 @@ export const GrabSystem = ({ playerRef, runtimes, enemyRefs }: GrabSystemProps) 
           damage: flight.damage,
           guarded: false,
           toPlayer: false,
-          down: true,
+          down: !!reaction.knockdown,
         })
         if (flight.damage > 0) {
           useGameStore.getState().gainMeter(flight.damage * config.rules.meter.perDamageDealt)

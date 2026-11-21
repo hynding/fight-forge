@@ -23,6 +23,7 @@ import { createStageView } from '../sim/stage'
 import { levelLength } from '../sim/level'
 import { Pickups } from './Pickups'
 import { LevelDirector } from './LevelDirector'
+import type { SummonRequest } from '../sim/boss'
 import { Backdrop } from './Backdrop'
 import { Props } from './Props'
 import { sceneProbe } from '../sim/probe'
@@ -61,6 +62,8 @@ export const GameScene = () => {
   // Fighters register themselves; mutable, so no re-render sits between a move and its hit.
   const [runtimes] = useState(() => new Map<string, FighterRuntime>())
   const [modelBudget] = useState(createModelBudget)
+  // Boss phase summons, spawned by the LevelDirector.
+  const [summons] = useState<SummonRequest[]>(() => [])
   // Keyboard (and later mouse and gamepad) input, sampled once per sim step.
   const [input] = useState(() => new InputManager())
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -145,6 +148,7 @@ export const GameScene = () => {
           stageLength={STAGE_LENGTH}
           view={view}
           playerPositionRef={playerPositionRef}
+          summons={summons}
         />
         <ScenePhysics gravity={config.physics.gravity} frozen={frozen}>
           <Stage length={STAGE_LENGTH} theme={THEME} />
@@ -173,6 +177,7 @@ export const GameScene = () => {
                 stageLength={STAGE_LENGTH}
                 view={view}
                 runtimes={runtimes}
+                summons={summons}
               />
             )
           })}

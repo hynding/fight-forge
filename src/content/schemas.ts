@@ -11,7 +11,7 @@ import { DIRECTIONS, MOVESET_ACTIONS, SITUATIONS } from '../sim/moveset'
 import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 8
+export const SCHEMA_VERSION = 9
 
 // ---------------------------------------------------------------- primitives
 
@@ -207,6 +207,8 @@ export const aiBehaviorSchema = z
     reach: positive,
     standOff: positive,
     attackFrom: z.enum(['any', 'behind']),
+    /** How far in X a `far` attack (a charge) can start from; without it the type only attacks within `reach`. */
+    farReach: positive.optional(),
   })
   .strict()
 
@@ -215,6 +217,56 @@ export const pickupSchema = z
   .strict()
 
 export const dropSchema = z.object({ pickup: idSchema, chance: fraction }).strict()
+
+export const spawnSchema = z
+  .object({
+    /** Enemy type id. */
+    type: idSchema,
+    from: z.enum(['right', 'left', 'placed']),
+    x: finite.optional(),
+    depth: fraction.optional(),
+    delay: nonNegative.optional(),
+  })
+  .strict()
+  .refine((s) => s.from !== 'placed' || s.x !== undefined, { message: 'a placed spawn needs "x"', path: ['x'] })
+
+/** One of an enemy type's attacks: `near` within the archetype's reach, `far` beyond it (up to `farReach`), or `any`. */
+export const attackSchema = z
+  .object({
+    move: idSchema,
+    range: z.enum(['near', 'far', 'any']),
+    weight: nonNegative.optional(),
+    cooldown: nonNegative.optional(),
+  })
+  .strict()
+
+/** A boss phase: starts below a health fraction and changes the fields it names. */
+export const bossPhaseSchema = z
+  .object({
+    below: z.number().gt(0).lt(1),
+    speed: nonNegative.optional(),
+    aggression: nonNegative.optional(),
+    armor: nonNegative.optional(),
+    /** AI archetype id. */
+    ai: idSchema.optional(),
+    attacks: z.array(attackSchema).min(1).optional(),
+    color: color.optional(),
+    summon: z.object({ enemies: z.array(spawnSchema).min(1) }).strict().optional(),
+    /** Sound id. */
+    taunt: idSchema.optional(),
+  })
+  .strict()
+
+export const bossSchema = z
+  .object({
+    title: z.string().min(1).max(40),
+    subtitle: z.string().max(60).optional(),
+    poise: z.object({ hits: z.number().int().min(0), window: positive }).strict(),
+    transition: z.object({ duration: nonNegative, push: nonNegative, radius: nonNegative }).strict(),
+    sharesTokens: z.boolean().optional(),
+    phases: z.array(bossPhaseSchema),
+  })
+  .strict()
 
 export const enemyTypeSchema = z
   .object({
@@ -226,7 +278,11 @@ export const enemyTypeSchema = z
     ai: idSchema,
     /** Move id; defaults to `enemy.attackMove`. */
     attackMove: idSchema.optional(),
+    /** Several attacks, chosen by range and weight; replaces `attackMove`. */
+    attacks: z.array(attackSchema).min(1).optional(),
     armor: nonNegative.optional(),
+    /** Makes the type a boss: phases, poise and its own attack slot. */
+    boss: bossSchema.optional(),
     /** False: can't be grabbed (default true). */
     grabbable: z.boolean().optional(),
     drop: dropSchema.optional(),
@@ -478,18 +534,6 @@ export const propPlacementSchema = z
   .strict()
 
 // ------------------------------------------------------------------- levels
-
-export const spawnSchema = z
-  .object({
-    /** Enemy type id. */
-    type: idSchema,
-    from: z.enum(['right', 'left', 'placed']),
-    x: finite.optional(),
-    depth: fraction.optional(),
-    delay: nonNegative.optional(),
-  })
-  .strict()
-  .refine((s) => s.from !== 'placed' || s.x !== undefined, { message: 'a placed spawn needs "x"', path: ['x'] })
 
 export const waveSchema = z.object({ enemies: z.array(spawnSchema).min(1) }).strict()
 

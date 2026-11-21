@@ -3,24 +3,28 @@
     "approach": "beside",
     "reach": 1.5,
     "standOff": 0.8,
-    "attackFrom": "any"
+    "attackFrom": "any",
+    "farReach": 5
   },
   "rusher": {
     "approach": "beside",
     "reach": 4,
     "standOff": 0.9,
-    "attackFrom": "any"
+    "attackFrom": "any",
+    "farReach": 7
   },
   "tank": {
     "approach": "beside",
     "reach": 1.7,
     "standOff": 0.8,
-    "attackFrom": "any"
+    "attackFrom": "any",
+    "farReach": 5
   },
   "flanker": {
     "approach": "behind",
     "reach": 1.5,
     "standOff": 0.8,
-    "attackFrom": "behind"
+    "attackFrom": "behind",
+    "farReach": 5
   }
 }
