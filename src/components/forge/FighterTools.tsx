@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { fighterStateSchema } from '../../content/schemas'
-import { addModelAsset, comboChain, effectiveMoves, fighterHalfExtents, fitModel, gltfModelFor, setComboChain } from '../../forge/fighter'
+import { addModelAsset, comboChain, effectiveActions, effectiveMoves, unusedActions, fighterHalfExtents, fitModel, gltfModelFor, setComboChain } from '../../forge/fighter'
 import { setIn } from '../../forge/paths'
 import { nodeValue, overrideNode, type TreeNode } from '../../forge/tree'
 import { editPack, type PackJson, type WorkspacePack } from '../../forge/workspace'
@@ -161,6 +161,7 @@ export const FighterTools = ({ pack, node, save, onError }: Props) => {
         <MovesetTools
           moveset={(fighter.moveset ?? []) as Moveset}
           moves={Object.keys(effectiveMoves(json))}
+          unused={unusedActions((fighter.moveset ?? []) as Moveset, effectiveMoves(json), effectiveActions(json))}
           onChange={(moveset) => setFighter({ ...fighter, moveset })}
         />
       )}

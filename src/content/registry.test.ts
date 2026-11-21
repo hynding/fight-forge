@@ -290,14 +290,13 @@ describe('bad packs: references', () => {
     expect(errorsOf(p).map((e) => `${e.path}: ${e.message}`).sort()).toEqual([
       'moves.jab.branches.attack+jump: "attack+jump" isn\'t an action or a chord the player\'s moveset uses',
       'moves.jab.branches.dodge: unknown move "nope"',
-      'moves.jab.branches.heavy: "heavy" isn\'t an action or a chord the player\'s moveset uses',
       'settings.player.moveset[0].action: a chord needs different actions',
     ])
   })
 
   it('checks combo links and cancel windows', () => {
     const p = base()
-    moves(p).hook.next = 'haymaker'
+    moves(p).hook.next = 'roundhouse'
     moves(p).jab.cancelFrom = 5
     moves(p).jab2.cancelFrom = 0.01
     expect(paths(errorsOf(p)).sort()).toEqual(['moves.hook.next', 'moves.jab.cancelFrom', 'moves.jab2.cancelFrom'])
@@ -493,6 +492,24 @@ describe('key bindings', () => {
       { action: 'attack', when: 'running', move: 'dashPunch' },
       { action: 'attack', move: 'hook' },
     ])
+  })
+
+  it('gives a v6 pack heavy, special and run inputs it doesn\'t already use, the action settings and the meter', () => {
+    const { heavy: _h, special: _s, run: _r, ...keyboard } = { ...DEFAULT_CONFIG.input.bindings.keyboard, dodge: ['l'] }
+    void [_h, _s, _r]
+    const strip = (b: Record<string, string[]>) => Object.fromEntries(Object.entries(b).filter(([a]) => !['heavy', 'special', 'run'].includes(a)))
+    const { actions: _a, ...input } = DEFAULT_CONFIG.input
+    void _a
+    const { meter: _m, ...rules } = DEFAULT_CONFIG.rules
+    void _m
+    const bindings = { keyboard, mouse: strip(DEFAULT_CONFIG.input.bindings.mouse), gamepad: strip(DEFAULT_CONFIG.input.bindings.gamepad) }
+    const old = { ...addon({ settings: { input: { ...input, bindings }, rules } }), schemaVersion: 6 }
+    const reg = build(defaultPack(), old)
+    // L was taken by dodge, so heavy gets nothing on the keyboard.
+    expect(reg.settings.input.bindings.keyboard).toMatchObject({ dodge: ['l'], heavy: [], special: ['i'], run: ['q'] })
+    expect(reg.settings.input.bindings.gamepad).toMatchObject({ heavy: ['y'], special: ['b'], run: ['ls'] })
+    expect(reg.settings.input.actions).toEqual(DEFAULT_CONFIG.input.actions)
+    expect(reg.settings.rules.meter).toEqual(DEFAULT_CONFIG.rules.meter)
   })
 
   it('gives a v4 pack the analog and rumble defaults', () => {

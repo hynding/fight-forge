@@ -8,7 +8,7 @@ import { getBindings } from '../content/bindings'
 import { getConfig } from '../content/active'
 import { padChanges, padStick } from '../sim/gamepad'
 import { activePadIndex, readPad } from './gamepads'
-import { loadPadPrefs } from './prefs'
+import { loadControlPrefs } from './prefs'
 import {
   createActionSampler,
   emptyFrame,
@@ -31,6 +31,8 @@ export class InputManager {
   readonly sampler = createActionSampler()
   /** The frame sampled by the latest sim step. */
   frame: ActionFrame = emptyFrame()
+  /** The mouse's X over the game view, -1 (left edge) to 1 (right edge); null when off it. */
+  pointerX: number | null = null
   private map: InputMap = new Map()
   private listeners = new Set<PressListener>()
   /** Pad inputs down at the last poll. */
@@ -67,7 +69,7 @@ export class InputManager {
     for (const name of up) inputUp(this.sampler, inputName('gamepad', name))
     for (const name of down) this.press(inputName('gamepad', name), 'gamepad')
     this.padDown = inputs
-    const deadZone = loadPadPrefs().deadZone ?? getConfig().input.analog.deadZone
+    const deadZone = loadControlPrefs().deadZone ?? getConfig().input.analog.deadZone
     this.sampler.stick = pad ? padStick(pad, deadZone) : { x: 0, z: 0 }
   }
 
@@ -111,6 +113,16 @@ export class InputManager {
     const onContextMenu = (e: MouseEvent) => {
       if (overView(e)) e.preventDefault()
     }
+    // For "face the cursor".
+    const onMouseMove = (e: MouseEvent) => {
+      const el = view()
+      if (!el || !overView(e)) {
+        this.pointerX = null
+        return
+      }
+      const rect = el.getBoundingClientRect()
+      this.pointerX = rect.width > 0 ? ((e.clientX - rect.left) / rect.width) * 2 - 1 : null
+    }
     const onKeyUp = (e: KeyboardEvent) => {
       if (editing()) return
       const input = keyInput(e.key)
@@ -152,6 +164,7 @@ export class InputManager {
     target.addEventListener('mouseup', onMouseUp)
     target.addEventListener('wheel', onWheel, { passive: false })
     target.addEventListener('contextmenu', onContextMenu)
+    target.addEventListener('mousemove', onMouseMove)
     target.addEventListener('gamepaddisconnected', onPadGone)
     return () => {
       unsubscribe()
@@ -165,6 +178,8 @@ export class InputManager {
       target.removeEventListener('mouseup', onMouseUp)
       target.removeEventListener('wheel', onWheel)
       target.removeEventListener('contextmenu', onContextMenu)
+      target.removeEventListener('mousemove', onMouseMove)
+      this.pointerX = null
       releaseAll(this.sampler)
     }
   }

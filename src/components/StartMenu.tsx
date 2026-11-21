@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
-import { getLevels } from '../content/active'
+import { getConfig, getLevels } from '../content/active'
 import { PackPanel } from './PackPanel'
 import { apiEnabled } from '../net/api'
 import { ControlsPanel } from './ControlsPanel'
 import { getBindings } from '../content/bindings'
-import { deviceHelp } from '../sim/input'
+import { deviceHelp, helpExtras } from '../sim/input'
 
 export const StartMenu = () => {
   const inputDevice = useGameStore((state) => state.inputDevice)
@@ -166,7 +166,7 @@ export const StartMenu = () => {
         <div style={{ marginBottom: '10px' }}>
           <strong>CONTROLS:</strong>
         </div>
-        <div>{deviceHelp(getBindings(), inputDevice, padLabels ?? 'xbox')}</div>
+        <div>{deviceHelp(getBindings(), inputDevice, padLabels ?? 'xbox', false, helpExtras(getConfig().input.actions))}</div>
       </div>
 
       {/* Visual Effects */}

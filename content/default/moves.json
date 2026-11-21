@@ -23,7 +23,10 @@
       "name": "Punch",
       "speed": 2.8
     },
-    "next": "jab2"
+    "next": "jab2",
+    "branches": {
+      "heavy": "haymaker"
+    }
   },
   "jab2": {
     "sound": "whoosh",
@@ -49,7 +52,10 @@
       "name": "Punch",
       "speed": 2.8
     },
-    "next": "hook"
+    "next": "hook",
+    "branches": {
+      "heavy": "haymaker"
+    }
   },
   "hook": {
     "sound": "whoosh",
@@ -75,7 +81,10 @@
       "name": "Punch",
       "speed": 2.1
     },
-    "next": "uppercut"
+    "next": "uppercut",
+    "branches": {
+      "heavy": "haymaker"
+    }
   },
   "uppercut": {
     "sound": "whoosh",
@@ -209,6 +218,60 @@
     "clip": {
       "name": "Punch",
       "speed": 0.95
+    }
+  },
+  "haymaker": {
+    "sound": "whoosh",
+    "hitSound": "heavy",
+    "startup": 0.18,
+    "active": 0.1,
+    "recovery": 0.4,
+    "damage": 22,
+    "hitbox": {
+      "forward": 0.9,
+      "up": 0.2,
+      "halfX": 0.65,
+      "halfY": 0.55,
+      "halfZ": 0.5
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 6,
+        "y": 4
+      },
+      "knockdown": true
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 1.2
+    }
+  },
+  "shockwave": {
+    "sound": "heavy",
+    "hitSound": "heavy",
+    "startup": 0.15,
+    "active": 0.15,
+    "recovery": 0.45,
+    "damage": 25,
+    "hitbox": {
+      "forward": 0,
+      "up": 0,
+      "halfX": 1.8,
+      "halfY": 0.9,
+      "halfZ": 0.9
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 6,
+        "y": 5
+      },
+      "knockdown": true
+    },
+    "clip": {
+      "name": "Jump",
+      "speed": 1.6
     }
   }
 }

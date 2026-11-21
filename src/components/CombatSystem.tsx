@@ -146,6 +146,10 @@ export const CombatSystem = ({
         )
 
         if (damage <= 0) continue
+        // The special meter fills from hits the player lands and takes.
+        const meter = rules.meter
+        if (attackerName === PLAYER) store.gainMeter(damage * meter.perDamageDealt)
+        if (targetName === PLAYER) store.gainMeter(shown * meter.perDamageTaken)
         if (targetName === PLAYER) {
           if (shown > 0) store.damagePlayer(shown)
         } else {

@@ -8,6 +8,8 @@ const DIRECTION_NAMES: Record<string, string> = { toward: 'toward the enemy', aw
 interface Props {
   moveset: Moveset
   moves: string[]
+  /** Optional actions turned on in the pack but used by no row or branch. */
+  unused?: string[]
   onChange: (moveset: Moveset) => void
 }
 
@@ -18,10 +20,10 @@ const numberOrUndefined = (v: string): number | undefined => (v.trim() === '' ||
  * bottom and the first that matches wins, so specific rows (a direction, a
  * situation, a chord) go above the plain attack.
  */
-export const MovesetTools = ({ moveset, moves, onChange }: Props) => {
+export const MovesetTools = ({ moveset, moves, unused = [], onChange }: Props) => {
   const shadowed = new Set(shadowedTriggers(moveset))
   const row = (i: number, patch: Partial<MoveTrigger>) => onChange(setRow(moveset, i, { ...moveset[i], ...patch }))
-  const cost = (i: number, key: 'health' | 'cooldown', value: string) => {
+  const cost = (i: number, key: 'health' | 'meter' | 'cooldown', value: string) => {
     const next = { ...moveset[i].cost, [key]: numberOrUndefined(value) }
     const kept = Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined))
     row(i, { cost: Object.keys(kept).length ? kept : undefined })
@@ -66,6 +68,18 @@ export const MovesetTools = ({ moveset, moves, onChange }: Props) => {
               onChange={(e) => cost(i, 'health', e.target.value)}
             />
           </label>
+          <label title="Meter spent (needs this much)">
+            ⚡
+            <input
+              aria-label={`Row ${i + 1} meter cost`}
+              style={{ ...ui.input, width: '40px' }}
+              type="number"
+              min={1}
+              step={1}
+              value={t.cost?.meter ?? ''}
+              onChange={(e) => cost(i, 'meter', e.target.value)}
+            />
+          </label>
           <label title="Seconds before this row can fire again">
             ⏱
             <input
@@ -93,6 +107,11 @@ export const MovesetTools = ({ moveset, moves, onChange }: Props) => {
             ×
           </button>
           {shadowed.has(i) && <span style={ui.error}>never used: a row above always matches first</span>}
+        </div>
+      ))}
+      {unused.map((a) => (
+        <div key={a} style={ui.error}>
+          {a} is on (Input settings) but no row or combo branch uses it, so its button does nothing.
         </div>
       ))}
       <button style={ui.button} onClick={() => onChange(addRow(moveset, moves[0] ?? 'jab'))}>

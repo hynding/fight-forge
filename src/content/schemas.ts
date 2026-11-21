@@ -11,7 +11,7 @@ import { DIRECTIONS, MOVESET_ACTIONS, SITUATIONS } from '../sim/moveset'
 import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 7
 
 // ---------------------------------------------------------------- primitives
 
@@ -237,7 +237,7 @@ export const moveTriggerSchema = z
     when: z.enum(SITUATIONS).optional(),
     direction: z.enum(DIRECTIONS).optional(),
     move: idSchema,
-    cost: z.object({ health: z.number().int().min(1).optional(), cooldown: positive.optional() }).strict().optional(),
+    cost: z.object({ health: z.number().int().min(1).optional(), cooldown: positive.optional(), meter: positive.optional() }).strict().optional(),
   })
   .strict()
 
@@ -339,6 +339,7 @@ export const settingsSchema = z
         maxSimultaneousAttackers: z.number().int().min(1),
         friendlyFire: z.boolean(),
         difficulty: z.object({ damageTaken: nonNegative, enemyHealth: positive }).strict(),
+        meter: z.object({ max: positive, start: nonNegative, perDamageDealt: nonNegative, perDamageTaken: nonNegative }).strict(),
       })
       .strict(),
     input: z
@@ -355,6 +356,14 @@ export const settingsSchema = z
           .strict(),
         /** Analog sticks: no movement inside `deadZone`; past `runThreshold` the fighter runs. */
         analog: z.object({ deadZone: unit, runThreshold: unit }).strict(),
+        actions: z
+          .object({
+            heavy: z.object({ enabled: z.boolean() }).strict(),
+            special: z.object({ enabled: z.boolean() }).strict(),
+            run: z.object({ mode: z.enum(['doubleTap', 'hold', 'both']) }).strict(),
+            block: z.object({ mode: z.enum(['hold', 'toggle']) }).strict(),
+          })
+          .strict(),
         chordWindow: finite.min(0).max(0.5),
         turnGrace: finite.min(0).max(0.5),
       })

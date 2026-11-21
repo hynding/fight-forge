@@ -13,9 +13,35 @@ export const INPUT_ACTIONS = [
   'attack',
   'block',
   'dodge',
+  'heavy',
+  'special',
+  'run',
   'pause',
   'hitboxes',
 ] as const
+
+/** Actions a pack can turn off (`input.actions`); turned-off ones are hidden from remapping and help. */
+export const OPTIONAL_ACTIONS = ['heavy', 'special', 'run'] as const
+
+/** The pack's switches for optional actions and how some actions behave. */
+export interface ActionSettings {
+  heavy: { enabled: boolean }
+  special: { enabled: boolean }
+  /** `doubleTap` a direction, `hold` the run button, or `both`. A stick pushed past the run threshold always runs. */
+  run: { mode: 'doubleTap' | 'hold' | 'both' }
+  /** `hold` to guard, or `toggle` it with a press. */
+  block: { mode: 'hold' | 'toggle' }
+}
+
+/** Whether an action is in use under the pack's settings (run is a button only in hold modes). */
+export const actionEnabled = (s: ActionSettings, a: InputAction): boolean =>
+  a === 'heavy' || a === 'special' ? s[a].enabled : a === 'run' ? s.run.mode !== 'doubleTap' : true
+
+/** The actions in use, in INPUT_ACTIONS order. */
+export const enabledActions = (s: ActionSettings): InputAction[] => INPUT_ACTIONS.filter((a) => actionEnabled(s, a))
+
+/** The optional actions in use, for the extras in on-screen help. */
+export const helpExtras = (s: ActionSettings): InputAction[] => OPTIONAL_ACTIONS.filter((a) => actionEnabled(s, a))
 
 export type InputAction = (typeof INPUT_ACTIONS)[number]
 
@@ -173,27 +199,40 @@ export const inputLabel = (device: InputDevice, name: string, padSet: PadLabelSe
 export const actionLabel = (bindings: Bindings, action: InputAction, device: InputDevice = 'keyboard', padSet: PadLabelSet = 'xbox'): string =>
   bindings[action].length ? bindings[action].map((k) => inputLabel(device, k, padSet)).join(' / ') : '—'
 
-/** The one-line controls help, from each action's first key. */
-export const controlsHelp = (b: Bindings, combo = false): string => {
+const EXTRA_HELP: [InputAction, string][] = [
+  ['heavy', 'Heavy'],
+  ['special', 'Special'],
+  ['run', 'Run'],
+]
+
+/** Help for the optional actions in use, after the basics. */
+const extraHelp = (k: (a: InputAction) => string, extra: readonly InputAction[]): string[] =>
+  EXTRA_HELP.filter(([a]) => extra.includes(a)).map(([a, name]) => `${k(a)} - ${name}`)
+
+/** The one-line controls help, from each action's first key; `extra` lists the optional actions in use. */
+export const controlsHelp = (b: Bindings, combo = false, extra: readonly InputAction[] = []): string => {
   const k = (a: InputAction) => (b[a].length ? keyLabel(b[a][0]) : '—')
   return [
-    `${k('left')}/${k('right')} - Move (double-tap to run)`,
+    `${k('left')}/${k('right')} - Move${extra.includes('run') ? '' : ' (double-tap to run)'}`,
     `${k('forward')}/${k('backward')} - Depth`,
     `${k('jump')} - Jump`,
     `${k('attack')} - Attack${combo ? ' (tap for combo)' : ''}`,
+    ...extraHelp(k, extra.filter((a) => a !== 'run')),
     `${k('block')} - Block`,
     `${k('dodge')} - Dodge`,
+    ...extraHelp(k, extra.filter((a) => a === 'run')),
     `${k('pause')} - Pause`,
   ].join(' | ')
 }
 
 /** The help line for a controller: each action's first button, movement as the stick. */
-export const padHelp = (b: Bindings, padSet: PadLabelSet = 'xbox', combo = false): string => {
+export const padHelp = (b: Bindings, padSet: PadLabelSet = 'xbox', combo = false, extra: readonly InputAction[] = []): string => {
   const k = (a: InputAction) => (b[a].length ? padLabel(b[a][0], padSet) : '—')
   return [
     'Stick / D-pad - Move (push all the way to run)',
     `${k('jump')} - Jump`,
     `${k('attack')} - Attack${combo ? ' (tap for combo)' : ''}`,
+    ...extraHelp(k, extra.filter((a) => a !== 'run')),
     `${k('block')} - Block`,
     `${k('dodge')} - Dodge`,
     `${k('pause')} - Pause`,
@@ -201,8 +240,13 @@ export const padHelp = (b: Bindings, padSet: PadLabelSet = 'xbox', combo = false
 }
 
 /** The help line for the device last used: the controller's, or the keyboard's for keyboard and mouse. */
-export const deviceHelp = (all: DeviceBindings, device: InputDevice, padSet: PadLabelSet = 'xbox', combo = false): string =>
-  device === 'gamepad' ? padHelp(all.gamepad, padSet, combo) : controlsHelp(all.keyboard, combo)
+export const deviceHelp = (
+  all: DeviceBindings,
+  device: InputDevice,
+  padSet: PadLabelSet = 'xbox',
+  combo = false,
+  extra: readonly InputAction[] = []
+): string => (device === 'gamepad' ? padHelp(all.gamepad, padSet, combo, extra) : controlsHelp(all.keyboard, combo, extra))
 
 /** Display names for the remapping screen. */
 export const ACTION_NAMES: Record<InputAction, string> = {
@@ -214,6 +258,9 @@ export const ACTION_NAMES: Record<InputAction, string> = {
   attack: 'Attack',
   block: 'Block',
   dodge: 'Dodge',
+  heavy: 'Heavy attack',
+  special: 'Special',
+  run: 'Run (hold)',
   pause: 'Pause',
   hitboxes: 'Hitbox overlay',
 }

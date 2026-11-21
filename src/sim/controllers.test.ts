@@ -20,6 +20,9 @@ const none: Controls = {
   attack: false,
   block: false,
   dodge: false,
+  heavy: false,
+  special: false,
+  run: false,
 }
 
 describe('inputIntent', () => {

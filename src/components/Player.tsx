@@ -9,6 +9,8 @@ import { createChordBuffer, matchTrigger, MOVESET_ACTIONS, relativeDirection, st
 import { createRunDetector, stepRunDetector } from '../sim/defense'
 import { inputIntent } from '../sim/controllers'
 import { frameControls } from '../sim/actions'
+import { actionEnabled } from '../sim/input'
+import { loadControlPrefs } from '../input/prefs'
 import type { InputManager } from '../input/InputManager'
 import { createFighterRuntime, type FighterRuntime } from '../sim/fighter'
 import { screenBounds, type StageView } from '../sim/stage'
@@ -51,6 +53,8 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   const turn = useRef({ seen: 1, at: -Infinity, from: 1 })
   // Game time each trigger (by index) can fire again.
   const cooldowns = useRef(new Map<number, number>())
+  // Toggle block: whether the guard is up.
+  const blockOn = useRef(false)
   const respawnSeen = useRef(useGameStore.getState().respawnCount)
   const playerHealth = useGameStore((state) => state.playerHealth)
 
@@ -94,14 +98,16 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
     let index = -1
     if (runtime.move.move !== null) press = stepPresses[0] ?? null
     else if (runtime.reaction.kind === null && !(inAir && airAttackUsed.current)) {
-      const playerHealth = useGameStore.getState().playerHealth
+      const { playerHealth, meter } = useGameStore.getState()
       const ctx = {
         air: inAir,
         running: !!intent?.run,
         blocking: runtime.blocking,
         direction: direction.current,
         canPay: (t: MoveTrigger, i: number) =>
-          (t.cost?.health === undefined || playerHealth > t.cost.health) && (cooldowns.current.get(i) ?? -Infinity) <= loop.time,
+          (t.cost?.health === undefined || playerHealth > t.cost.health) &&
+          (t.cost?.meter === undefined || meter >= t.cost.meter) &&
+          (cooldowns.current.get(i) ?? -Infinity) <= loop.time,
       }
       for (const p of stepPresses) {
         index = matchTrigger(P.moveset, p, ctx)
@@ -115,6 +121,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
     const event = stepMoves(runtime.move, press, dt, config.moves, trigger?.move ?? null)
     if (event === 'started' && trigger) {
       if (trigger.cost?.health) useGameStore.getState().spendHealth(trigger.cost.health)
+      if (trigger.cost?.meter) useGameStore.getState().spendMeter(trigger.cost.meter)
       if (trigger.cost?.cooldown) cooldowns.current.set(index, loop.time + trigger.cost.cooldown)
       // A move for "away" comes out behind without turning round.
       if (trigger.direction === 'away') runtime.facing.x = facingBefore.current
@@ -144,7 +151,16 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       isAttacking={isAttacking}
       getIntent={() => {
         const frame = input.frame
+        const actions = config.input.actions
+        const prefs = loadControlPrefs()
         const controls = frameControls(frame)
+        // Actions the pack turned off do nothing, even if an old binding remains.
+        for (const a of ['heavy', 'special'] as const) if (!actionEnabled(actions, a)) controls[a] = false
+        // Toggle block: a press raises or lowers the guard.
+        if (actions.block.mode === 'toggle' || prefs.toggleBlock) {
+          if (frame.pressed.block) blockOn.current = !blockOn.current
+          controls.block = blockOn.current
+        } else blockOn.current = false
         // Actions in a chord wait briefly to see if the chord completes.
         const chord = stepChords(
           chords,
@@ -160,7 +176,17 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
         // A stick walks at its tilt and runs when pushed past the threshold.
         if (frame.analog) intent.move = frame.move
         const pushed = frame.analog && Math.hypot(frame.move.x, frame.move.z) >= config.input.analog.runThreshold
-        intent.run = stepRunDetector(runDetector, intent.move.x, loop.time, config.actions.run) || pushed
+        const runMode = actions.run.mode
+        const tapped = stepRunDetector(runDetector, intent.move.x, loop.time, config.actions.run)
+        const held = controls.run && intent.move.x !== 0
+        intent.run = (runMode !== 'hold' && tapped) || (runMode !== 'doubleTap' && held) || pushed
+        // Face the cursor: standing still with the mouse in use, turn toward the pointer.
+        const pointer = input.pointerX
+        const body = (ref as RefObject<RapierRigidBody> | null)?.current
+        if (prefs.faceCursor && pointer !== null && body && intent.move.x === 0 && input.sampler.lastDevice !== 'gamepad') {
+          const screenX = (body.translation().x - view.cameraX) / view.halfWidth
+          if (Math.abs(pointer - screenX) > 0.02) intent.face = { x: Math.sign(pointer - screenX), z: 0 }
+        }
         presses.current = chord.presses
         // Back + attack pressed together: the fighter turns on the first step
         // the direction is held, so judge "away" against the facing before a recent turn.

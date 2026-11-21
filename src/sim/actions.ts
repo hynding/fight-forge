@@ -174,6 +174,10 @@ export interface Controls {
   attack: boolean
   block: boolean
   dodge: boolean
+  heavy: boolean
+  special: boolean
+  /** The run button (hold-to-run packs). */
+  run: boolean
 }
 
 export const frameControls = (f: ActionFrame): Controls => {
@@ -187,5 +191,8 @@ export const frameControls = (f: ActionFrame): Controls => {
     attack: on('attack'),
     block: on('block'),
     dodge: on('dodge'),
+    heavy: on('heavy'),
+    special: on('special'),
+    run: on('run'),
   }
 }

@@ -70,6 +70,8 @@ interface GameState {
   lives: number
   /** Continues left after a game over (`rules.continues` per run). */
   continuesLeft: number
+  /** The special meter (see `rules.meter`); kept between levels of a run. */
+  meter: number
   /** Incremented when the player loses a life or continues; the player respawns on change. */
   respawnCount: number
   /** Enemies defeated this level, and this run. */
@@ -88,6 +90,10 @@ interface GameState {
   damagePlayer: (damage: number) => void
   /** Pay health for a move: never below 1, and never a lost life. */
   spendHealth: (amount: number) => void
+  /** Fill the special meter (up to `rules.meter.max`). */
+  gainMeter: (amount: number) => void
+  /** Spend meter on a move; false (and nothing spent) without enough. */
+  spendMeter: (amount: number) => boolean
   healPlayer: (amount: number) => void
   addScore: (points: number) => void
   spawnEnemy: (enemy: Enemy) => void
@@ -177,6 +183,7 @@ const freshRun = (): Partial<GameState> => ({
   lives: getConfig().rules.lives,
   continuesLeft: getConfig().rules.continues,
   runKos: 0,
+  meter: getConfig().rules.meter.start,
 })
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -201,6 +208,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   editing: false,
   lives: getConfig().rules.lives,
   continuesLeft: getConfig().rules.continues,
+  meter: getConfig().rules.meter.start,
   respawnCount: 0,
   kos: 0,
   runKos: 0,
@@ -216,6 +224,18 @@ export const useGameStore = create<GameState>((set, get) => ({
   setPacks: (packs, contentError) => set({ packs, contentError }),
 
   spendHealth: (amount) => set((s) => ({ playerHealth: Math.max(1, s.playerHealth - amount) })),
+  gainMeter: (amount) => {
+    const max = getConfig().rules.meter.max
+    const s = get()
+    const next = Math.min(max, s.meter + Math.max(0, amount))
+    if (next !== s.meter) set({ meter: next })
+  },
+  spendMeter: (amount) => {
+    const s = get()
+    if (s.meter + 1e-9 < amount) return false
+    set({ meter: Math.max(0, s.meter - amount) })
+    return true
+  },
   damagePlayer: (damage) =>
     set((state) => {
       if (state.isGameOver || state.levelProgress.complete) return {}
