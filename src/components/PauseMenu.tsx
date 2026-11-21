@@ -5,6 +5,7 @@ import { actionForKey } from '../content/bindings'
 export const PauseMenu = () => {
   const isPaused = useGameStore((state) => state.isPaused)
   const togglePause = useGameStore((state) => state.togglePause)
+  const inSandbox = useGameStore((state) => state.sandbox !== null)
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -101,7 +102,7 @@ export const PauseMenu = () => {
             e.currentTarget.style.color = '#888888'
           }}
         >
-          MAIN MENU
+          {inSandbox ? 'BACK TO FORGE' : 'MAIN MENU'}
         </button>
       </div>
 

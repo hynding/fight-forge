@@ -151,10 +151,30 @@ describe('stepLevel', () => {
     expect(step()).toContainEqual({ kind: 'unlock' })
   })
 
+  it("doesn't count a goal inside a locked screen until the fight is won", () => {
+    const level: Level = {
+      id: 'g',
+      name: 'Goal on screen',
+      theme: 'default',
+      segments: [{ length: 30, triggers: [{ kind: 'wave', at: 10, lock: true, waves: [{ enemies: [{ type: B, from: 'right' }] }] }, { kind: 'goal', at: 20 }] }],
+    }
+    const rt = createLevelRuntime(level)
+    const w = world()
+    const step = (playerX: number) => stepLevel(rt, { playerX, cameraX: 10, isAlive: (id) => w.alive.has(id), spawn: w.spawn }, SIM_STEP)
+    expect(step(10)).toContainEqual({ kind: 'lock', x: 10 })
+    expect(step(21)).not.toContainEqual({ kind: 'complete' })
+    expect(rt.complete).toBe(false)
+    w.killAll()
+    expect(step(21)).toContainEqual({ kind: 'unlock' })
+    expect(step(21)).toContainEqual({ kind: 'complete' })
+  })
+
   it('completes at the goal and then does nothing', () => {
     const rt = createLevelRuntime(LEVEL)
     const w = world()
-    const out = stepLevel(rt, { playerX: 100, cameraX: 0, isAlive: () => false, spawn: w.spawn }, SIM_STEP)
+    // Locked fights on the way are won (nobody stays alive) before the goal counts.
+    const out: LevelEvent[] = []
+    for (let i = 0; i < 600 && !rt.complete; i++) out.push(...stepLevel(rt, { playerX: 100, cameraX: 0, isAlive: () => false, spawn: w.spawn }, SIM_STEP))
     expect(out).toContainEqual({ kind: 'complete' })
     expect(rt.complete).toBe(true)
     expect(stepLevel(rt, { playerX: 100, cameraX: 0, isAlive: () => false, spawn: w.spawn }, SIM_STEP)).toEqual([])

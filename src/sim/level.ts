@@ -199,6 +199,8 @@ export const stepLevel = (rt: LevelRuntime, input: LevelStepInput, dt: number): 
   if (rt.complete) return events
 
   while (rt.next < rt.triggers.length && input.playerX >= rt.triggers[rt.next].x) {
+    // A goal inside a locked screen waits until the fight is won.
+    if (rt.triggers[rt.next].kind === 'goal' && rt.lockX !== null) break
     const t = rt.triggers[rt.next++]
     if (t.kind === 'goal') {
       rt.complete = true
