@@ -365,6 +365,11 @@ export const packMetaSchema = z
     license: z.string().min(1),
     /** Image asset id. */
     cover: idSchema.optional(),
+    /** The published pack this one was remixed from: credit that stays with the remix. */
+    remixOf: z
+      .object({ id: idSchema, version: z.string().min(1), name: z.string().min(1), owner: z.string().min(1) })
+      .strict()
+      .optional(),
   })
   .strict()
 

@@ -12,7 +12,7 @@ import { sandboxLevel } from './sandbox'
 import { validateLevel } from '../sim/level'
 import { addNode, buildTree, nodeValue, overrideNode, removeNode } from './tree'
 import { addModelAsset, assetFile, comboChain, fitModel, gltfModelFor, moveFrames, phaseAt, removeAsset, setComboChain } from './fighter'
-import { baseContent, duplicatePack, editPack, exportBundle, importBundle, newPack, slugify, uniqueId, validatePack } from './workspace'
+import { baseContent, duplicatePack, editPack, exportBundle, importBundle, newPack, remixBundle, slugify, uniqueId, validatePack } from './workspace'
 
 const SAMPLE = join(__dirname, '../../content/samples/skeleton-remix')
 const sample = () => bundleFromFolder(SAMPLE, (p) => new Uint8Array(readFileSync(p)), (f) => readdirSync(f))
@@ -95,6 +95,23 @@ describe('workspace', () => {
     if (!back.ok) throw new Error(back.errors[0].message)
     expect(back.value.pack).toMatchObject({ id: 'skeleton-remix-2', name: 'Bones' })
     expect(back.value.files.size).toBe(1)
+  })
+
+  it('remixes a published pack under a new id, crediting the original', async () => {
+    const zip = await sample()
+    const source = { id: 'skeleton-remix', version: '1.2.0', name: 'Skeleton Remix', owner: 'steve' }
+    const r = await remixBundle(zip, source, ['skeleton-remix-remix'])
+    if (!r.ok) throw new Error(r.errors[0].message)
+    expect(r.value.id).toBe('skeleton-remix-remix-2')
+    expect(r.value.json).toMatchObject({ id: 'skeleton-remix-remix-2', name: 'Skeleton Remix (remix)', version: '1.0.0' })
+    expect((r.value.json.meta as Record<string, unknown>).remixOf).toEqual(source)
+    expect(validatePack(r.value.json)).toEqual([])
+    // The credit survives export, and the original bundle is untouched.
+    const back = await readBundle(await exportBundle(r.value))
+    if (!back.ok) throw new Error(back.errors[0].message)
+    expect(back.value.pack.meta.remixOf).toEqual(source)
+    const orig = await readBundle(zip)
+    expect(orig.ok && orig.value.pack.id).toBe('skeleton-remix')
   })
 
   it('saves to a store, newest first', async () => {

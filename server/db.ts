@@ -27,6 +27,9 @@ export interface PackRow {
   visibility: Visibility
   latestVersion: string
   hasCover: boolean
+  /** The pack this one remixes, if any (its id; it may since have gone). */
+  remixOf: string | null
+  likes: number
   created: number
   updated: number
 }
@@ -80,6 +83,13 @@ create table if not exists pack_versions (
   created integer not null,
   primary key (pack_id, version)
 );
+create table if not exists likes (
+  user_id text not null references users(id),
+  pack_id text not null references packs(id),
+  created integer not null,
+  primary key (user_id, pack_id)
+);
+create index if not exists likes_pack on likes(pack_id);
 create virtual table if not exists packs_fts using fts5(id unindexed, name, description, author);
 `
 
@@ -95,6 +105,8 @@ const toPack = (r: Row): PackRow => ({
   visibility: r.visibility as Visibility,
   latestVersion: String(r.latest_version),
   hasCover: r.cover_hash !== null,
+  remixOf: r.remix_of == null ? null : String(r.remix_of),
+  likes: Number(r.likes ?? 0),
   created: Number(r.created),
   updated: Number(r.updated),
 })
@@ -109,7 +121,11 @@ const toVersion = (r: Row): VersionRow => ({
   created: Number(r.created),
 })
 
-const PACK_SELECT = 'select p.*, u.name as owner_name from packs p join users u on u.id = p.owner_id'
+const PACK_SELECT =
+  'select p.*, u.name as owner_name, (select count(*) from likes l where l.pack_id = p.id) as likes from packs p join users u on u.id = p.owner_id'
+
+/** Columns added after the first release, for databases made before them. */
+const COLUMNS: [table: string, column: string, type: string][] = [['packs', 'remix_of', 'text']]
 
 /** Words for a full-text search, each as a prefix match; anything else is dropped. */
 const ftsQuery = (q: string): string =>
@@ -126,6 +142,10 @@ export const openStore = (path = ':memory:') => {
   if (path !== ':memory:') db.exec('pragma journal_mode = wal')
   db.exec('pragma foreign_keys = on')
   db.exec(SCHEMA)
+  for (const [table, column, type] of COLUMNS) {
+    const has = (db.prepare(`pragma table_info(${table})`).all() as Row[]).some((c) => c.name === column)
+    if (!has) db.exec(`alter table ${table} add column ${column} ${type}`)
+  }
 
   const user = (r: Row | undefined): User | null =>
     r ? { id: String(r.id), name: String(r.name), role: r.role === 'admin' ? 'admin' : 'user', banned: Number(r.banned) === 1 } : null
@@ -171,7 +191,7 @@ export const openStore = (path = ':memory:') => {
 
     /** Record a new version, creating the pack on its first one. */
     addVersion(
-      p: { id: string; ownerId: string; name: string; author: string; description: string; visibility: Visibility },
+      p: { id: string; ownerId: string; name: string; author: string; description: string; visibility: Visibility; remixOf?: string | null },
       v: { version: string; hash: string; bytes: number; license: string; coverHash: string | null },
       now = Date.now()
     ) {
@@ -180,12 +200,12 @@ export const openStore = (path = ':memory:') => {
         const exists = db.prepare('select 1 from packs where id = ?').get(p.id)
         if (exists)
           db.prepare(
-            'update packs set name = ?, author = ?, description = ?, visibility = ?, latest_version = ?, cover_hash = ?, updated = ? where id = ?'
-          ).run(p.name, p.author, p.description, p.visibility, v.version, v.coverHash, now, p.id)
+            'update packs set name = ?, author = ?, description = ?, visibility = ?, latest_version = ?, cover_hash = ?, remix_of = ?, updated = ? where id = ?'
+          ).run(p.name, p.author, p.description, p.visibility, v.version, v.coverHash, p.remixOf ?? null, now, p.id)
         else
           db.prepare(
-            'insert into packs (id, owner_id, name, author, description, visibility, latest_version, cover_hash, created, updated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-          ).run(p.id, p.ownerId, p.name, p.author, p.description, p.visibility, v.version, v.coverHash, now, now)
+            'insert into packs (id, owner_id, name, author, description, visibility, latest_version, cover_hash, remix_of, created, updated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          ).run(p.id, p.ownerId, p.name, p.author, p.description, p.visibility, v.version, v.coverHash, p.remixOf ?? null, now, now)
         db.prepare('insert into pack_versions (pack_id, version, hash, bytes, license, cover_hash, created) values (?, ?, ?, ?, ?, ?, ?)').run(
           p.id,
           v.version,
@@ -207,9 +227,19 @@ export const openStore = (path = ':memory:') => {
     setVisibility: (id: string, visibility: Visibility) =>
       void db.prepare('update packs set visibility = ?, updated = ? where id = ?').run(visibility, Date.now(), id),
 
-    /** Public, not hidden packs; newest first, or by name; optionally matching words. */
-    listPublic(opts: { q?: string; owner?: string; sort?: 'new' | 'name'; limit?: number; offset?: number } = {}): PackRow[] {
-      const order = opts.sort === 'name' ? 'p.name collate nocase' : 'p.updated desc'
+    /** Like or unlike a pack (idempotent). */
+    setLike(userId: string, packId: string, liked: boolean, now = Date.now()) {
+      if (liked) db.prepare('insert or ignore into likes (user_id, pack_id, created) values (?, ?, ?)').run(userId, packId, now)
+      else db.prepare('delete from likes where user_id = ? and pack_id = ?').run(userId, packId)
+    },
+    likes: (userId: string, packId: string): boolean => !!db.prepare('select 1 from likes where user_id = ? and pack_id = ?').get(userId, packId),
+    /** Public, not hidden remixes of a pack, newest first. */
+    remixesOf: (packId: string, limit = 24): PackRow[] =>
+      (db.prepare(`${PACK_SELECT} where p.remix_of = ? and p.visibility = 'public' and p.hidden = 0 order by p.updated desc limit ?`).all(packId, limit) as Row[]).map(toPack),
+
+    /** Public, not hidden packs; newest first, by name or most liked; optionally matching words. */
+    listPublic(opts: { q?: string; owner?: string; sort?: 'new' | 'name' | 'likes'; limit?: number; offset?: number } = {}): PackRow[] {
+      const order = opts.sort === 'name' ? 'p.name collate nocase' : opts.sort === 'likes' ? 'likes desc, p.updated desc' : 'p.updated desc'
       const limit = Math.min(100, Math.max(1, opts.limit ?? 24))
       const offset = Math.max(0, opts.offset ?? 0)
       const q = opts.q ? ftsQuery(opts.q) : ''

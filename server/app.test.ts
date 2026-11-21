@@ -3,7 +3,7 @@ import { buildApp, compareVersions, CSRF_HEADER, SESSION_COOKIE } from './app'
 import { memoryBlobs } from './blobs'
 import { openStore } from './db'
 import { addImageAsset, setCover } from '../src/forge/assets'
-import { editPack, exportBundle, newPack, type WorkspacePack } from '../src/forge/workspace'
+import { editPack, exportBundle, newPack, remixBundle, type WorkspacePack } from '../src/forge/workspace'
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4])
 
@@ -79,7 +79,9 @@ describe('server', () => {
     wp = editPack(img.pack, setCover(img.pack.json, img.assetId))
 
     expect((await publish(app, undefined, await bundleOf(wp))).statusCode).toBe(401)
-    const first = await publish(app, cookie, await bundleOf(wp))
+    // One zip, sent and compared: zipping again can differ (file times).
+    const v1 = await bundleOf(wp)
+    const first = await publish(app, cookie, v1)
     expect(first.statusCode).toBe(201)
     expect(first.json().pack).toMatchObject({ id: 'big-brawl', version: '1.0.0', owner: 'maker', cover: true })
 
@@ -92,7 +94,7 @@ describe('server', () => {
     const zip = await app.inject({ url: '/packs/big-brawl/versions/1.0.0/bundle' })
     expect(zip.statusCode).toBe(200)
     expect(zip.headers['cache-control']).toContain('immutable')
-    expect(zip.rawPayload.equals(await bundleOf(wp))).toBe(true)
+    expect(zip.rawPayload.equals(v1)).toBe(true)
     const cover = await app.inject({ url: '/packs/big-brawl/cover' })
     expect(cover.headers['content-type']).toBe('image/png')
 
@@ -162,5 +164,47 @@ describe('server', () => {
     expect((await app.inject({ url: '/me', headers: { cookie } })).json().user.name).toBe('octo')
     // A state is single-use.
     expect((await app.inject({ url: `/auth/github/callback?code=c&state=${state}` })).statusCode).toBe(400)
+  })
+
+  it('remixes keep credit and leave the original alone', async () => {
+    const app = setup()
+    const alice = await signIn(app, 'alice')
+    await publish(app, alice, await bundleOf(pack('Base', '1.0.0', 'the original')))
+    const zip = (await app.inject({ url: '/packs/base/versions/1.0.0/bundle' })).rawPayload
+    const r = await remixBundle(new Uint8Array(zip), { id: 'base', version: '1.0.0', name: 'Base', owner: 'alice' }, [])
+    if (!r.ok) throw new Error(r.errors[0].message)
+    const bob = await signIn(app, 'bob')
+    const res = await publish(app, bob, await bundleOf(r.value))
+    expect(res.statusCode).toBe(201)
+    expect(res.json().pack).toMatchObject({ id: 'base-remix', owner: 'bob', name: 'Base (remix)' })
+
+    const remix = (await app.inject({ url: '/packs/base-remix' })).json()
+    expect(remix.remixOf).toMatchObject({ id: 'base', owner: 'alice' })
+    const original = (await app.inject({ url: '/packs/base' })).json()
+    expect(original.pack).toMatchObject({ owner: 'alice', version: '1.0.0', description: 'the original' })
+    expect(original.versions).toHaveLength(1)
+    expect(original.remixes.map((p: { id: string }) => p.id)).toEqual(['base-remix'])
+    expect(original.remixOf).toBeNull()
+  })
+
+  it('counts likes once per person and sorts by them', async () => {
+    const app = setup()
+    const owner = await signIn(app, 'owner')
+    await publish(app, owner, await bundleOf(pack('Plain')))
+    await publish(app, owner, await bundleOf(pack('Loved')))
+    const like = (cookie: string | undefined, id: string, liked: unknown) =>
+      app.inject({ method: 'POST', url: `/packs/${id}/like`, headers: { [CSRF_HEADER]: '1', ...(cookie ? { cookie } : {}) }, payload: { liked } })
+    expect((await like(undefined, 'loved', true)).statusCode).toBe(401)
+    expect((await like(owner, 'loved', 'yes')).statusCode).toBe(400)
+    expect((await like(owner, 'nope', true)).statusCode).toBe(404)
+    const fan = await signIn(app, 'fan')
+    expect((await like(fan, 'loved', true)).json()).toEqual({ liked: true, likes: 1 })
+    expect((await like(fan, 'loved', true)).json()).toEqual({ liked: true, likes: 1 })
+    expect((await like(owner, 'loved', true)).json().likes).toBe(2)
+    expect((await app.inject({ url: '/packs/loved', headers: { cookie: fan } })).json().liked).toBe(true)
+    expect((await app.inject({ url: '/packs/plain', headers: { cookie: fan } })).json().liked).toBe(false)
+    const byLikes = (await app.inject({ url: '/packs?sort=likes' })).json().packs.map((p: { id: string; likes: number }) => `${p.id}:${p.likes}`)
+    expect(byLikes).toEqual(['loved:2', 'plain:0'])
+    expect((await like(fan, 'loved', false)).json()).toEqual({ liked: false, likes: 1 })
   })
 })

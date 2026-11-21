@@ -50,6 +50,7 @@ const publicPack = (p: PackRow) => ({
   visibility: p.visibility,
   version: p.latestVersion,
   cover: p.hasCover,
+  likes: p.likes,
   updated: p.updated,
 })
 
@@ -198,7 +199,16 @@ export const buildApp = (store: Store, blobs: Blobs, config: ServerConfig) => {
       await blobs.put(coverHash, cover)
     }
     store.addVersion(
-      { id: pack.id, ownerId: user.id, name: pack.name, author: pack.meta.author, description: pack.meta.description, visibility },
+      {
+        id: pack.id,
+        ownerId: user.id,
+        name: pack.name,
+        author: pack.meta.author,
+        description: pack.meta.description,
+        visibility,
+        // Only a link to a pack that exists counts; the credit itself stays in the bundle either way.
+        remixOf: pack.meta.remixOf && pack.meta.remixOf.id !== pack.id && store.getPack(pack.meta.remixOf.id) ? pack.meta.remixOf.id : null,
+      },
       { version: pack.version, hash, bytes: zip.length, license: pack.meta.license, coverHash },
       now
     )
@@ -222,7 +232,8 @@ export const buildApp = (store: Store, blobs: Blobs, config: ServerConfig) => {
 
   app.get('/packs', async (req) => {
     const q = req.query as { q?: string; owner?: string; sort?: string; limit?: string; offset?: string }
-    const packs = store.listPublic({ q: q.q, owner: q.owner, sort: q.sort === 'name' ? 'name' : 'new', limit: Number(q.limit) || undefined, offset: Number(q.offset) || 0 })
+    const sort = q.sort === 'name' || q.sort === 'likes' ? q.sort : 'new'
+    const packs = store.listPublic({ q: q.q, owner: q.owner, sort, limit: Number(q.limit) || undefined, offset: Number(q.offset) || 0 })
     return { packs: packs.map(publicPack) }
   })
 
@@ -233,12 +244,29 @@ export const buildApp = (store: Store, blobs: Blobs, config: ServerConfig) => {
   })
 
   app.get('/packs/:id', async (req, reply) => {
+    const user = currentUser(req)
     const p = store.getPack((req.params as { id: string }).id)
-    if (!p || !canRead(p, currentUser(req))) return reply.code(404).send({ error: 'no such pack' })
+    if (!p || !canRead(p, user)) return reply.code(404).send({ error: 'no such pack' })
+    const original = p.remixOf ? store.getPack(p.remixOf) : null
     return {
       pack: publicPack(p),
+      liked: user ? store.likes(user.id, p.id) : false,
+      // The original, if it's still there for this reader to see.
+      remixOf: original && canRead(original, user) ? publicPack(original) : null,
+      remixes: store.remixesOf(p.id).map(publicPack),
       versions: store.versions(p.id).map((v) => ({ version: v.version, bytes: v.bytes, license: v.license, created: v.created })),
     }
+  })
+
+  app.post('/packs/:id/like', async (req, reply) => {
+    const user = currentUser(req)
+    if (!user) return reply.code(401).send({ error: 'sign in to like packs' })
+    const p = store.getPack((req.params as { id: string }).id)
+    if (!p || !canRead(p, user)) return reply.code(404).send({ error: 'no such pack' })
+    const liked = (req.body as { liked?: unknown } | undefined)?.liked
+    if (typeof liked !== 'boolean') return reply.code(400).send({ error: 'send { liked: true | false }' })
+    store.setLike(user.id, p.id, liked)
+    return { liked, likes: store.getPack(p.id)!.likes }
   })
 
   app.get('/packs/:id/versions/:version/bundle', async (req, reply) => {
