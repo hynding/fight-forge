@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef } from 'react'
+import type { ModelBudget } from './budget'
 import type { SimLoop, SystemStep } from './loop'
 import type { FeelState } from './feel'
 
@@ -34,3 +35,8 @@ export const useFeel = (): FeelState => {
 
 /** True during a hit-stop, when physics pauses with the sim. */
 export const HitStopContext = createContext(false)
+
+/** The scene's detail budget for skinned models (`sim/budget.ts`); none outside a game scene (full detail). */
+export const ModelBudgetContext = createContext<ModelBudget | null>(null)
+
+export const useModelBudget = (): ModelBudget | null => useContext(ModelBudgetContext)

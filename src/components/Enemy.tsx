@@ -1,6 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState, RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
-import { Billboard } from '@react-three/drei'
 import { Vector3 } from 'three'
 import { EnemyType } from '../types/game'
 import { useGameStore } from '../store/gameStore'
@@ -19,8 +18,6 @@ import { createBrawlerMemory, enemyIntent, type BrawlerConfig } from '../sim/con
 import { createFighterRuntime, idleIntent, isBusy, type FighterRuntime, type Vec2 } from '../sim/fighter'
 import { stageBounds, type StageView } from '../sim/stage'
 import { FighterBody } from './FighterBody'
-
-const HEALTH_BAR_WIDTH = 1.2
 
 interface EnemyProps {
   id: string
@@ -59,9 +56,6 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const isAttacking = useGameStore((state) => state.attackTokens.holders.includes(id))
     const health = useGameStore(
       (state) => state.enemies.find((e) => e.id === id)?.health ?? def.maxHealth
-    )
-    const maxHealth = useGameStore(
-      (state) => state.enemies.find((e) => e.id === id)?.maxHealth ?? def.maxHealth
     )
 
     useEffect(() => {
@@ -141,8 +135,6 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     })
 
     const scale = def.scale
-    const halfHeight = (def.colliderHalfExtents ?? BODY.colliderHalfExtents)[1] * scale
-    const ratio = health / maxHealth
 
     return (
       <FighterBody
@@ -162,27 +154,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         getIntent={getIntent}
         getBounds={() => stageBounds(stageLength, config.stage.depthBand)}
         runtime={runtime}
-      >
-        {/* Health bar: outside the rotating model and billboarded so it always
-            faces the camera instead of going edge-on as the enemy turns. */}
-        <Billboard position={[0, halfHeight + 0.15 * scale, 0]}>
-          <mesh renderOrder={1000}>
-            <boxGeometry args={[HEALTH_BAR_WIDTH, 0.15, 0.02]} />
-            <meshBasicMaterial color="#333333" depthTest={false} />
-          </mesh>
-          <mesh position={[-(HEALTH_BAR_WIDTH * (1 - ratio)) / 2, 0, 0.01]} renderOrder={1001}>
-            <boxGeometry args={[HEALTH_BAR_WIDTH * ratio, 0.15, 0.02]} />
-            <meshBasicMaterial
-              color={ratio > 0.5 ? '#00ff00' : ratio > 0.25 ? '#ffff00' : '#ff0000'}
-              depthTest={false}
-            />
-          </mesh>
-          <mesh position={[0, 0, 0.02]} renderOrder={1002}>
-            <boxGeometry args={[HEALTH_BAR_WIDTH + 0.04, 0.19, 0.01]} />
-            <meshBasicMaterial color="#000000" transparent opacity={0.5} depthTest={false} />
-          </mesh>
-        </Billboard>
-      </FighterBody>
+      />
     )
   }
 )

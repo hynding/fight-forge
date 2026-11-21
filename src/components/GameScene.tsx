@@ -11,6 +11,10 @@ import { HUD } from './HUD'
 import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
 import { GrabSystem } from './GrabSystem'
+import { PerfMonitor } from './PerfMonitor'
+import { HealthBars } from './HealthBars'
+import { ModelBudgetDriver } from './ModelBudgetDriver'
+import { createModelBudget } from '../sim/budget'
 import { isFrozen, useGameStore } from '../store/gameStore'
 import { getConfig, getLevels } from '../content/active'
 import { SimLoopDriver } from '../sim/SimLoopDriver'
@@ -26,7 +30,7 @@ import { duckMusic, playMusic, stopMusic } from '../audio/engine'
 import { ScenePhysics } from './ScenePhysics'
 import { Effects } from './Effects'
 import { InputManager } from '../input/InputManager'
-import { useSimSystem } from '../sim/simContext'
+import { ModelBudgetContext, useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
 
 /** The `input` sim system: samples the scene's input first in every step. */
@@ -56,6 +60,7 @@ export const GameScene = () => {
   // Every fighter's live runtime (moves, reactions, facing) by name, for combat.
   // Fighters register themselves; mutable, so no re-render sits between a move and its hit.
   const [runtimes] = useState(() => new Map<string, FighterRuntime>())
+  const [modelBudget] = useState(createModelBudget)
   // Keyboard (and later mouse and gamepad) input, sampled once per sim step.
   const [input] = useState(() => new InputManager())
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -126,6 +131,7 @@ export const GameScene = () => {
         />
         <Backdrop theme={THEME} length={STAGE_LENGTH} view={view} />
 
+        <ModelBudgetContext.Provider value={modelBudget}>
         <SimLoopDriver>
         <InputSystem input={input} />
         <CameraRig
@@ -181,7 +187,11 @@ export const GameScene = () => {
           <Pickups playerPositionRef={playerPositionRef} />
         </ScenePhysics>
         <Effects />
+        <HealthBars enemyRefs={enemyRefs.current} />
+        <PerfMonitor fighters={() => runtimes.size} />
+        <ModelBudgetDriver playerPositionRef={playerPositionRef} enemyRefs={enemyRefs.current} />
         </SimLoopDriver>
+        </ModelBudgetContext.Provider>
       </Canvas>
       <HUD input={input} />
       <PauseMenu input={input} />

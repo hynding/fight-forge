@@ -13,6 +13,8 @@ interface FighterModelProps {
   emissiveIntensity: number
   scale: number
   runtime: FighterRuntime
+  /** The fighter's name (for the model detail budget). */
+  name?: string
   /** Used by the procedural humanoid's walk cycle. */
   animationTimeRef: RefObject<number>
   isMovingRef: RefObject<boolean>
@@ -40,6 +42,7 @@ export const FighterModel = ({ model, ...props }: FighterModelProps) => {
           scale={props.scale}
           runtime={props.runtime}
           paused={frozenNow}
+          name={props.name}
         />
       </Suspense>
     </ModelErrorBoundary>
@@ -54,7 +57,7 @@ const Humanoid = ({
   emissiveIntensity,
   animationTimeRef,
   isMovingRef,
-}: Omit<FighterModelProps, 'model' | 'runtime'> & { offset: [number, number, number] }) => (
+}: Omit<FighterModelProps, 'model' | 'runtime' | 'name'> & { offset: [number, number, number] }) => (
   <group position={[offset[0] * scale, offset[1] * scale, offset[2] * scale]}>
     <HumanoidModel
       color={color}

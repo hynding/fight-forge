@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 8,
+  "id": "stress-test",
+  "name": "Stress Test",
+  "version": "1.0.0",
+  "meta": {
+    "author": "Fight Forge samples",
+    "description": "A performance check: one level where 32 enemies fight at once (16 waiting, 16 more walking in, screen locked).",
+    "license": "CC0-1.0"
+  },
+  "levels": [
+    {
+      "id": "stress",
+      "name": "Stress Test",
+      "theme": "docks",
+      "segments": [
+        {
+          "length": 60,
+          "triggers": [
+            {
+              "kind": "wave",
+              "at": 0,
+              "waves": [
+                {
+                  "enemies": [
+                    {
+                      "type": "BASIC",
+                      "from": "placed",
+                      "x": 10.0,
+                      "depth": 0.1
+                    },
+                    {
+                      "type": "FAST",
+                      "from": "placed",
+                      "x": 10.9,
+                      "depth": 0.47
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "placed",
+                      "x": 11.8,
+                      "depth": 0.84
+                    },
+                    {
+                      "type": "FLANKER",
+                      "from": "placed",
+                      "x": 12.7,
+                      "depth": 0.41
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "placed",
+                      "x": 13.6,
+                      "depth": 0.78
+                    },
+                    {
+                      "type": "HEAVY",
+                      "from": "placed",
+                      "x": 14.5,
+                      "depth": 0.35
+                    },
+                    {
+                      "type": "FAST",
+                      "from": "placed",
+                      "x": 15.4,
+                      "depth": 0.72
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "placed",
+                      "x": 16.3,
+                      "depth": 0.29
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "placed",
+                      "x": 17.2,
+                      "depth": 0.66
+                    },
+                    {
+                      "type": "FAST",
+                      "from": "placed",
+                      "x": 18.1,
+                      "depth": 0.23
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "placed",
+                      "x": 19.0,
+                      "depth": 0.6
+                    },
+                    {
+                      "type": "FLANKER",
+                      "from": "placed",
+                      "x": 19.9,
+                      "depth": 0.17
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "placed",
+                      "x": 20.8,
+                      "depth": 0.54
+                    },
+                    {
+                      "type": "HEAVY",
+                      "from": "placed",
+                      "x": 21.7,
+                      "depth": 0.11
+                    },
+                    {
+                      "type": "FAST",
+                      "from": "placed",
+                      "x": 22.6,
+                      "depth": 0.48
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "placed",
+                      "x": 23.5,
+                      "depth": 0.85
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "wave",
+              "at": 0,
+              "lock": true,
+              "waves": [
+                {
+                  "enemies": [
+                    {
+                      "type": "FLANKER",
+                      "from": "right",
+                      "depth": 0.1,
+                      "delay": 0.0
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "left",
+                      "depth": 0.39,
+                      "delay": 0.15
+                    },
+                    {
+                      "type": "HEAVY",
+                      "from": "right",
+                      "depth": 0.68,
+                      "delay": 0.3
+                    },
+                    {
+                      "type": "FAST",
+                      "from": "left",
+                      "depth": 0.17,
+                      "delay": 0.45
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "right",
+                      "depth": 0.46,
+                      "delay": 0.6
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "left",
+                      "depth": 0.75,
+                      "delay": 0.75
+                    },
+                    {
+                      "type": "FAST",
+                      "from": "right",
+                      "depth": 0.24,
+                      "delay": 0.9
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "left",
+                      "depth": 0.53,
+                      "delay": 1.05
+                    },
+                    {
+                      "type": "FLANKER",
+                      "from": "right",
+                      "depth": 0.82,
+                      "delay": 1.2
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "left",
+                      "depth": 0.31,
+                      "delay": 1.35
+                    },
+                    {
+                      "type": "HEAVY",
+                      "from": "right",
+                      "depth": 0.6,
+                      "delay": 1.5
+                    },
+                    {
+                      "type": "FAST",
+                      "from": "left",
+                      "depth": 0.89,
+                      "delay": 1.65
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "right",
+                      "depth": 0.38,
+                      "delay": 1.8
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "left",
+                      "depth": 0.67,
+                      "delay": 1.95
+                    },
+                    {
+                      "type": "FAST",
+                      "from": "right",
+                      "depth": 0.16,
+                      "delay": 2.1
+                    },
+                    {
+                      "type": "BASIC",
+                      "from": "left",
+                      "depth": 0.45,
+                      "delay": 2.25
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "goal",
+              "at": 55
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

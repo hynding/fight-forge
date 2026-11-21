@@ -7,6 +7,8 @@ import type { ModelRef } from '../config/defaults'
 import { resolveFighterClip } from '../sim/animation'
 import { getConfig } from '../content/active'
 import type { FighterRuntime } from '../sim/fighter'
+import { registerModel, unregisterModel, type Detail } from '../sim/budget'
+import { useModelBudget } from '../sim/simContext'
 
 type GltfRef = Extract<ModelRef, { kind: 'gltf' }>
 
@@ -21,6 +23,8 @@ interface GltfModelProps {
   scale: number
   runtime: FighterRuntime
   paused: () => boolean
+  /** The fighter's name, for the scene's model detail budget. */
+  name?: string
 }
 
 const isStandard = (m: Material): m is MeshStandardMaterial =>
@@ -39,6 +43,7 @@ export const GltfModel = ({
   scale,
   runtime,
   paused,
+  name,
 }: GltfModelProps) => {
   const { scene, animations } = useGLTF(model.url)
   const groupRef = useRef<Group>(null)
@@ -81,6 +86,21 @@ export const GltfModel = ({
     })
   }, [materials, emissive, emissiveIntensity])
 
+  // A crowd: fighters far from the player drop their shadows and animate at half rate.
+  const budget = useModelBudget()
+  const budgetId = useRef(0)
+  useEffect(() => {
+    if (!budget || !name) return
+    const id = registerModel(budget, name)
+    budgetId.current = id
+    return () => {
+      unregisterModel(budget, id)
+      budgetId.current = 0
+    }
+  }, [budget, name])
+  const detail = useRef<Detail>('full')
+  const oddFrame = useRef(false)
+
   const { actions, mixer } = useAnimations(animations, groupRef)
   const available = useMemo(() => new Set(animations.map((a) => a.name)), [animations])
   const current = useRef<{ state: string; action: AnimationAction | null }>({ state: '', action: null })
@@ -88,7 +108,16 @@ export const GltfModel = ({
   // drei's useAnimations advances the mixer by the frame delta; freeze it
   // while paused or game over so poses hold like the rest of the game.
   useFrame(() => {
-    mixer.timeScale = paused() ? 0 : 1
+    const want = (budget && budget.detail.get(budgetId.current)) || 'full'
+    if (want !== detail.current) {
+      detail.current = want
+      root.traverse((obj) => {
+        if ((obj as Mesh).isMesh) obj.castShadow = want === 'full'
+      })
+    }
+    // Half rate: skip a frame, then advance two frames' worth (drei updates the mixer next frame).
+    oddFrame.current = !oddFrame.current
+    mixer.timeScale = paused() ? 0 : want === 'full' ? 1 : oddFrame.current ? 0 : 2
 
     // Each move instance restarts its clip, so a combo replays the punch per hit.
     const move = runtime.state === 'attack' ? runtime.move.move : null
