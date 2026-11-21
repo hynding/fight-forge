@@ -1,6 +1,6 @@
 # Plan: bosses
 
-Status: **proposed** (2026-11-21). Expands the Phase 6 stretch goal "Bosses: scripted phases and health-bar UI driven by level triggers" (picked by Steve on 2026-11-21) into three PRs. Nothing here is built yet. The choices only Steve can make are in [section 8](#8-decisions-for-steve).
+Status: **accepted** (2026-11-21; Steve took the recommended answer to every decision in section 8). Expands the Phase 6 stretch goal "Bosses: scripted phases and health-bar UI driven by level triggers" (picked by Steve on 2026-11-21) into three PRs. Nothing here is built yet. The choices only Steve can make are in [section 8](#8-decisions-for-steve).
 
 ## 1. Goal
 
@@ -111,7 +111,7 @@ B1 is useful on its own: ordinary enemies with several attacks make every level 
 
 ## 8. Decisions for Steve
 
-Recommendations first. Decision 1 shapes B2; the others can change later.
+*Decided by Steve on 2026-11-21: the recommended answer to each.* Recommendations first. Decision 1 shapes B2; the others can change later.
 
 1. **Where the default pack's boss goes.** Recommended: one boss at the end of level 2 (the docks), with level 1 unchanged. A mid-boss in level 1 is easy to add later.
 2. **Bosses and the attack-token limit.** Recommended: a boss has its own attack slot and always may attack. Helpers still share the pool, so with the default rules a boss and one helper can attack at once. The alternative (the boss waits for a token like everyone else) is safer for difficulty but can make the boss stand around.
