@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { siteUrl } from '../../content/siteUrl'
 import { assetFile } from '../../forge/fighter'
 import type { WorkspacePack } from '../../forge/workspace'
 import type { PreviewModel } from './ModelPreview'
@@ -24,7 +25,7 @@ export const usePreviewModel = (pack: WorkspacePack, model: ModelJson): PreviewM
     const offset = (model?.offset as [number, number, number] | undefined) ?? [0, -0.35, 0]
     return { kind: 'procedural', offset }
   }
-  const url = typeof model.url === 'string' ? model.url : blobUrl
+  const url = typeof model.url === 'string' ? siteUrl(model.url) : blobUrl
   if (!url) return { kind: 'procedural', offset: [0, -0.35, 0] }
   return {
     kind: 'gltf',

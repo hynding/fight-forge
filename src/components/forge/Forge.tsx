@@ -26,6 +26,8 @@ import { LevelTools } from './LevelTools'
 import { FighterTools } from './FighterTools'
 import { MoveTools } from './MoveTools'
 import { PackInfoTools } from './PackInfoTools'
+import { PublishTools } from './PublishTools'
+import { apiEnabled } from '../../net/api'
 import { sectionHeading, ui } from './ui'
 
 const panel: CSSProperties = {
@@ -400,6 +402,7 @@ export const Forge = () => {
               </div>
             )}
             {node.group === 'pack' && <PackInfoTools pack={pack} save={(wp) => put(wp)} onError={(text) => setMessage({ text, error: true })} />}
+            {node.group === 'pack' && apiEnabled() && <PublishTools key={pack.id} pack={pack} save={(wp) => put(wp)} invalid={errors.length > 0} />}
             {node.key === 'settings/input' && <BindingsTools key={node.key} pack={pack} node={node} save={(wp) => put(wp)} />}
             {node.group === 'levels' && (
               <div style={{ marginTop: '10px' }}>
