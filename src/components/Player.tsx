@@ -65,6 +65,13 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   const respawnSeen = useRef(useGameStore.getState().respawnCount)
   const playerHealth = useGameStore((state) => state.playerHealth)
 
+  // A Forge "Fight with it" sandbox: start with the weapon in hand.
+  useEffect(() => {
+    const { sandbox, sandboxWeapon } = useGameStore.getState()
+    const def = sandboxWeapon ? getConfig().weapons[sandboxWeapon] : undefined
+    if (sandbox && sandboxWeapon && def) runtime.weapon = holdWeapon(sandboxWeapon, def)
+  }, [runtime])
+
   useEffect(() => {
     runtimes.set('player', runtime)
     return () => {

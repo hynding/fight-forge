@@ -1,6 +1,6 @@
 # Plan: weapons and throwables
 
-Status: **in progress**. Expands the Phase 6 stretch goal "Weapons and throwables: pickup items with their own movesets" (picked by Steve on 2026-11-21) into three PRs. Steve took every recommendation in [section 8](#8-decisions-for-steve) on 2026-11-21. W1 (projectiles) and W2 (weapons) are built; W3 is next.
+Status: **built**. Expands the Phase 6 stretch goal "Weapons and throwables: pickup items with their own movesets" (picked by Steve on 2026-11-21) into three PRs. Steve took every recommendation in [section 8](#8-decisions-for-steve) on 2026-11-21. All three milestones (W1 projectiles, W2 weapons, W3 Forge tools) are built.
 
 ## 1. Goal
 

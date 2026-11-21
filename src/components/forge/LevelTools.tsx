@@ -261,48 +261,61 @@ export const LevelTools = ({ pack, node, save, onError, invalid, errors }: Props
               )
             }
             if (o.ref.kind === 'prop') {
-              const def = props[String(value.prop)] as { size?: number[]; color?: string; shape?: string } | undefined
+              const def = props[String(value.prop)] as { size?: number[]; color?: string; shape?: string; liftable?: string } | undefined
               const w = (def?.size?.[0] ?? 1) * PX
               const h = (def?.shape === 'cylinder' ? (def?.size?.[0] ?? 1) : (def?.size?.[2] ?? 1)) * DPX
               return (
-                <rect
-                  key={key}
-                  data-testid={testId}
-                  x={sx(o.x) - w / 2}
-                  y={sy(o.depth!) - h / 2}
-                  width={w}
-                  height={h}
-                  rx={def?.shape === 'cylinder' ? w / 2 : 1}
-                  fill={def?.color ?? '#888'}
-                  stroke={stroke}
-                  style={{ cursor: 'move' }}
-                  onPointerDown={begin(o.ref, o.x, o.depth)}
-                >
-                  <title>{String(value.prop)}</title>
-                </rect>
+                <g key={key}>
+                  <rect
+                    data-testid={testId}
+                    x={sx(o.x) - w / 2}
+                    y={sy(o.depth!) - h / 2}
+                    width={w}
+                    height={h}
+                    rx={def?.shape === 'cylinder' ? w / 2 : 1}
+                    fill={def?.color ?? '#888'}
+                    stroke={stroke}
+                    style={{ cursor: 'move' }}
+                    onPointerDown={begin(o.ref, o.x, o.depth)}
+                  >
+                    <title>{String(value.prop)}{def?.liftable ? ` (lift it: becomes ${def.liftable})` : ''}</title>
+                  </rect>
+                  {def?.liftable && (
+                    <text data-testid="liftable-badge" x={sx(o.x)} y={sy(o.depth!) - h / 2 - 2} fill="#ffd27a" fontSize="11" textAnchor="middle" style={{ pointerEvents: 'none' }}>
+                      ⤒
+                    </text>
+                  )}
+                </g>
               )
             }
             const color = o.ref.kind === 'enemy' ? String(enemyTypes[String(value.type)]?.color ?? '#ff5050') : String(pickups[String(value.pickup)]?.color ?? '#ffdd33')
+            const weaponItem = o.ref.kind !== 'enemy' && pickups[String(value.pickup)]?.effect === 'weapon'
             return o.ref.kind === 'enemy' ? (
               <circle key={key} data-testid={testId} cx={sx(o.x)} cy={sy(o.depth!)} r={6} fill={color} stroke={stroke} strokeWidth={2} style={{ cursor: 'move' }} onPointerDown={begin(o.ref, o.x, o.depth)}>
                 <title>{String(value.type)}</title>
               </circle>
             ) : (
-              <rect
-                key={key}
-                data-testid={testId}
-                x={sx(o.x) - 5}
-                y={sy(o.depth!) - 5}
-                width={10}
-                height={10}
-                transform={`rotate(45 ${sx(o.x)} ${sy(o.depth!)})`}
-                fill={color}
-                stroke={stroke}
-                style={{ cursor: 'move' }}
-                onPointerDown={begin(o.ref, o.x, o.depth)}
-              >
-                <title>{String(value.pickup)}</title>
-              </rect>
+              <g key={key}>
+                <rect
+                  data-testid={testId}
+                  x={sx(o.x) - 5}
+                  y={sy(o.depth!) - 5}
+                  width={10}
+                  height={10}
+                  transform={`rotate(45 ${sx(o.x)} ${sy(o.depth!)})`}
+                  fill={color}
+                  stroke={stroke}
+                  style={{ cursor: 'move' }}
+                  onPointerDown={begin(o.ref, o.x, o.depth)}
+                >
+                  <title>{String(value.pickup)}{weaponItem ? ' (a weapon)' : ''}</title>
+                </rect>
+                {weaponItem && (
+                  <text data-testid="weapon-badge" x={sx(o.x)} y={sy(o.depth!) - 8} fill="#ffd27a" fontSize="11" textAnchor="middle" style={{ pointerEvents: 'none' }}>
+                    🗡
+                  </text>
+                )}
+              </g>
             )
           })}
 
@@ -312,7 +325,7 @@ export const LevelTools = ({ pack, node, save, onError, invalid, errors }: Props
       </div>
       <div style={{ color: '#667', marginTop: '3px' }}>
         Seen from above: left to right is the stage, the top is the back wall. Click to set the cursor, drag to move, drag a segment's end to resize it.
-        Fights: 🔒 holds the screen until cleared. 👑 is a boss fight.
+        Fights: 🔒 holds the screen until cleared. 👑 is a boss fight. 🗡 is a weapon on the floor, ⤒ a prop the player can lift.
       </div>
 
       {sel && selected !== undefined && (
