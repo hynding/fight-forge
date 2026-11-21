@@ -12,6 +12,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
     "pack:sample": "vite-node scripts/build-sample-pack.ts",
+    "preperf": "npm run pack:sample",
+    "perf": "vite-node scripts/perf-check.ts",
     "server": "tsx server/index.ts"
   },
   "dependencies": {

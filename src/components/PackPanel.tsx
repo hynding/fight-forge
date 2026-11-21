@@ -13,8 +13,11 @@ import {
 import type { Result } from '../content/registry'
 import { downloadBytes as download } from '../utils/download'
 
-/** The sample remix pack shipped with the game (public/packs). */
-const SAMPLE_PACK_URL = siteUrl('/packs/skeleton-remix.zip')
+/** The sample packs shipped with the game (public/packs, built from content/samples). */
+const SAMPLE_PACKS = [
+  { name: 'Skeleton Remix', url: siteUrl('/packs/skeleton-remix.zip') },
+  { name: 'Stress Test (32 enemies)', url: siteUrl('/packs/stress-test.zip') },
+]
 
 const small = {
   padding: '4px 8px',
@@ -118,9 +121,11 @@ export const PackPanel = () => {
           <button style={small} disabled={busy} onClick={() => fileInput.current?.click()}>
             Import file…
           </button>
-          <button style={small} disabled={busy} onClick={() => run(() => installBundleFromUrl(SAMPLE_PACK_URL))}>
-            Add sample: Skeleton Remix
-          </button>
+          {SAMPLE_PACKS.map((sample) => (
+            <button key={sample.url} style={small} disabled={busy} onClick={() => run(() => installBundleFromUrl(sample.url))}>
+              Add sample: {sample.name}
+            </button>
+          ))}
           <input
             ref={fileInput}
             type="file"

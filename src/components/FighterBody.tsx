@@ -267,6 +267,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
             emissiveIntensity={glowing ? 0.5 : 0}
             scale={scale}
             runtime={runtime}
+            name={name}
             animationTimeRef={animationTimeRef}
             isMovingRef={isMovingRef}
           />

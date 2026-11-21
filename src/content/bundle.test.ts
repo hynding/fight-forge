@@ -112,6 +112,20 @@ describe('the sample remix pack', () => {
   })
 })
 
+describe('the Stress Test sample', () => {
+  it('loads with the default pack and fields 32 enemies at once', async () => {
+    const folder = join(__dirname, '../../content/samples/stress-test')
+    const zip = await bundleFromFolder(folder, (p) => new Uint8Array(readFileSync(p)), (f) => readdirSync(f))
+    const r = await readBundle(zip)
+    if (!r.ok) throw new Error(formatErrors(r.errors))
+    const content = loadContent([defaultPack(), r.value.json], (a) => `blob:${a.id}`)
+    if (!content.ok) throw new Error(content.error)
+    const stress = content.value.levels.find((l) => l.id === 'stress')
+    const waves = stress?.segments[0].triggers.flatMap((t) => (t.kind === 'wave' ? t.waves : [])) ?? []
+    expect(waves.reduce((n, w) => n + w.enemies.length, 0)).toBe(32)
+  })
+})
+
 describe('bad bundles', () => {
   const good = () => writeBundle(withModel(), new Map([['models/hero.glb', fakeGlb()]]))
 

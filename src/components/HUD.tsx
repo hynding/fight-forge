@@ -5,6 +5,8 @@ import { getBindings } from '../content/bindings'
 import type { InputManager } from '../input/InputManager'
 import { actionLabel, deviceHelp, helpExtras } from '../sim/input'
 import { formatTime } from '../utils/format'
+import { sceneProbe } from '../sim/probe'
+import { FRAME_BUDGET_MS, type PerfSnapshot } from '../sim/perf'
 
 const ResultRow = ({ label, value }: { label: string; value: ReactNode }) => (
   <tr>
@@ -12,6 +14,23 @@ const ResultRow = ({ label, value }: { label: string; value: ReactNode }) => (
     <td style={{ textAlign: 'right' }}>{value}</td>
   </tr>
 )
+
+/** Debug overlay (with the hitboxes): frame times against the 60 fps budget and renderer counts. */
+const PerfReadout = () => {
+  const [perf, setPerf] = useState<PerfSnapshot | null>(null)
+  useEffect(() => {
+    const timer = setInterval(() => setPerf(sceneProbe.perf()), 500)
+    return () => clearInterval(timer)
+  }, [])
+  if (!perf) return null
+  const over = perf.p95 > FRAME_BUDGET_MS
+  return (
+    <div data-testid="perf-readout" style={{ color: over ? '#ff8866' : '#88ff88' }}>
+      {perf.fps.toFixed(0)} fps · {perf.avg.toFixed(1)} ms avg · p95 {perf.p95.toFixed(1)} ms (budget {FRAME_BUDGET_MS.toFixed(1)}) ·{' '}
+      {perf.drawCalls} draw calls · {Math.round(perf.triangles / 1000)}k triangles · {perf.fighters} fighters
+    </div>
+  )
+}
 
 const MenuButton = ({
   primary = false,
@@ -192,7 +211,8 @@ export const HUD = ({ input }: { input: InputManager }) => {
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
         {deviceHelp(getBindings(), inputDevice, padLabels ?? 'xbox', true, helpExtras(getConfig().input.actions))}
         <br />
-        {actionLabel(getBindings().keyboard, 'hitboxes')} - Hitboxes{showHitboxes ? ' (ON)' : ''}
+        {actionLabel(getBindings().keyboard, 'hitboxes')} - Hitboxes and frame time{showHitboxes ? ' (ON)' : ''}
+        {showHitboxes && <PerfReadout />}
       </div>
 
       {/* Game over / level results */}
