@@ -11,6 +11,8 @@ import {
   keyInput,
   releaseAll,
   sampleActions,
+  suppressHeld,
+  inputDown as padDown,
 } from './actions'
 import { createMoveRunner, stepMoveRunner } from './moves'
 import { SIM_STEP } from './loop'
@@ -118,5 +120,40 @@ describe('sampleActions', () => {
     expect(s.lastDevice).toBe('keyboard')
     inputDown(s, 'pad:a', 'gamepad')
     expect(s.lastDevice).toBe('gamepad')
+  })
+})
+
+describe('the analog stick', () => {
+  const pad = (s: ReturnType<typeof createActionSampler>, name: string) => padDown(s, `pad:${name}`, 'gamepad')
+
+  it('moves with its tilt, and its own digital directions do not snap it to full speed', () => {
+    const s = createActionSampler()
+    s.stick = { x: 0.6, z: 0 }
+    pad(s, 'ls-right')
+    const f = sampleActions(s, map)
+    expect(f.move).toEqual({ x: 0.6, z: 0 })
+    expect(f.analog).toBe(true)
+    expect(f.held.right).toBe(true)
+  })
+
+  it('gives way to keys or the d-pad', () => {
+    const s = createActionSampler()
+    s.stick = { x: 0.6, z: 0 }
+    down(s, 'a')
+    const f = sampleActions(s, map)
+    expect(f.move).toEqual({ x: -1, z: 0 })
+    expect(f.analog).toBe(false)
+  })
+})
+
+describe('suppressHeld', () => {
+  it('ignores what is held through a pause until it is released', () => {
+    const s = createActionSampler()
+    down(s, 'j')
+    suppressHeld(s)
+    expect(sampleActions(s, map).held.attack).toBe(false)
+    up(s, 'j')
+    down(s, 'j')
+    expect(sampleActions(s, map).pressed.attack).toBe(true)
   })
 })

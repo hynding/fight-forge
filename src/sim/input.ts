@@ -130,7 +130,31 @@ const MOUSE_LABELS: Record<string, string> = {
 
 const ARROWS: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓' }
 
-const padLabel = (name: string): string => {
+export type PadLabelSet = 'xbox' | 'playstation' | 'nintendo' | 'generic'
+
+/** Which button names to show for a pad, from its `id`. */
+export const labelSetFor = (id: string): PadLabelSet => {
+  const s = id.toLowerCase()
+  if (/054c|playstation|dualshock|dualsense|sony/.test(s)) return 'playstation'
+  if (/057e|nintendo|switch|pro controller|joy-con/.test(s)) return 'nintendo'
+  if (/045e|xbox|xinput|microsoft/.test(s)) return 'xbox'
+  return 'generic'
+}
+
+const FACE: Record<PadLabelSet, Record<string, string>> = {
+  xbox: {},
+  generic: {},
+  playstation: { a: '✕', b: '○', x: '□', y: '△', lb: 'L1', rb: 'R1', lt: 'L2', rt: 'R2', select: 'SHARE', start: 'OPTIONS', ls: 'L3', rs: 'R3', home: 'PS' },
+  // Nintendo's face buttons sit in other places: the bottom one is B.
+  nintendo: { a: 'B', b: 'A', x: 'Y', y: 'X', lb: 'L', rb: 'R', lt: 'ZL', rt: 'ZR', select: '−', start: '+', ls: 'L STICK', rs: 'R STICK' },
+}
+
+/** A standard pad input's name in a label set, or undefined to use the default (Xbox) label. */
+export const faceLabel = (name: string, set: PadLabelSet): string | undefined => FACE[set][name]
+
+const padLabel = (name: string, set: PadLabelSet = 'xbox'): string => {
+  const face = faceLabel(name, set)
+  if (face) return face
   const stick = /^(ls|rs)-(left|right|up|down)$/.exec(name)
   if (stick) return `${stick[1].toUpperCase()} ${ARROWS[stick[2]]}`
   if (ARROWS[name]) return `D-PAD ${ARROWS[name]}`
@@ -141,13 +165,13 @@ const padLabel = (name: string): string => {
   return name.toUpperCase()
 }
 
-/** How an input on a device is shown on screen. */
-export const inputLabel = (device: InputDevice, name: string): string =>
-  device === 'keyboard' ? keyLabel(name) : device === 'mouse' ? (MOUSE_LABELS[name] ?? name.toUpperCase()) : padLabel(name)
+/** How an input on a device is shown on screen (pad buttons in the pad's own label set). */
+export const inputLabel = (device: InputDevice, name: string, padSet: PadLabelSet = 'xbox'): string =>
+  device === 'keyboard' ? keyLabel(name) : device === 'mouse' ? (MOUSE_LABELS[name] ?? name.toUpperCase()) : padLabel(name, padSet)
 
 /** All of an action's keys for display, e.g. "A / ←", or "—" if unbound. */
-export const actionLabel = (bindings: Bindings, action: InputAction, device: InputDevice = 'keyboard'): string =>
-  bindings[action].length ? bindings[action].map((k) => inputLabel(device, k)).join(' / ') : '—'
+export const actionLabel = (bindings: Bindings, action: InputAction, device: InputDevice = 'keyboard', padSet: PadLabelSet = 'xbox'): string =>
+  bindings[action].length ? bindings[action].map((k) => inputLabel(device, k, padSet)).join(' / ') : '—'
 
 /** The one-line controls help, from each action's first key. */
 export const controlsHelp = (b: Bindings, combo = false): string => {
@@ -162,6 +186,23 @@ export const controlsHelp = (b: Bindings, combo = false): string => {
     `${k('pause')} - Pause`,
   ].join(' | ')
 }
+
+/** The help line for a controller: each action's first button, movement as the stick. */
+export const padHelp = (b: Bindings, padSet: PadLabelSet = 'xbox', combo = false): string => {
+  const k = (a: InputAction) => (b[a].length ? padLabel(b[a][0], padSet) : '—')
+  return [
+    'Stick / D-pad - Move (push all the way to run)',
+    `${k('jump')} - Jump`,
+    `${k('attack')} - Attack${combo ? ' (tap for combo)' : ''}`,
+    `${k('block')} - Block`,
+    `${k('dodge')} - Dodge`,
+    `${k('pause')} - Pause`,
+  ].join(' | ')
+}
+
+/** The help line for the device last used: the controller's, or the keyboard's for keyboard and mouse. */
+export const deviceHelp = (all: DeviceBindings, device: InputDevice, padSet: PadLabelSet = 'xbox', combo = false): string =>
+  device === 'gamepad' ? padHelp(all.gamepad, padSet, combo) : controlsHelp(all.keyboard, combo)
 
 /** Display names for the remapping screen. */
 export const ACTION_NAMES: Record<InputAction, string> = {

@@ -40,11 +40,16 @@ export interface ActionFrame {
   released: ActionFlags
   /** Movement: x is left (-1) to right (1), z is forward (-1) to backward (1). */
   move: Vec2
+  /** True when `move` came from an analog stick (its length is how far it's pushed). */
+  analog: boolean
 }
 
 const flags = (): ActionFlags => Object.fromEntries(INPUT_ACTIONS.map((a) => [a, false])) as ActionFlags
 
-export const emptyFrame = (): ActionFrame => ({ held: flags(), pressed: flags(), released: flags(), move: { x: 0, z: 0 } })
+/** The left stick's digital directions, which the analog vector replaces for movement. */
+const STICK_INPUT = /^pad:ls-/
+
+export const emptyFrame = (): ActionFrame => ({ held: flags(), pressed: flags(), released: flags(), move: { x: 0, z: 0 }, analog: false })
 
 /** Device state between steps. Mutable; fed by sources, drained by `sampleActions`. */
 export interface ActionSampler {
@@ -57,6 +62,10 @@ export interface ActionSampler {
   lastHeld: ActionFlags
   /** The device that last pressed something, for on-screen prompts. */
   lastDevice: InputDevice
+  /** Inputs that don't count until released (held while the game was frozen). */
+  ignored: Set<string>
+  /** The analog stick's move vector (zero inside the dead zone), set by the gamepad source. */
+  stick: Vec2
 }
 
 export const createActionSampler = (): ActionSampler => ({
@@ -65,6 +74,8 @@ export const createActionSampler = (): ActionSampler => ({
   releasedSince: new Set(),
   lastHeld: flags(),
   lastDevice: 'keyboard',
+  ignored: new Set(),
+  stick: { x: 0, z: 0 },
 })
 
 /** An input went down. A repeat of an input already down isn't a new press. */
@@ -76,6 +87,7 @@ export const inputDown = (s: ActionSampler, input: string, device: InputDevice):
 }
 
 export const inputUp = (s: ActionSampler, input: string): void => {
+  s.ignored.delete(input)
   if (!s.down.delete(input)) return
   s.releasedSince.add(input)
 }
@@ -83,6 +95,8 @@ export const inputUp = (s: ActionSampler, input: string): void => {
 /** Everything up and no pending edges (window blur, or a trip to the Forge). */
 export const releaseAll = (s: ActionSampler): void => {
   s.down.clear()
+  s.ignored.clear()
+  s.stick = { x: 0, z: 0 }
   s.pressedSince.clear()
   s.releasedSince.clear()
 }
@@ -93,14 +107,26 @@ export const dropEdges = (s: ActionSampler): void => {
   s.releasedSince.clear()
 }
 
+/**
+ * Drops pending edges and ignores everything held now until it's released,
+ * so a button held through a pause or a menu (A on RESUME) doesn't act when
+ * the fight carries on.
+ */
+export const suppressHeld = (s: ActionSampler): void => {
+  dropEdges(s)
+  for (const input of s.down) s.ignored.add(input)
+}
+
 /** One step's frame; clears the latched edges. */
 export const sampleActions = (s: ActionSampler, map: InputMap): ActionFrame => {
   const frame = emptyFrame()
   for (const input of s.down) {
+    if (s.ignored.has(input)) continue
     const a = map.get(input)
     if (a) frame.held[a] = true
   }
-  for (const input of s.pressedSince) {
+  const pressed = [...s.pressedSince]
+  for (const input of pressed) {
     const a = map.get(input)
     if (a) frame.pressed[a] = true
   }
@@ -116,7 +142,25 @@ export const sampleActions = (s: ActionSampler, map: InputMap): ActionFrame => {
   // A tap within the step counts as held for this one step.
   const on = (a: InputAction) => frame.held[a] || frame.pressed[a]
   // Opposites: forward and left win, as before.
-  frame.move = { x: on('left') ? -1 : on('right') ? 1 : 0, z: on('forward') ? -1 : on('backward') ? 1 : 0 }
+  const digital = (on: (a: InputAction) => boolean): Vec2 => ({
+    x: on('left') ? -1 : on('right') ? 1 : 0,
+    z: on('forward') ? -1 : on('backward') ? 1 : 0,
+  })
+  frame.move = digital(on)
+  if (s.stick.x !== 0 || s.stick.z !== 0) {
+    // The stick moves with its tilt, unless another direction (keys, d-pad)
+    // is in use; its own digital directions (`ls-left`…) don't count here.
+    const other = flags()
+    for (const input of [...s.down, ...pressed]) {
+      const a = map.get(input)
+      if (a && !STICK_INPUT.test(input) && !s.ignored.has(input)) other[a] = true
+    }
+    const keys = digital((a) => other[a])
+    if (keys.x === 0 && keys.z === 0) {
+      frame.move = { ...s.stick }
+      frame.analog = true
+    } else frame.move = keys
+  }
   return frame
 }
 

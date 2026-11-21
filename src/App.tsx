@@ -4,6 +4,7 @@ import { LoadingScreen } from './components/LoadingScreen'
 import { useGameStore } from './store/gameStore'
 import { Forge } from './components/forge/Forge'
 import { Gallery } from './components/Gallery'
+import { MenuPad } from './components/MenuPad'
 import { useEffect } from 'react'
 import { apiEnabled, linkedPack } from './net/api'
 
@@ -19,6 +20,7 @@ function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <MenuPad />
       {gameScreen === 'menu' && <StartMenu />}
       {gameScreen === 'loading' && <LoadingScreen />}
       {gameScreen === 'gallery' && <Gallery />}

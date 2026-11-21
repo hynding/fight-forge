@@ -15,6 +15,7 @@ import {
   type InputDevice,
 } from '../../sim/input'
 import { sectionHeading, ui } from './ui'
+import { usePadCapture } from '../../input/usePadCapture'
 
 interface Props {
   pack: WorkspacePack
@@ -51,8 +52,13 @@ export const BindingsTools = ({ pack, node, save }: Props) => {
     save(editPack(pack, setIn(own, [...node.path, 'bindings', device], next) as PackJson))
   }
 
+  usePadCapture(device === 'gamepad' && listening !== null, (b) => {
+    if (listening) set(bindKey(bindings, listening, b))
+    setListening(null)
+  })
+
   useEffect(() => {
-    if (!listening) return
+    if (!listening || device !== 'keyboard') return
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault()
       e.stopPropagation()
@@ -102,6 +108,15 @@ export const BindingsTools = ({ pack, node, save }: Props) => {
                   </button>
                 </span>
               ))}
+              {device === 'gamepad' && (
+                <button
+                  style={{ ...ui.button, padding: '0 6px', color: listening === action ? '#ffd27a' : undefined }}
+                  aria-label={`Press a button for ${ACTION_NAMES[action]}`}
+                  onClick={() => setListening(listening === action ? null : action)}
+                >
+                  {listening === action ? 'press a button…' : '+ press'}
+                </button>
+              )}
               {choices ? (
                 <select
                   style={{ ...ui.button, padding: '0 4px' }}

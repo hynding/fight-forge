@@ -10,7 +10,7 @@ import { z } from 'zod'
 import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 // ---------------------------------------------------------------- primitives
 
@@ -22,6 +22,8 @@ export const idSchema = z
 const finite = z.number().finite()
 const nonNegative = finite.min(0)
 const positive = finite.positive()
+/** A fraction from 0 to 1. */
+const unit = finite.min(0).max(1)
 const fraction = finite.min(0).max(1)
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a #rrggbb colour')
 const vec3 = z.tuple([finite, finite, finite])
@@ -337,6 +339,8 @@ export const settingsSchema = z
             ),
           })
           .strict(),
+        /** Analog sticks: no movement inside `deadZone`; past `runThreshold` the fighter runs. */
+        analog: z.object({ deadZone: unit, runThreshold: unit }).strict(),
       })
       .strict(),
     /** Game feel on hits: each effect can be tuned or turned off. */
@@ -347,6 +351,17 @@ export const settingsSchema = z
         sparks: z.object({ enabled: z.boolean(), count: z.number().int().min(0).max(32), color, blockColor: color, life: positive }).strict(),
         dust: z.object({ enabled: z.boolean(), color, life: positive }).strict(),
         damageNumbers: z.object({ enabled: z.boolean(), color, playerColor: color, life: positive }).strict(),
+        rumble: z
+          .object({
+            enabled: z.boolean(),
+            base: unit,
+            perDamage: nonNegative,
+            max: unit,
+            duration: positive,
+            dealt: unit,
+            ko: unit,
+          })
+          .strict(),
       })
       .strict(),
     /** Which sound plays for each game event (ids in the content's `sounds`); leave one out for silence. */

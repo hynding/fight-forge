@@ -3,7 +3,7 @@ import { useGameStore } from '../store/gameStore'
 import { getLevels } from '../content/active'
 import { getBindings } from '../content/bindings'
 import type { InputManager } from '../input/InputManager'
-import { actionLabel, controlsHelp } from '../sim/input'
+import { actionLabel, deviceHelp } from '../sim/input'
 import { formatTime } from '../utils/format'
 
 const ResultRow = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -43,6 +43,8 @@ const MenuButton = ({
 }
 
 export const HUD = ({ input }: { input: InputManager }) => {
+  const inputDevice = useGameStore((state) => state.inputDevice)
+  const padLabels = useGameStore((state) => state.padLabels)
   const playerHealth = useGameStore((state) => state.playerHealth)
   const playerMaxHealth = useGameStore((state) => state.playerMaxHealth)
   const score = useGameStore((state) => state.score)
@@ -167,7 +169,7 @@ export const HUD = ({ input }: { input: InputManager }) => {
 
       {/* Controls */}
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
-        {controlsHelp(getBindings().keyboard, true)}
+        {deviceHelp(getBindings(), inputDevice, padLabels ?? 'xbox', true)}
         <br />
         {actionLabel(getBindings().keyboard, 'hitboxes')} - Hitboxes{showHitboxes ? ' (ON)' : ''}
       </div>

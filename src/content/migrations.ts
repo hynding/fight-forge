@@ -65,6 +65,16 @@ export const MIGRATIONS: MigrationTable = {
       settings: { ...settings, input: { ...input, bindings: { keyboard: input.bindings, mouse: MOUSE_V4, gamepad: GAMEPAD_V4 } } },
     }
   },
+  // v5: analog stick tuning in `input`, controller rumble in `feel`.
+  4: (pack) => {
+    const settings = pack.settings as Json | undefined
+    if (!settings || (!settings.input && !settings.feel)) return pack
+    const next = { ...settings }
+    if (settings.input) next.input = { analog: { deadZone: 0.2, runThreshold: 0.85 }, ...(settings.input as Json) }
+    if (settings.feel)
+      next.feel = { rumble: { enabled: true, base: 0.25, perDamage: 0.02, max: 0.8, duration: 0.15, dealt: 0.4, ko: 0.6 }, ...(settings.feel as Json) }
+    return { ...pack, settings: next }
+  },
 }
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }

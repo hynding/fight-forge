@@ -107,8 +107,12 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       health={playerHealth}
       isAttacking={isAttacking}
       getIntent={() => {
-        const intent = inputIntent(frameControls(input.frame))
-        intent.run = stepRunDetector(runDetector, intent.move.x, loop.time, config.actions.run)
+        const frame = input.frame
+        const intent = inputIntent(frameControls(frame))
+        // A stick walks at its tilt and runs when pushed past the threshold.
+        if (frame.analog) intent.move = frame.move
+        const pushed = frame.analog && Math.hypot(frame.move.x, frame.move.z) >= config.input.analog.runThreshold
+        intent.run = stepRunDetector(runDetector, intent.move.x, loop.time, config.actions.run) || pushed
         return intent
       }}
       isDead={() => useGameStore.getState().playerHealth <= 0}

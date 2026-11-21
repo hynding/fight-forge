@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../config/defaults'
-import { createFeel, feelHit, hitStopFor, shakeFor, shakeOffset, sparkDirections, stepFeel, type FeelSettings } from './feel'
+import { createFeel, feelHit, hitStopFor, rumbleFor, shakeFor, shakeOffset, sparkDirections, stepFeel, type FeelSettings } from './feel'
 
 const S: FeelSettings = DEFAULT_CONFIG.feel
 const off: FeelSettings = {
@@ -9,8 +9,23 @@ const off: FeelSettings = {
   sparks: { ...S.sparks, enabled: false },
   dust: { ...S.dust, enabled: false },
   damageNumbers: { ...S.damageNumbers, enabled: false },
+  rumble: { ...S.rumble, enabled: false },
 }
 const hit = { at: { x: 1, y: 1, z: 0 }, feet: { x: 1, y: 0, z: 0 }, damage: 10, guarded: false, toPlayer: false, down: false }
+
+describe('rumble', () => {
+  const r = S.rumble
+  it('scales with damage taken, softer for hits dealt, and only involving the player', () => {
+    expect(rumbleFor(S, { damage: 10, toPlayer: true, byPlayer: false, ko: false })).toBeCloseTo(r.base + 10 * r.perDamage)
+    expect(rumbleFor(S, { damage: 10, toPlayer: false, byPlayer: true, ko: false })).toBeCloseTo((r.base + 10 * r.perDamage) * r.dealt)
+    expect(rumbleFor(S, { damage: 10, toPlayer: false, byPlayer: false, ko: true })).toBe(0)
+    expect(rumbleFor(S, { damage: 1e4, toPlayer: true, byPlayer: false, ko: false })).toBe(r.max)
+  })
+  it('kicks harder on a KO, and not at all when off', () => {
+    expect(rumbleFor(S, { damage: 1, toPlayer: false, byPlayer: true, ko: true })).toBe(r.ko)
+    expect(rumbleFor(off, { damage: 10, toPlayer: true, byPlayer: false, ko: true })).toBe(0)
+  })
+})
 
 describe('game feel', () => {
   it('scales hit-stop and shake with damage, up to a cap, or not at all when off', () => {

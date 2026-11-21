@@ -7,6 +7,8 @@ import { VolumeControls } from './VolumeControls'
 
 export const PauseMenu = ({ input }: { input: InputManager }) => {
   const isPaused = useGameStore((state) => state.isPaused)
+  const inputDevice = useGameStore((state) => state.inputDevice)
+  const padLabels = useGameStore((state) => state.padLabels)
   const togglePause = useGameStore((state) => state.togglePause)
   const inSandbox = useGameStore((state) => state.sandbox !== null)
 
@@ -134,7 +136,7 @@ export const PauseMenu = ({ input }: { input: InputManager }) => {
         fontSize: '14px',
         color: '#666666',
       }}>
-        Press {actionLabel(getBindings().keyboard, 'pause')} to resume
+        Press {inputDevice === 'gamepad' ? actionLabel(getBindings().gamepad, 'pause', 'gamepad', padLabels ?? 'xbox') : actionLabel(getBindings().keyboard, 'pause')} to resume
       </div>
     </div>
   )
