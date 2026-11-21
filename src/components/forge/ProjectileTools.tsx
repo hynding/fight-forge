@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { fighterHalfExtents } from '../../forge/fighter'
 import { getIn } from '../../forge/paths'
 import { DEFAULT_FROM, firingMoves } from '../../forge/projectile'
+import { TRY_WEAPON, tryProjectilePack, weaponSandboxLevel } from '../../forge/weapon'
+import { describeErrors, installBundle } from '../../content/library'
+import { useGameStore } from '../../store/gameStore'
 import { nodeValue, type TreeNode } from '../../forge/tree'
-import { baseContent, type WorkspacePack } from '../../forge/workspace'
+import { baseContent, exportBundle, type WorkspacePack } from '../../forge/workspace'
 import { flightPath, type ProjectileDef } from '../../sim/projectiles'
 import { sectionHeading, ui } from './ui'
 
@@ -16,6 +19,9 @@ const round = (n: number) => Math.round(n * 100) / 100
 interface Props {
   pack: WorkspacePack
   node: TreeNode
+  onError: (message: string) => void
+  /** The pack has validation errors (the sandbox can't load it). */
+  invalid: boolean
 }
 
 /**
@@ -24,12 +30,14 @@ interface Props {
  * hitbox drawn along the path, plus its range, time in the air and the
  * moves that fire it. Edits go through the generated form below.
  */
-export const ProjectileTools = ({ pack, node }: Props) => {
+export const ProjectileTools = ({ pack, node, onError, invalid }: Props) => {
   const json = pack.json
   const def = nodeValue(json, node) as ProjectileDef | undefined
   const id = String(node.path[1])
   const users = firingMoves(json, id)
   const [user, setUser] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const startSandbox = useGameStore((s) => s.startSandbox)
   if (!def || !def.hitbox || !Array.isArray(def.size)) return null
 
   const player = (getIn(json, ['settings', 'player']) ?? baseContent().settings.player) as Record<string, unknown>
@@ -45,6 +53,14 @@ export const ProjectileTools = ({ pack, node }: Props) => {
   const sx = (u: number) => LEFT + u * px
   const sy = (u: number) => FLOOR - u * px
   const launchX = from[0]
+  // Try it: the pack, plus a weapon that fires this on attack, lent to the player in a sandbox.
+  const tryIt = async () => {
+    setBusy(true)
+    const r = await installBundle(await exportBundle({ ...pack, json: tryProjectilePack(json, id, from) }))
+    setBusy(false)
+    if (!r.ok) return onError(describeErrors(r.errors))
+    startSandbox(weaponSandboxLevel(), { packId: pack.id }, { weapon: TRY_WEAPON })
+  }
   // The hitbox every ~0.15 s along the path.
   const every = Math.max(1, Math.round(path.points.length / 8))
   const boxes = path.points.filter((_, i) => i % every === 0 || i === path.points.length - 1)
@@ -86,6 +102,17 @@ export const ProjectileTools = ({ pack, node }: Props) => {
           {def.pierce ? ` · through ${def.pierce + 1} targets` : ''}
         </text>
       </svg>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+        <button
+          style={{ ...ui.button, borderColor: '#ff4444', color: invalid ? '#777' : '#ff8080' }}
+          disabled={invalid || busy}
+          title={invalid ? 'Fix the problems first' : undefined}
+          onClick={tryIt}
+        >
+          ▶ Try it
+        </button>
+        <span style={{ color: '#667' }}>The attack button fires it, against a few enemies.</span>
+      </div>
       <div style={{ color: '#aab', marginTop: '4px' }}>
         {users.length === 0 ? (
           <span style={{ color: '#667' }}>No move fires it yet: give a move a projectile with this id ({id}).</span>

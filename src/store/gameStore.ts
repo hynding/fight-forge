@@ -85,6 +85,8 @@ interface GameState {
   sandbox: Level | null
   /** A sandbox boss starts with this fraction of its health (the Forge's "from phase N"). */
   sandboxBossHealth: number
+  /** A sandbox player starts holding this weapon (the Forge's "Fight with it"). */
+  sandboxWeapon: string | null
   /** Where a sandbox came from in the Forge, so editing mid-fight can come back to it. */
   playtest: PlaytestOrigin | null
   /** The Forge is open over a paused sandbox (the scene stays mounted underneath). */
@@ -129,7 +131,7 @@ interface GameState {
   /** Starts a new run at a level (from the menu); goes through the loading screen. */
   startRun: (levelIndex: number) => void
   /** Starts a Forge sandbox fight in a generated level (through the loading screen). */
-  startSandbox: (level: Level, origin?: PlaytestOrigin, opts?: { bossHealth?: number }) => void
+  startSandbox: (level: Level, origin?: PlaytestOrigin, opts?: { bossHealth?: number; weapon?: string }) => void
   /** Mid-sandbox: open the Forge over the paused fight. */
   editPlaytest: () => void
   /** Close the Forge and carry on with the paused fight. */
@@ -234,6 +236,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   levelIndex: 0,
   sandbox: null,
   sandboxBossHealth: 1,
+  sandboxWeapon: null,
   playtest: null,
   editing: false,
   lives: getConfig().rules.lives,
@@ -356,6 +359,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       levelIndex: 0,
       sandbox: level,
       sandboxBossHealth: opts?.bossHealth ?? 1,
+      sandboxWeapon: opts?.weapon ?? null,
       playtest: origin ?? null,
       editing: false,
       gameScreen: 'loading',
