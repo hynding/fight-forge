@@ -270,8 +270,9 @@ Packs become shareable online. This is the first phase with a server, so it star
 **M5.2 Game feel**
 - Hit-stop, screen shake, hit sparks and dust particles, damage numbers; each configurable (and turn-off-able) in rules.
 
-**M5.3 Gamepad support**
-- Gamepad API in `InputController`, rebindable like the keyboard.
+**M5.3 Extended controls** (planned in [plans/extended-controls.md](plans/extended-controls.md), split into PRs C1–C6)
+- C1 input layer (per-step action sampling, no dropped taps), C2 per-device bindings (keyboard, mouse, gamepad; schema v4), C3 gamepad (analog movement, button labels, rumble, menu navigation), C4 data-driven movesets (action + situation + direction triggers), C5 heavy attack and special, C6 grabs and throws.
+- Packs choose which optional actions are on and their default buttons per device; players remap per device on the start menu.
 
 **M5.4 Performance pass**
 - Instanced rendering for crowds, skinned-mesh budgets for imported models, a stress level (30+ enemies), and a frame-time budget check.
@@ -281,7 +282,7 @@ Packs become shareable online. This is the first phase with a server, so it star
 - **Local co-op**: a second `InputController` and HUD; camera framing for two players.
 - **Weapons and throwables**: pickup items with their own movesets.
 - **Bosses**: scripted phases and health-bar UI driven by level triggers.
-- **Grabs and throws**, and **specials** with a meter.
+- ~~Grabs and throws, and specials with a meter~~: moved into M5.3 (C5, C6).
 - **Online co-op**: much larger than local co-op (netcode); only worth planning once the fixed-step sim has proven deterministic.
 
 ---
