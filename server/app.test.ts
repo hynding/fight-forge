@@ -3,6 +3,8 @@ import { buildApp, compareVersions, CSRF_HEADER, SESSION_COOKIE } from './app'
 import { memoryBlobs } from './blobs'
 import { openStore } from './db'
 import { addImageAsset, setCover } from '../src/forge/assets'
+import { addModelAsset } from '../src/forge/fighter'
+import { tinyGlb } from '../src/test/glb'
 import { editPack, exportBundle, newPack, remixBundle, type WorkspacePack } from '../src/forge/workspace'
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4])
@@ -206,5 +208,99 @@ describe('server', () => {
     const byLikes = (await app.inject({ url: '/packs?sort=likes' })).json().packs.map((p: { id: string; likes: number }) => `${p.id}:${p.likes}`)
     expect(byLikes).toEqual(['loved:2', 'plain:0'])
     expect((await like(fan, 'loved', false)).json()).toEqual({ liked: false, likes: 1 })
+  })
+
+  describe('moderation', () => {
+    const post = (app: App, cookie: string | undefined, url: string, payload: object = {}, method: 'POST' | 'DELETE' = 'POST') =>
+      app.inject({ method, url, headers: { [CSRF_HEADER]: '1', ...(cookie ? { cookie } : {}) }, payload })
+    const gallery = async (app: App) => (await app.inject({ url: '/packs' })).json().packs.map((p: { id: string }) => p.id)
+
+    it('takes a reported pack down, keeps it for its owner, and logs who did it', async () => {
+      const app = setup({ admins: ['dev:mod'] })
+      const owner = await signIn(app, 'owner')
+      await publish(app, owner, await bundleOf(pack('Rude')))
+      const reader = await signIn(app, 'reader')
+      expect((await post(app, undefined, '/packs/rude/report', { reason: 'offensive' })).statusCode).toBe(401)
+      expect((await post(app, reader, '/packs/rude/report', { reason: '' })).statusCode).toBe(400)
+      expect((await post(app, reader, '/packs/rude/report', { reason: 'offensive names' })).statusCode).toBe(201)
+      // A second report from the same person while the first is open is not a second report.
+      expect((await post(app, reader, '/packs/rude/report', { reason: 'still offensive' })).statusCode).toBe(201)
+
+      expect((await app.inject({ url: '/admin/reports', headers: { cookie: reader } })).statusCode).toBe(403)
+      const mod = await signIn(app, 'Mod')
+      expect((await app.inject({ url: '/me', headers: { cookie: mod } })).json().user.role).toBe('admin')
+      const open = (await app.inject({ url: '/admin/reports', headers: { cookie: mod } })).json().reports
+      expect(open).toHaveLength(1)
+      expect(open[0]).toMatchObject({ packId: 'rude', packName: 'Rude', packOwner: 'owner', reporter: 'reader', reason: 'offensive names' })
+
+      expect((await post(app, mod, '/admin/packs/rude/hidden', { hidden: true, note: 'slurs in names' })).json().pack.hidden).toBe(true)
+      expect(await gallery(app)).toEqual([])
+      expect((await app.inject({ url: '/packs/rude', headers: { cookie: reader } })).statusCode).toBe(404)
+      expect((await app.inject({ url: '/packs/rude/versions/1.0.0/bundle' })).statusCode).toBe(404)
+      // The owner still sees it, marked as taken down, and a new version doesn't bring it back.
+      expect((await app.inject({ url: '/me/packs', headers: { cookie: owner } })).json().packs[0]).toMatchObject({ id: 'rude', hidden: true })
+      expect((await publish(app, owner, await bundleOf(pack('Rude', '1.0.1')))).statusCode).toBe(201)
+      expect(await gallery(app)).toEqual([])
+      expect((await app.inject({ url: '/admin/reports', headers: { cookie: mod } })).json().reports).toEqual([])
+
+      const log = (await app.inject({ url: '/admin/actions', headers: { cookie: mod } })).json().actions
+      expect(log[0]).toMatchObject({ actor: 'Mod', action: 'hide-pack', target: 'rude', note: 'slurs in names' })
+    })
+
+    it('dismisses reports, and lets owners remove their own packs', async () => {
+      const app = setup({ admins: ['dev:mod'] })
+      const owner = await signIn(app, 'owner')
+      await publish(app, owner, await bundleOf(pack('Fine')))
+      const reader = await signIn(app, 'reader')
+      await post(app, reader, '/packs/fine/report', { reason: 'I lost' })
+      const mod = await signIn(app, 'mod')
+      const [report] = (await app.inject({ url: '/admin/reports', headers: { cookie: mod } })).json().reports
+      expect((await post(app, mod, `/admin/reports/${report.id}/dismiss`, { note: 'not a problem' })).statusCode).toBe(200)
+      expect(await gallery(app)).toEqual(['fine'])
+
+      expect((await post(app, reader, '/packs/fine', {}, 'DELETE')).statusCode).toBe(403)
+      expect((await post(app, owner, '/packs/fine', {}, 'DELETE')).statusCode).toBe(200)
+      expect(await gallery(app)).toEqual([])
+      expect((await app.inject({ url: '/packs/fine', headers: { cookie: owner } })).statusCode).toBe(404)
+      // The id is free again for its owner.
+      expect((await publish(app, owner, await bundleOf(pack('Fine')))).statusCode).toBe(201)
+    })
+
+    it('bans an owner: sessions end, packs vanish, sign-in is refused', async () => {
+      const app = setup({ admins: ['dev:mod'] })
+      const spammer = await signIn(app, 'spammer')
+      await publish(app, spammer, await bundleOf(pack('Spam')))
+      const mod = await signIn(app, 'mod')
+      expect((await post(app, mod, '/admin/packs/spam/owner-banned', { banned: true, note: 'spam' })).statusCode).toBe(200)
+      expect((await app.inject({ url: '/me', headers: { cookie: spammer } })).statusCode).toBe(401)
+      expect(await gallery(app)).toEqual([])
+      expect((await post(app, undefined, '/auth/dev', { name: 'spammer' })).statusCode).toBe(403)
+      expect((await post(app, mod, '/admin/packs/spam/owner-banned', { banned: false })).statusCode).toBe(200)
+      expect(await gallery(app)).toEqual(['spam'])
+    })
+
+    it('limits reports per person and writes per address', async () => {
+      const app = setup({ reportsPerHour: 2, writesPerIpPerHour: 8 })
+      const owner = await signIn(app, 'owner')
+      for (const n of ['A', 'B', 'C']) await publish(app, owner, await bundleOf(pack(n)))
+      const reader = await signIn(app, 'reader')
+      expect((await post(app, reader, '/packs/a/report', { reason: 'bad one' })).statusCode).toBe(201)
+      expect((await post(app, reader, '/packs/b/report', { reason: 'bad two' })).statusCode).toBe(201)
+      expect((await post(app, reader, '/packs/c/report', { reason: 'bad three' })).statusCode).toBe(429)
+      // 2 sign-ins + 3 publishes + 3 reports so far: this address is out of writes.
+      expect((await post(app, reader, '/packs/a/like', { liked: true })).statusCode).toBe(429)
+      expect((await app.inject({ url: '/packs' })).statusCode).toBe(200)
+    })
+
+    it('refuses a model that would load files from elsewhere', async () => {
+      const app = setup()
+      const cookie = await signIn(app, 'maker')
+      const m = addModelAsset(pack('Sneaky'), 'hero.glb', tinyGlb())
+      if (!m.ok) throw new Error(m.message)
+      const wp = { ...m.pack, files: { ...m.pack.files, 'models/hero.glb': tinyGlb({ images: [{ uri: 'https://tracker.example/p.png' }] }) } }
+      const r = await publish(app, cookie, await bundleOf(wp))
+      expect(r.statusCode).toBe(422)
+      expect(r.json().errors[0].message).toMatch(/refers to an outside file/)
+    })
   })
 })

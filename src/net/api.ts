@@ -26,6 +26,8 @@ export interface PublishedPack {
   version: string
   cover: boolean
   likes: number
+  /** Taken down by a moderator (only its owner and moderators see it). */
+  hidden: boolean
   updated: number
 }
 
@@ -171,3 +173,57 @@ export const nextVersion = (v: string): string => {
   const [a, b, c] = v.split('.').map((n) => Number(n) || 0)
   return `${a}.${b}.${c + 1}`
 }
+
+
+/** A write that answers with ok or an error message; 'signin' when not signed in. */
+const write = async (path: string, method: 'POST' | 'DELETE', body: object = {}): Promise<'ok' | 'signin'> => {
+  const res = await call(path, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  if (res.status === 401) return 'signin'
+  if (!res.ok) throw new Error((await json<{ error?: string }>(res).catch(() => ({}) as { error?: string })).error ?? `the server said ${res.status}`)
+  return 'ok'
+}
+const packPath = (id: string) => `/packs/${encodeURIComponent(id)}`
+
+/** Tell the moderators what's wrong with a pack. */
+export const reportPack = (id: string, reason: string) => write(`${packPath(id)}/report`, 'POST', { reason })
+
+/** Remove your own pack (all its versions) from the server. */
+export const deletePack = (id: string) => write(packPath(id), 'DELETE')
+
+// ---------------------------------------------------------------- moderators
+
+export interface Report {
+  id: number
+  packId: string
+  packName: string | null
+  packOwner: string | null
+  packHidden: boolean
+  reporter: string
+  reason: string
+  created: number
+}
+
+export interface ModAction {
+  id: number
+  actor: string
+  action: string
+  target: string
+  note: string
+  created: number
+}
+
+export const openReports = async (): Promise<Report[]> => {
+  const res = await call('/admin/reports')
+  if (!res.ok) throw new Error(`couldn't load reports (${res.status})`)
+  return (await json<{ reports: Report[] }>(res)).reports
+}
+
+export const modActions = async (): Promise<ModAction[]> => {
+  const res = await call('/admin/actions')
+  if (!res.ok) throw new Error(`couldn't load the log (${res.status})`)
+  return (await json<{ actions: ModAction[] }>(res)).actions
+}
+
+export const setPackHidden = (id: string, hidden: boolean, note: string) => write(`/admin${packPath(id)}/hidden`, 'POST', { hidden, note })
+export const dismissReports = (reportId: number, note: string) => write(`/admin/reports/${reportId}/dismiss`, 'POST', { note })
+export const setOwnerBanned = (packId: string, banned: boolean, note: string) => write(`/admin${packPath(packId)}/owner-banned`, 'POST', { banned, note })

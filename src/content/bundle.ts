@@ -41,8 +41,40 @@ export const sha256 = async (bytes: Uint8Array): Promise<string> => {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-const isGlb = (bytes: Uint8Array) =>
-  bytes.length >= 12 && bytes[0] === 0x67 && bytes[1] === 0x6c && bytes[2] === 0x54 && bytes[3] === 0x46 // "glTF"
+const u32 = (b: Uint8Array, at: number) => (b[at] | (b[at + 1] << 8) | (b[at + 2] << 16) | (b[at + 3] << 24)) >>> 0
+
+/**
+ * Why some bytes aren't a usable binary glTF 2.0 model, or null when they are:
+ * the header and chunk lengths must agree with the file, the JSON chunk must
+ * parse as glTF 2.0, and every buffer and image must be inside the file (an
+ * external or remote URI would have the game fetch from elsewhere).
+ */
+export const glbProblem = (b: Uint8Array): string | null => {
+  if (b.length < 20 || u32(b, 0) !== 0x46546c67) return "isn't a binary glTF (.glb)"
+  if (u32(b, 4) !== 2) return `is glTF version ${u32(b, 4)}; only glTF 2 is supported`
+  if (u32(b, 8) !== b.length) return 'is cut short or has extra bytes (its header length is wrong)'
+  const jsonLength = u32(b, 12)
+  if (u32(b, 16) !== 0x4e4f534a || 20 + jsonLength > b.length) return "doesn't start with a glTF JSON chunk"
+  let gltf: { asset?: { version?: unknown }; buffers?: { uri?: unknown }[]; images?: { uri?: unknown }[] }
+  try {
+    gltf = JSON.parse(new TextDecoder().decode(b.subarray(20, 20 + jsonLength))) as typeof gltf
+  } catch {
+    return 'has a glTF JSON chunk that is not valid JSON'
+  }
+  if (typeof gltf !== 'object' || gltf === null || !String(gltf.asset?.version ?? '').startsWith('2.')) return "isn't glTF 2.0"
+  const external = [...(gltf.buffers ?? []), ...(gltf.images ?? [])].find((x) => typeof x?.uri === 'string' && !x.uri.startsWith('data:'))
+  if (external) return `refers to an outside file ("${String(external.uri).slice(0, 60)}"); embed everything in the .glb`
+  return null
+}
+
+/** The audio formats a bundle may carry, from their first bytes. */
+export const audioType = (b: Uint8Array): 'mp3' | 'ogg' | 'wav' | null => {
+  const ascii = (at: number, s: string) => [...s].every((c, i) => b[at + i] === c.charCodeAt(0))
+  if (ascii(0, 'OggS')) return 'ogg'
+  if (ascii(0, 'RIFF') && ascii(8, 'WAVE')) return 'wav'
+  if (ascii(0, 'ID3') || (b.length >= 2 && b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return 'mp3'
+  return null
+}
 
 // Inside a zip, paths are relative with forward slashes and no `..`.
 const SAFE_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9_\-./ ]+$/
@@ -139,7 +171,9 @@ const assetErrors = async (asset: AssetDef, bytes: Uint8Array | undefined): Prom
     if (bytes.length !== asset.bytes) problems.push(`"${asset.path}" is ${bytes.length} bytes, but the pack says ${asset.bytes}`)
     else if ((await sha256(bytes)) !== asset.hash) problems.push(`"${asset.path}" doesn't match its hash (corrupted or changed)`)
   }
-  if (asset.kind === 'model' && !isGlb(bytes)) problems.push(`"${asset.path}" isn't a binary glTF (.glb)`)
+  const glb = asset.kind === 'model' ? glbProblem(bytes) : null
+  if (glb) problems.push(`"${asset.path}" ${glb}`)
+  if (asset.kind === 'audio' && !audioType(bytes)) problems.push(`"${asset.path}" isn't an MP3, Ogg or WAV file`)
   if (asset.kind === 'texture' && !imageType(bytes)) problems.push(`"${asset.path}" isn't a PNG, JPEG or WebP image`)
   return problems
 }

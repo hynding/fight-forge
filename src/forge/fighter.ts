@@ -2,13 +2,12 @@
 // model into a pack, fitting it to the fighter's body, move timelines, and
 // editing the light-attack combo chain.
 
-import { BUNDLE_LIMITS } from '../content/bundle'
+import { BUNDLE_LIMITS, glbProblem } from '../content/bundle'
 import { getIn, setIn } from './paths'
 import { baseContent, uniqueId, type PackJson, type WorkspacePack } from './workspace'
 
 type Json = Record<string, unknown>
 
-const isGlb = (b: Uint8Array) => b.length >= 12 && b[0] === 0x67 && b[1] === 0x6c && b[2] === 0x54 && b[3] === 0x46
 
 /** "Hero Model (v2).glb" → "hero-model-v2" (a valid id). */
 export const fileStem = (name: string, prefix = 'model') => {
@@ -31,7 +30,8 @@ export const addModelAsset = (
   filename: string,
   bytes: Uint8Array
 ): { ok: true; pack: WorkspacePack; assetId: string } | { ok: false; message: string } => {
-  if (!isGlb(bytes)) return { ok: false, message: `"${filename}" isn't a binary glTF (.glb) file` }
+  const problem = glbProblem(bytes)
+  if (problem) return { ok: false, message: `"${filename}" ${problem}` }
   if (bytes.length > BUNDLE_LIMITS.model)
     return { ok: false, message: `"${filename}" is ${bytes.length} bytes; models can be up to ${BUNDLE_LIMITS.model}` }
   const assets = assetsOf(wp.json)
