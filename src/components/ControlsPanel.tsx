@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getBindings, getOverride, getPackBindings, setOverride } from '../content/bindings'
 import { ACTION_NAMES, INPUT_ACTIONS, actionLabel, rebind, type InputAction } from '../sim/input'
+import { VolumeControls } from './VolumeControls'
 
 const small = {
   padding: '3px 8px',
@@ -21,6 +22,7 @@ const small = {
  */
 export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
   const [open, setOpen] = useState(false)
+  const [soundOpen, setSoundOpen] = useState(false)
   const [listening, setListening] = useState<InputAction | null>(null)
   // The bindings live outside React; bump to re-render after a change.
   const [, setVersion] = useState(0)
@@ -54,7 +56,7 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
         position: 'absolute',
         top: '20px',
         left: '20px',
-        width: open ? '320px' : 'auto',
+        width: open || soundOpen ? '320px' : 'auto',
         maxHeight: 'calc(100vh - 40px)',
         overflowY: 'auto',
         padding: '14px',
@@ -104,6 +106,20 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
           </button>
         </div>
       )}
+      <div style={{ marginTop: '10px' }}>
+        <button
+          onClick={() => setSoundOpen(!soundOpen)}
+          aria-expanded={soundOpen}
+          style={{ ...small, border: 'none', background: 'none', fontSize: '14px', color: '#aaaaaa', letterSpacing: '3px', padding: 0 }}
+        >
+          {soundOpen ? '▾' : '▸'} SOUND
+        </button>
+        {soundOpen && (
+          <div style={{ marginTop: '10px', minWidth: '260px' }}>
+            <VolumeControls />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

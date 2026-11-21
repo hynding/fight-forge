@@ -44,6 +44,14 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "standOff": 0.8,
     },
   },
+  "audio": {
+    "block": "block",
+    "clear": "clear",
+    "hit": "punch",
+    "hurt": "hurt",
+    "ko": "ko",
+    "pickup": "pickup",
+  },
   "body": {
     "colliderHalfExtents": [
       0.25,
@@ -282,6 +290,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "speed": 1.4,
       },
       "damage": 16,
+      "hitSound": "heavy",
       "hitbox": {
         "forward": 0.8,
         "halfX": 0.7,
@@ -299,6 +308,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "knockdown": true,
       },
       "recovery": 0.35,
+      "sound": "whoosh",
       "startup": 0.1,
     },
     "enemyPunch": {
@@ -323,6 +333,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         },
       },
       "recovery": 0.4,
+      "sound": "whoosh",
       "startup": 0.4,
     },
     "hook": {
@@ -348,6 +359,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         },
       },
       "recovery": 0.22,
+      "sound": "whoosh",
       "startup": 0.08,
     },
     "jab": {
@@ -373,6 +385,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         },
       },
       "recovery": 0.17,
+      "sound": "whoosh",
       "startup": 0.05,
     },
     "jab2": {
@@ -398,6 +411,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         },
       },
       "recovery": 0.17,
+      "sound": "whoosh",
       "startup": 0.05,
     },
     "jumpKick": {
@@ -408,6 +422,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "speed": 2,
       },
       "damage": 14,
+      "hitSound": "heavy",
       "hitbox": {
         "forward": 0.7,
         "halfX": 0.6,
@@ -423,6 +438,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         },
       },
       "recovery": 0.1,
+      "sound": "whoosh",
       "startup": 0.06,
     },
     "rushPunch": {
@@ -432,6 +448,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "speed": 1.2,
       },
       "damage": 12,
+      "hitSound": "heavy",
       "hitbox": {
         "forward": 0.8,
         "halfX": 0.6,
@@ -448,6 +465,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         },
       },
       "recovery": 0.5,
+      "sound": "whoosh",
       "startup": 0.2,
     },
     "uppercut": {
@@ -457,6 +475,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "speed": 1.5,
       },
       "damage": 20,
+      "hitSound": "heavy",
       "hitbox": {
         "forward": 0.8,
         "halfX": 0.55,
@@ -473,7 +492,44 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "knockdown": true,
       },
       "recovery": 0.35,
+      "sound": "whoosh",
       "startup": 0.12,
+    },
+  },
+  "music": {
+    "alley": {
+      "kind": "pattern",
+      "tempo": 112,
+      "tracks": [
+        {
+          "notes": "A2 . A2 . C3 . A2 . G2 . G2 . E2 . G2 . A2 . A2 . C3 . D3 . E3 - D3 . C3 . G2 .",
+          "volume": 0.35,
+          "wave": "square",
+        },
+        {
+          "notes": "A4 - - - . . E4 . G4 - - - . . D4 . A4 - - - . . C5 . B4 - A4 - G4 - E4 -",
+          "volume": 0.5,
+          "wave": "triangle",
+        },
+      ],
+      "volume": 0.35,
+    },
+    "docks": {
+      "kind": "pattern",
+      "tempo": 96,
+      "tracks": [
+        {
+          "notes": "D2 . D2 D2 . . F2 . G2 . G2 G2 . . A2 . D2 . D2 D2 . . C3 . A2 . G2 . F2 . E2 .",
+          "volume": 0.25,
+          "wave": "sawtooth",
+        },
+        {
+          "notes": "D4 - - - F4 - - - A4 - - - G4 - F4 - E4 - - - C4 - - - D4 - - - - - - -",
+          "volume": 0.5,
+          "wave": "sine",
+        },
+      ],
+      "volume": 0.35,
     },
   },
   "physics": {
@@ -632,6 +688,72 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   },
   "scoring": {
     "enemyKill": 100,
+  },
+  "sounds": {
+    "block": {
+      "duration": 0.07,
+      "freq": 1100,
+      "freqEnd": 800,
+      "kind": "synth",
+      "volume": 0.4,
+      "wave": "triangle",
+    },
+    "clear": {
+      "duration": 0.6,
+      "freq": 523,
+      "freqEnd": 1046,
+      "kind": "synth",
+      "volume": 0.5,
+      "wave": "triangle",
+    },
+    "heavy": {
+      "duration": 0.2,
+      "freq": 140,
+      "freqEnd": 35,
+      "kind": "synth",
+      "volume": 0.6,
+      "wave": "sawtooth",
+    },
+    "hurt": {
+      "duration": 0.16,
+      "freq": 320,
+      "freqEnd": 120,
+      "kind": "synth",
+      "volume": 0.45,
+      "wave": "sawtooth",
+    },
+    "ko": {
+      "duration": 0.45,
+      "freq": 400,
+      "freqEnd": 40,
+      "kind": "synth",
+      "volume": 0.5,
+      "wave": "square",
+    },
+    "pickup": {
+      "duration": 0.14,
+      "freq": 660,
+      "freqEnd": 1320,
+      "kind": "synth",
+      "volume": 0.45,
+      "wave": "sine",
+    },
+    "punch": {
+      "duration": 0.11,
+      "freq": 180,
+      "freqEnd": 55,
+      "kind": "synth",
+      "volume": 0.5,
+      "wave": "square",
+    },
+    "whoosh": {
+      "duration": 0.09,
+      "freq": 1800,
+      "freqEnd": 600,
+      "kind": "synth",
+      "volume": 0.25,
+      "wave": "noise",
+    },
   },
   "spawning": {
     "height": 2,

@@ -85,6 +85,67 @@ export const modelRefSchema = z.discriminatedUnion('kind', [
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'needs exactly one of "url" or "asset"' })
 })
 
+// -------------------------------------------------------------------- audio
+
+const fileRef = {
+  /** A URL (files in `public/` are served from the site root)... */
+  url: z.string().min(1).optional(),
+  /** ...or an audio asset of the pack. Exactly one of the two. */
+  asset: idSchema.optional(),
+}
+const oneSource = (m: { kind: string; url?: string; asset?: string }, ctx: z.RefinementCtx) => {
+  if (m.kind === 'file' && (m.url === undefined) === (m.asset === undefined))
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'needs exactly one of "url" or "asset"' })
+}
+
+export const SYNTH_WAVES = ['sine', 'square', 'sawtooth', 'triangle', 'noise'] as const
+
+/** A sound effect: made on the fly by a tiny synth (no file needed), or an audio file. */
+export const soundSchema = z
+  .discriminatedUnion('kind', [
+    z
+      .object({
+        kind: z.literal('synth'),
+        wave: z.enum(SYNTH_WAVES),
+        /** Pitch in Hz at the start... */
+        freq: positive,
+        /** ...sliding to this by the end. */
+        freqEnd: positive.optional(),
+        /** Seconds. */
+        duration: positive,
+        volume: fraction,
+      })
+      .strict(),
+    z.object({ kind: z.literal('file'), ...fileRef, volume: fraction }).strict(),
+  ])
+  .superRefine(oneSource)
+
+/** A note name like C4, F#3 or Bb2; "." is a rest and "-" holds the note before. */
+const NOTE_TOKEN = /^(?:[A-Ga-g](?:#|b)?[0-8]|\.|-)$/
+const notesSchema = z
+  .string()
+  .refine((s) => s.trim() !== '' && s.trim().split(/\s+/).every((t) => NOTE_TOKEN.test(t)), {
+    message: 'use notes like C4, F#3 or Bb2, "." for a rest and "-" to hold, separated by spaces',
+  })
+
+/** Music: a looping step pattern played by the synth, or an audio file. */
+export const musicSchema = z
+  .discriminatedUnion('kind', [
+    z
+      .object({
+        kind: z.literal('pattern'),
+        /** Beats per minute; each note step is a quarter of a beat. */
+        tempo: positive,
+        volume: fraction,
+        tracks: z
+          .array(z.object({ wave: z.enum(['sine', 'square', 'sawtooth', 'triangle']), volume: fraction, notes: notesSchema }).strict())
+          .min(1),
+      })
+      .strict(),
+    z.object({ kind: z.literal('file'), ...fileRef, volume: fraction }).strict(),
+  ])
+  .superRefine(oneSource)
+
 // -------------------------------------------------------------------- moves
 
 export const hitboxSchema = z
@@ -113,6 +174,10 @@ export const moveSchema = z
     /** Move id a buffered press chains into. */
     next: idSchema.optional(),
     cancelFrom: nonNegative.optional(),
+    /** Sound played when the move starts (a whoosh). */
+    sound: idSchema.optional(),
+    /** Sound played when it lands, instead of the audio settings' `hit`. */
+    hitSound: idSchema.optional(),
   })
   .strict()
 
@@ -267,6 +332,17 @@ export const settingsSchema = z
           .strict(),
       })
       .strict(),
+    /** Which sound plays for each game event (ids in the content's `sounds`); leave one out for silence. */
+    audio: z
+      .object({
+        hit: idSchema.optional(),
+        hurt: idSchema.optional(),
+        block: idSchema.optional(),
+        ko: idSchema.optional(),
+        pickup: idSchema.optional(),
+        clear: idSchema.optional(),
+      })
+      .strict(),
   })
   .strict()
 
@@ -353,7 +429,14 @@ export const segmentSchema = z
   .strict()
 
 export const levelSchema = z
-  .object({ id: idSchema, name: z.string().min(1), theme: idSchema, segments: z.array(segmentSchema).min(1) })
+  .object({
+    id: idSchema,
+    name: z.string().min(1),
+    theme: idSchema,
+    /** Music that loops while the level plays. */
+    music: idSchema.optional(),
+    segments: z.array(segmentSchema).min(1),
+  })
   .strict()
 
 // --------------------------------------------------------------------- pack
@@ -388,6 +471,8 @@ export const packSchema = z
     pickups: z.record(idSchema, pickupSchema).default({}),
     themes: z.record(idSchema, themeSchema).default({}),
     props: z.record(idSchema, propSchema).default({}),
+    sounds: z.record(idSchema, soundSchema).default({}),
+    music: z.record(idSchema, musicSchema).default({}),
     /** In play order. A level with the same id as an earlier pack's replaces it in place. */
     levels: z.array(levelSchema).default([]),
   })
@@ -405,6 +490,8 @@ export type Settings = z.infer<typeof settingsSchema>
 export type LevelDef = z.infer<typeof levelSchema>
 export type ThemeDefData = z.infer<typeof themeSchema>
 export type PropDefData = z.infer<typeof propSchema>
+export type SoundDefData = z.infer<typeof soundSchema>
+export type MusicDefData = z.infer<typeof musicSchema>
 export type PackMeta = z.infer<typeof packMetaSchema>
 /** A pack after parsing (defaults filled in). */
 export type Pack = z.infer<typeof packSchema>

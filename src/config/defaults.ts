@@ -8,6 +8,7 @@ import type { DropDef, PickupDef } from '../sim/pickups'
 import type { Bindings } from '../sim/input'
 import type { BackdropLayer } from '../sim/backdrop'
 import type { PropDef } from '../sim/props'
+import type { AudioSettings, MusicDef, SoundDef } from '../audio/types'
 
 /**
  * Every gameplay tuning value in one typed object. The values come from
@@ -216,6 +217,12 @@ export interface GameConfig {
   themes: Record<string, ThemeDef>
   /** Stage objects by id (crates, barrels, walls, platforms), placed by levels. */
   props: Record<string, PropDef>
+  /** Which sound plays for each game event. */
+  audio: AudioSettings
+  /** Sound effects by id. */
+  sounds: Record<string, SoundDef>
+  /** Music by id; each level may name one. */
+  music: Record<string, MusicDef>
 }
 
 /** The box humanoid: its feet sit 0.65 below its origin, so drop it 0.35 onto the collider bottom. */

@@ -1,0 +1,66 @@
+{
+  "whoosh": {
+    "kind": "synth",
+    "wave": "noise",
+    "freq": 1800,
+    "freqEnd": 600,
+    "duration": 0.09,
+    "volume": 0.25
+  },
+  "punch": {
+    "kind": "synth",
+    "wave": "square",
+    "freq": 180,
+    "freqEnd": 55,
+    "duration": 0.11,
+    "volume": 0.5
+  },
+  "heavy": {
+    "kind": "synth",
+    "wave": "sawtooth",
+    "freq": 140,
+    "freqEnd": 35,
+    "duration": 0.2,
+    "volume": 0.6
+  },
+  "hurt": {
+    "kind": "synth",
+    "wave": "sawtooth",
+    "freq": 320,
+    "freqEnd": 120,
+    "duration": 0.16,
+    "volume": 0.45
+  },
+  "block": {
+    "kind": "synth",
+    "wave": "triangle",
+    "freq": 1100,
+    "freqEnd": 800,
+    "duration": 0.07,
+    "volume": 0.4
+  },
+  "ko": {
+    "kind": "synth",
+    "wave": "square",
+    "freq": 400,
+    "freqEnd": 40,
+    "duration": 0.45,
+    "volume": 0.5
+  },
+  "pickup": {
+    "kind": "synth",
+    "wave": "sine",
+    "freq": 660,
+    "freqEnd": 1320,
+    "duration": 0.14,
+    "volume": 0.45
+  },
+  "clear": {
+    "kind": "synth",
+    "wave": "triangle",
+    "freq": 523,
+    "freqEnd": 1046,
+    "duration": 0.6,
+    "volume": 0.5
+  }
+}

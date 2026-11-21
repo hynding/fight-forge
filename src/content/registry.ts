@@ -6,6 +6,7 @@
 import { siteUrl } from './siteUrl'
 import type { ZodIssue } from 'zod'
 import type { GameConfig, ModelRef } from '../config/defaults'
+import type { MusicDef, SoundDef } from '../audio/types'
 import type { Level } from '../sim/level'
 import { cancelTime, moveDuration } from '../sim/moves'
 import { migratePack } from './migrations'
@@ -21,6 +22,8 @@ import {
   type Pack,
   type PickupDefData,
   type PropDefData,
+  type SoundDefData,
+  type MusicDefData,
   type ThemeDefData,
   type Settings,
 } from './schemas'
@@ -36,7 +39,7 @@ export interface ContentError {
 export type Result<T> = { ok: true; value: T } | { ok: false; errors: ContentError[] }
 
 /** Kinds of definitions a reference like `move:jab` can name. */
-export type ContentKind = 'move' | 'ai' | 'enemyType' | 'pickup' | 'theme' | 'prop' | 'level' | 'asset'
+export type ContentKind = 'move' | 'ai' | 'enemyType' | 'pickup' | 'theme' | 'prop' | 'sound' | 'music' | 'level' | 'asset'
 
 interface KindMap {
   move: MoveDefData
@@ -45,6 +48,8 @@ interface KindMap {
   pickup: PickupDefData
   theme: ThemeDefData
   prop: PropDefData
+  sound: SoundDefData
+  music: MusicDefData
   level: LevelDef
   asset: AssetDef
 }
@@ -64,6 +69,7 @@ export const SETTINGS_SECTIONS = [
   'scoring',
   'rules',
   'input',
+  'audio',
 ] as const satisfies readonly (keyof Settings)[]
 
 // ------------------------------------------------------------------ parsing
@@ -103,6 +109,8 @@ export interface ContentData {
   pickups: Readonly<Record<string, PickupDefData>>
   themes: Readonly<Record<string, ThemeDefData>>
   props: Readonly<Record<string, PropDefData>>
+  sounds: Readonly<Record<string, SoundDefData>>
+  music: Readonly<Record<string, MusicDefData>>
   /** In play order. */
   levels: readonly LevelDef[]
   assets: Readonly<Record<string, AssetDef>>
@@ -120,6 +128,8 @@ export class ContentRegistry {
   readonly pickups: Readonly<Record<string, PickupDefData>>
   readonly themes: Readonly<Record<string, ThemeDefData>>
   readonly props: Readonly<Record<string, PropDefData>>
+  readonly sounds: Readonly<Record<string, SoundDefData>>
+  readonly music: Readonly<Record<string, MusicDefData>>
   readonly levels: readonly LevelDef[]
   readonly assets: Readonly<Record<string, AssetDef>>
   private readonly origins: ReadonlyMap<string, string>
@@ -133,6 +143,8 @@ export class ContentRegistry {
     this.pickups = data.pickups
     this.themes = data.themes
     this.props = data.props
+    this.sounds = data.sounds
+    this.music = data.music
     this.levels = data.levels
     this.assets = data.assets
     this.origins = data.origins
@@ -152,6 +164,10 @@ export class ContentRegistry {
         return this.themes
       case 'prop':
         return this.props
+      case 'sound':
+        return this.sounds
+      case 'music':
+        return this.music
       case 'asset':
         return this.assets
       case 'level':
@@ -196,6 +212,10 @@ export class ContentRegistry {
       const { asset, url, ...rest } = m
       return { ...rest, url: url !== undefined ? siteUrl(url) : assetUrl(this.resolve(`asset:${asset ?? ''}`)) }
     }
+    const audioUrl = (m: { url?: string; asset?: string }) =>
+      m.url !== undefined ? siteUrl(m.url) : assetUrl(this.resolve(`asset:${m.asset ?? ''}`))
+    const sound = (d: SoundDefData): SoundDef => (d.kind === 'file' ? { kind: 'file', url: audioUrl(d), volume: d.volume } : d)
+    const music = (d: MusicDefData): MusicDef => (d.kind === 'file' ? { kind: 'file', url: audioUrl(d), volume: d.volume } : d)
     const s = this.settings
     const config: GameConfig = {
       ...s,
@@ -208,6 +228,8 @@ export class ContentRegistry {
       pickups: { ...this.pickups },
       themes: { ...this.themes },
       props: { ...this.props },
+      sounds: Object.fromEntries(Object.entries(this.sounds).map(([id, d]) => [id, sound(d)])),
+      music: Object.fromEntries(Object.entries(this.music).map(([id, d]) => [id, music(d)])),
     }
     return { config, levels: [...this.levels] }
   }
@@ -244,6 +266,8 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
   const pickups: Record<string, PickupDefData> = {}
   const themes: Record<string, ThemeDefData> = {}
   const props: Record<string, PropDefData> = {}
+  const sounds: Record<string, SoundDefData> = {}
+  const music: Record<string, MusicDefData> = {}
   const assets: Record<string, AssetDef> = {}
   const levels: LevelDef[] = []
 
@@ -269,6 +293,8 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
     merge('pickup', pickups, pack.pickups)
     merge('theme', themes, pack.themes)
     merge('prop', props, pack.props)
+    merge('sound', sounds, pack.sounds)
+    merge('music', music, pack.music)
 
     const assetIds = new Set<string>()
     pack.assets.forEach((a, i) => {
@@ -305,6 +331,8 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
     pickups,
     themes,
     props,
+    sounds,
+    music,
     levels,
     assets,
     origins,
@@ -342,9 +370,21 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
   for (const action of ['left', 'right', 'attack', 'pause'] as const)
     if (reg.settings.input.bindings[action].length === 0) err('settings:input', `settings.input.bindings.${action}`, 'needs at least one key')
 
+  const checkAudioFile = (d: { kind: string; asset?: string }, origin: string, path: string) => {
+    if (d.kind !== 'file' || d.asset === undefined) return
+    const asset = reg.get(`asset:${d.asset}`)
+    if (!asset) err(origin, `${path}.asset`, `unknown asset "${d.asset}"`)
+    else if (asset.kind !== 'audio') err(origin, `${path}.asset`, `asset "${d.asset}" is a ${asset.kind}, not audio`)
+  }
+  for (const [id, d] of Object.entries(reg.sounds)) checkAudioFile(d, `sound:${id}`, `sounds.${id}`)
+  for (const [id, d] of Object.entries(reg.music)) checkAudioFile(d, `music:${id}`, `music.${id}`)
+  for (const [event, id] of Object.entries(reg.settings.audio)) expect('sound', id, 'settings:audio', `settings.audio.${event}`)
+
   for (const [id, m] of Object.entries(reg.moves)) {
     const origin = `move:${id}`
     expect('move', m.next, origin, `moves.${id}.next`)
+    expect('sound', m.sound, origin, `moves.${id}.sound`)
+    expect('sound', m.hitSound, origin, `moves.${id}.hitSound`)
     const cancel = cancelTime(m)
     if (cancel < m.startup || cancel > moveDuration(m))
       err(origin, `moves.${id}.cancelFrom`, `${cancel}s is outside the move (startup ${m.startup}s to end ${moveDuration(m)}s)`)
@@ -374,6 +414,7 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
     const origin = `level:${level.id}`
     const base = `levels.${level.id}`
     expect('theme', level.theme, origin, `${base}.theme`)
+    expect('music', level.music, origin, `${base}.music`)
     let goals = 0
     level.segments.forEach((seg, si) => {
       const sp = `${base}.segments[${si}]`

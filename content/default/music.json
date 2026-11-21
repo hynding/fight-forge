@@ -1,0 +1,36 @@
+{
+  "alley": {
+    "kind": "pattern",
+    "tempo": 112,
+    "volume": 0.35,
+    "tracks": [
+      {
+        "wave": "square",
+        "volume": 0.35,
+        "notes": "A2 . A2 . C3 . A2 . G2 . G2 . E2 . G2 . A2 . A2 . C3 . D3 . E3 - D3 . C3 . G2 ."
+      },
+      {
+        "wave": "triangle",
+        "volume": 0.5,
+        "notes": "A4 - - - . . E4 . G4 - - - . . D4 . A4 - - - . . C5 . B4 - A4 - G4 - E4 -"
+      }
+    ]
+  },
+  "docks": {
+    "kind": "pattern",
+    "tempo": 96,
+    "volume": 0.35,
+    "tracks": [
+      {
+        "wave": "sawtooth",
+        "volume": 0.25,
+        "notes": "D2 . D2 D2 . . F2 . G2 . G2 G2 . . A2 . D2 . D2 D2 . . C3 . A2 . G2 . F2 . E2 ."
+      },
+      {
+        "wave": "sine",
+        "volume": 0.5,
+        "notes": "D4 - - - F4 - - - A4 - - - G4 - F4 - E4 - - - C4 - - - D4 - - - - - - -"
+      }
+    ]
+  }
+}

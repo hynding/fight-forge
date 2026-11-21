@@ -24,7 +24,7 @@ export interface TreeNode {
   base?: unknown
 }
 
-export type RecordGroup = 'moves' | 'ai' | 'enemyTypes' | 'pickups' | 'themes' | 'props'
+export type RecordGroup = 'moves' | 'ai' | 'enemyTypes' | 'pickups' | 'themes' | 'props' | 'sounds' | 'music'
 export type GroupId = 'pack' | 'settings' | RecordGroup | 'levels'
 
 export const GROUPS: { id: GroupId; label: string; item: string }[] = [
@@ -36,10 +36,12 @@ export const GROUPS: { id: GroupId; label: string; item: string }[] = [
   { id: 'pickups', label: 'Pickups', item: 'pickup' },
   { id: 'themes', label: 'Themes', item: 'theme' },
   { id: 'props', label: 'Props', item: 'prop' },
+  { id: 'sounds', label: 'Sounds', item: 'sound' },
+  { id: 'music', label: 'Music', item: 'music' },
   { id: 'levels', label: 'Levels', item: 'level' },
 ]
 
-const RECORD_GROUPS: RecordGroup[] = ['moves', 'ai', 'enemyTypes', 'pickups', 'themes', 'props']
+const RECORD_GROUPS: RecordGroup[] = ['moves', 'ai', 'enemyTypes', 'pickups', 'themes', 'props', 'sounds', 'music']
 
 /** The pack's own name, version and description. */
 export const packInfoSchema = packSchema.pick({ name: true, version: true, meta: true })

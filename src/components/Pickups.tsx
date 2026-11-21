@@ -6,6 +6,7 @@ import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { inPickupReach, type PickupInstance } from '../sim/pickups'
+import { playSound } from '../audio/engine'
 
 const Item = ({ item }: { item: PickupInstance }) => {
   const def = getConfig().pickups[item.pickup]
@@ -49,7 +50,10 @@ export const Pickups = ({ playerPositionRef }: { playerPositionRef: RefObject<Ve
     if (!player) return
     const store = useGameStore.getState()
     for (const item of store.pickups) {
-      if (inPickupReach({ x: player.x, z: player.z }, item, getConfig().rules.pickupRadius)) store.collectPickup(item.id)
+      if (inPickupReach({ x: player.x, z: player.z }, item, getConfig().rules.pickupRadius)) {
+        store.collectPickup(item.id)
+        playSound(getConfig().audio.pickup)
+      }
     }
   })
 

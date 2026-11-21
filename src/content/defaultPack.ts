@@ -10,6 +10,8 @@ import enemyTypes from '../../content/default/enemy-types.json'
 import pickups from '../../content/default/pickups.json'
 import themes from '../../content/default/themes.json'
 import props from '../../content/default/props.json'
+import sounds from '../../content/default/sounds.json'
+import music from '../../content/default/music.json'
 import levels from '../../content/default/levels.json'
 
 /** The default pack as unvalidated JSON (run it through `buildRegistry`). */
@@ -22,5 +24,7 @@ export const defaultPack = (): Record<string, unknown> => ({
   pickups,
   themes,
   props,
+  sounds,
+  music,
   levels,
 })

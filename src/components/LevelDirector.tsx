@@ -7,6 +7,7 @@ import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { createLevelRuntime, placeItems, placeProps, stepLevel, type Level, type SpawnDef } from '../sim/level'
 import { offscreenSpawn, type StageView } from '../sim/stage'
 import { scaledHealth } from '../sim/rules'
+import { playSound } from '../audio/engine'
 
 // The "GO →" prompt hides once the player has walked this far past the
 // released lock, or after this long.
@@ -111,6 +112,7 @@ export const LevelDirector = ({
         store.setLevelProgress({ goPrompt: true })
       } else if (e.kind === 'complete') {
         store.completeLevel(loop.time)
+        playSound(getConfig().audio.clear)
         return
       }
     }
