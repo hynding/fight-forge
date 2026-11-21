@@ -332,6 +332,16 @@ export const settingsSchema = z
           .strict(),
       })
       .strict(),
+    /** Game feel on hits: each effect can be tuned or turned off. */
+    feel: z
+      .object({
+        hitStop: z.object({ enabled: z.boolean(), base: nonNegative, perDamage: nonNegative, max: nonNegative }).strict(),
+        shake: z.object({ enabled: z.boolean(), base: nonNegative, perDamage: nonNegative, max: nonNegative, decay: positive }).strict(),
+        sparks: z.object({ enabled: z.boolean(), count: z.number().int().min(0).max(32), color, blockColor: color, life: positive }).strict(),
+        dust: z.object({ enabled: z.boolean(), color, life: positive }).strict(),
+        damageNumbers: z.object({ enabled: z.boolean(), color, playerColor: color, life: positive }).strict(),
+      })
+      .strict(),
     /** Which sound plays for each game event (ids in the content's `sounds`); leave one out for silence. */
     audio: z
       .object({

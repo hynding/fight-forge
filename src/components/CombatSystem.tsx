@@ -5,7 +5,7 @@ import { Vector3 } from 'three'
 import { useGameStore } from '../store/gameStore'
 import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
-import { useSimSystem } from '../sim/simContext'
+import { useFeel, useSimSystem } from '../sim/simContext'
 import { boxesOverlap, hitboxWorld, knockbackDirection } from '../sim/combat'
 import { interruptMove, movePhase } from '../sim/moves'
 import { applyBlockstun, applyHit, isInvulnerable } from '../sim/reactions'
@@ -15,6 +15,7 @@ import { combatTargets, scaledDamage } from '../sim/rules'
 import { propBox } from '../sim/props'
 import type { FighterRuntime } from '../sim/fighter'
 import { playSound } from '../audio/engine'
+import { feelHit } from '../sim/feel'
 
 const PLAYER = 'player'
 
@@ -46,6 +47,7 @@ export const CombatSystem = ({
 }: CombatSystemProps) => {
   // Targets already hit by each attacker's current move instance.
   const hits = useRef(new Map<string, { instance: number; targets: Set<string> }>())
+  const feel = useFeel()
 
   // Every rendered frame (even paused): copy the player's position into the
   // shared ref so the camera and enemy AI read the latest value.
@@ -124,12 +126,23 @@ export const CombatSystem = ({
         }
         // Otherwise super armor: the target takes the damage without flinching.
 
+        // Hit-stop, shake, sparks, dust and the damage number.
+        const shown = targetName === PLAYER ? scaledDamage(damage, rules.difficulty.damageTaken) : damage
+        const enemy = targetName === PLAYER ? undefined : store.enemies.find((e) => e.id === targetName)
+        const knockedOut = !!enemy && enemy.health - damage <= 0
+        feelHit(feel, getConfig().feel, {
+          at: { x: (hitbox.center.x + t.x) / 2, y: hitbox.center.y, z: t.z + 0.3 },
+          feet: { x: t.x, y: t.y - target.hurtbox.y, z: t.z },
+          damage: shown,
+          guarded,
+          toPlayer: targetName === PLAYER,
+          down: (!guarded && !!move.reaction.knockdown) || knockedOut,
+        })
+
         if (damage <= 0) continue
         if (targetName === PLAYER) {
-          const taken = scaledDamage(damage, rules.difficulty.damageTaken)
-          if (taken > 0) store.damagePlayer(taken)
+          if (shown > 0) store.damagePlayer(shown)
         } else {
-          const enemy = store.enemies.find((e) => e.id === targetName)
           store.damageEnemy(targetName, damage)
           const defeated = !!enemy && !useGameStore.getState().enemies.some((e) => e.id === targetName)
           if (defeated) playSound(audio.ko)

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef } from 'react'
 import type { SimLoop, SystemStep } from './loop'
+import type { FeelState } from './feel'
 
 export const SimLoopContext = createContext<SimLoop | null>(null)
 
@@ -21,3 +22,15 @@ export const useSimSystem = (name: string, order: number, step: SystemStep): voi
   })
   useEffect(() => loop.add(name, order, (dt) => stepRef.current(dt)), [loop, name, order])
 }
+
+/** The scene's game-feel state (hit-stop, shake, effects); see `sim/feel.ts`. */
+export const FeelContext = createContext<FeelState | null>(null)
+
+export const useFeel = (): FeelState => {
+  const feel = useContext(FeelContext)
+  if (!feel) throw new Error('useFeel must be used inside <SimLoopDriver>')
+  return feel
+}
+
+/** True during a hit-stop, when physics pauses with the sim. */
+export const HitStopContext = createContext(false)

@@ -132,6 +132,13 @@
       "hitboxes": ["h"]
     }
   },
+  "feel": {
+    "hitStop": { "enabled": true, "base": 0.03, "perDamage": 0.004, "max": 0.12 },
+    "shake": { "enabled": true, "base": 0.02, "perDamage": 0.006, "max": 0.25, "decay": 9 },
+    "sparks": { "enabled": true, "count": 6, "color": "#ffe08a", "blockColor": "#8ad4ff", "life": 0.25 },
+    "dust": { "enabled": true, "color": "#b8aa94", "life": 0.45 },
+    "damageNumbers": { "enabled": true, "color": "#ffffff", "playerColor": "#ff6060", "life": 0.7 }
+  },
   "audio": {
     "hit": "punch",
     "hurt": "hurt",

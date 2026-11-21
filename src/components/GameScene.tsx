@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, createRef, RefObject } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Physics, RapierRigidBody } from '@react-three/rapier'
+import { RapierRigidBody } from '@react-three/rapier'
 import { PerspectiveCamera } from '@react-three/drei'
 import { DirectionalLight, Vector3 } from 'three'
 import { Player } from './Player'
@@ -22,6 +22,8 @@ import { Backdrop } from './Backdrop'
 import { Props } from './Props'
 import { sceneProbe } from '../sim/probe'
 import { duckMusic, playMusic, stopMusic } from '../audio/engine'
+import { ScenePhysics } from './ScenePhysics'
+import { Effects } from './Effects'
 
 export const GameScene = () => {
   // The scene remounts for each level (keyed on gameId), so read the level once.
@@ -121,7 +123,7 @@ export const GameScene = () => {
           view={view}
           playerPositionRef={playerPositionRef}
         />
-        <Physics gravity={config.physics.gravity} paused={frozen}>
+        <ScenePhysics gravity={config.physics.gravity} frozen={frozen}>
           <Stage length={STAGE_LENGTH} theme={THEME} />
           <Props />
           <Player
@@ -158,7 +160,8 @@ export const GameScene = () => {
             playerPositionRef={playerPositionRef}
           />
           <Pickups playerPositionRef={playerPositionRef} />
-        </Physics>
+        </ScenePhysics>
+        <Effects />
         </SimLoopDriver>
       </Canvas>
       <HUD />
