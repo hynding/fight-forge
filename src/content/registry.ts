@@ -24,6 +24,7 @@ import {
   type PickupDefData,
   type PropDefData,
   type ProjectileDefData,
+  type WeaponDefData,
   type SoundDefData,
   type MusicDefData,
   type ThemeDefData,
@@ -41,7 +42,7 @@ export interface ContentError {
 export type Result<T> = { ok: true; value: T } | { ok: false; errors: ContentError[] }
 
 /** Kinds of definitions a reference like `move:jab` can name. */
-export type ContentKind = 'move' | 'ai' | 'enemyType' | 'pickup' | 'theme' | 'prop' | 'projectile' | 'sound' | 'music' | 'level' | 'asset'
+export type ContentKind = 'move' | 'ai' | 'enemyType' | 'pickup' | 'theme' | 'prop' | 'projectile' | 'weapon' | 'sound' | 'music' | 'level' | 'asset'
 
 interface KindMap {
   move: MoveDefData
@@ -51,6 +52,7 @@ interface KindMap {
   theme: ThemeDefData
   prop: PropDefData
   projectile: ProjectileDefData
+  weapon: WeaponDefData
   sound: SoundDefData
   music: MusicDefData
   level: LevelDef
@@ -114,6 +116,7 @@ export interface ContentData {
   themes: Readonly<Record<string, ThemeDefData>>
   props: Readonly<Record<string, PropDefData>>
   projectiles: Readonly<Record<string, ProjectileDefData>>
+  weapons: Readonly<Record<string, WeaponDefData>>
   sounds: Readonly<Record<string, SoundDefData>>
   music: Readonly<Record<string, MusicDefData>>
   /** In play order. */
@@ -134,6 +137,7 @@ export class ContentRegistry {
   readonly themes: Readonly<Record<string, ThemeDefData>>
   readonly props: Readonly<Record<string, PropDefData>>
   readonly projectiles: Readonly<Record<string, ProjectileDefData>>
+  readonly weapons: Readonly<Record<string, WeaponDefData>>
   readonly sounds: Readonly<Record<string, SoundDefData>>
   readonly music: Readonly<Record<string, MusicDefData>>
   readonly levels: readonly LevelDef[]
@@ -150,6 +154,7 @@ export class ContentRegistry {
     this.themes = data.themes
     this.props = data.props
     this.projectiles = data.projectiles
+    this.weapons = data.weapons
     this.sounds = data.sounds
     this.music = data.music
     this.levels = data.levels
@@ -173,6 +178,8 @@ export class ContentRegistry {
         return this.props
       case 'projectile':
         return this.projectiles
+      case 'weapon':
+        return this.weapons
       case 'sound':
         return this.sounds
       case 'music':
@@ -238,6 +245,7 @@ export class ContentRegistry {
       themes: { ...this.themes },
       props: { ...this.props },
       projectiles: { ...this.projectiles },
+      weapons: { ...this.weapons },
       sounds: Object.fromEntries(Object.entries(this.sounds).map(([id, d]) => [id, sound(d)])),
       music: Object.fromEntries(Object.entries(this.music).map(([id, d]) => [id, music(d)])),
     }
@@ -277,6 +285,7 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
   const themes: Record<string, ThemeDefData> = {}
   const props: Record<string, PropDefData> = {}
   const projectiles: Record<string, ProjectileDefData> = {}
+  const weapons: Record<string, WeaponDefData> = {}
   const sounds: Record<string, SoundDefData> = {}
   const music: Record<string, MusicDefData> = {}
   const assets: Record<string, AssetDef> = {}
@@ -305,6 +314,7 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
     merge('theme', themes, pack.themes)
     merge('prop', props, pack.props)
     merge('projectile', projectiles, pack.projectiles)
+    merge('weapon', weapons, pack.weapons)
     merge('sound', sounds, pack.sounds)
     merge('music', music, pack.music)
 
@@ -344,6 +354,7 @@ export const buildRegistry = (inputs: unknown[]): Result<ContentRegistry> => {
     themes,
     props,
     projectiles,
+    weapons,
     sounds,
     music,
     levels,
@@ -380,7 +391,7 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
     const actions = triggerActions(t)
     if (new Set(actions).size !== actions.length) err('settings:player', `settings.player.moveset[${i}].action`, 'a chord needs different actions')
   })
-  const presses = new Set(pressKeys(player.moveset))
+  const presses = new Set([...pressKeys(player.moveset), ...Object.values(reg.weapons).flatMap((w) => pressKeys(w.moveset))])
   checkModel(player.model, 'settings:player', 'settings.player.model')
   expect('move', enemy.attackMove, 'settings:enemy', 'settings.enemy.attackMove')
   // An input does one thing per device; the keyboard must be able to play the
@@ -438,6 +449,7 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
       p.summon?.enemies.forEach((e, ei) => expect('enemyType', e.type, origin, `${pp}.summon.enemies[${ei}].type`))
     })
     expect('pickup', t.drop?.pickup, origin, `enemyTypes.${id}.drop.pickup`)
+    expect('weapon', t.weapon, origin, `enemyTypes.${id}.weapon`)
     checkModel(t.model, origin, `enemyTypes.${id}.model`)
   }
 
@@ -451,8 +463,29 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
 
   for (const [id, p] of Object.entries(reg.projectiles)) expect('sound', p.hitSound, `projectile:${id}`, `projectiles.${id}.hitSound`)
 
+  for (const [id, w] of Object.entries(reg.weapons)) {
+    const origin = `weapon:${id}`
+    w.moveset.forEach((t, i) => {
+      expect('move', t.move, origin, `weapons.${id}.moveset[${i}].move`)
+      if (t.when === 'grabbing') err(origin, `weapons.${id}.moveset[${i}].when`, 'a weapon\'s rows can\'t be for grabbing (the hands are full)')
+    })
+    if (w.throw) {
+      const m = reg.get(`move:${w.throw.move}`)
+      if (!m) err(origin, `weapons.${id}.throw.move`, `unknown move "${w.throw.move}"`)
+      else if (!m.projectile) err(origin, `weapons.${id}.throw.move`, `"${w.throw.move}" doesn't fire a projectile`)
+    }
+  }
+  for (const [id, p] of Object.entries(reg.pickups)) {
+    if (p.effect === 'weapon' && p.weapon === undefined) err(`pickup:${id}`, `pickups.${id}.weapon`, 'a weapon pickup needs the weapon it puts on the floor')
+    else if (p.effect !== 'weapon' && p.weapon !== undefined) err(`pickup:${id}`, `pickups.${id}.weapon`, 'only a pickup with effect "weapon" names a weapon')
+    expect('weapon', p.weapon, `pickup:${id}`, `pickups.${id}.weapon`)
+  }
+
   for (const [id, p] of Object.entries(reg.props))
+  {
     expect('pickup', p.breakable?.drop?.pickup, `prop:${id}`, `props.${id}.breakable.drop.pickup`)
+    expect('weapon', p.liftable, `prop:${id}`, `props.${id}.liftable`)
+  }
 
   reg.levels.forEach((level) => {
     const origin = `level:${level.id}`

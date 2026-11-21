@@ -526,5 +526,283 @@
         0.7
       ]
     }
+  },
+  "pipeSwing": {
+    "sound": "whoosh",
+    "startup": 0.1,
+    "active": 0.1,
+    "recovery": 0.22,
+    "damage": 12,
+    "hitbox": {
+      "forward": 1.05,
+      "up": 0.25,
+      "halfX": 0.7,
+      "halfY": 0.55,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.4,
+      "knockback": {
+        "x": 1.5,
+        "y": 0
+      }
+    },
+    "hitSound": "heavy",
+    "clip": {
+      "name": "Punch",
+      "speed": 2.2
+    },
+    "next": "pipeSwing2"
+  },
+  "pipeSwing2": {
+    "sound": "whoosh",
+    "startup": 0.12,
+    "active": 0.1,
+    "recovery": 0.32,
+    "damage": 16,
+    "hitbox": {
+      "forward": 1.05,
+      "up": 0.25,
+      "halfX": 0.75,
+      "halfY": 0.55,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 5,
+        "y": 3
+      },
+      "knockdown": true
+    },
+    "hitSound": "heavy",
+    "clip": {
+      "name": "Punch",
+      "speed": 1.8
+    }
+  },
+  "pipeSmash": {
+    "sound": "whoosh",
+    "startup": 0.28,
+    "active": 0.12,
+    "recovery": 0.42,
+    "damage": 24,
+    "hitbox": {
+      "forward": 1.1,
+      "up": 0.1,
+      "halfX": 0.8,
+      "halfY": 0.7,
+      "halfZ": 0.5
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 6,
+        "y": 4
+      },
+      "knockdown": true
+    },
+    "hitSound": "heavy",
+    "clip": {
+      "name": "Punch",
+      "speed": 1.1
+    }
+  },
+  "pipeAirSwing": {
+    "sound": "whoosh",
+    "startup": 0.06,
+    "active": 0.25,
+    "recovery": 0.1,
+    "damage": 16,
+    "hitbox": {
+      "forward": 0.9,
+      "up": -0.3,
+      "halfX": 0.75,
+      "halfY": 0.65,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.5,
+      "knockback": {
+        "x": 3,
+        "y": 0
+      }
+    },
+    "hitSound": "heavy",
+    "clip": {
+      "name": "Punch",
+      "speed": 2
+    },
+    "air": true
+  },
+  "knifeSlash": {
+    "sound": "whoosh",
+    "startup": 0.04,
+    "active": 0.07,
+    "recovery": 0.14,
+    "damage": 9,
+    "hitbox": {
+      "forward": 0.9,
+      "up": 0.2,
+      "halfX": 0.5,
+      "halfY": 0.45,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.3,
+      "knockback": {
+        "x": 0.8,
+        "y": 0
+      }
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 3
+    },
+    "next": "knifeSlash2"
+  },
+  "knifeSlash2": {
+    "sound": "whoosh",
+    "startup": 0.05,
+    "active": 0.08,
+    "recovery": 0.2,
+    "damage": 11,
+    "hitbox": {
+      "forward": 0.9,
+      "up": 0.2,
+      "halfX": 0.55,
+      "halfY": 0.45,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0.35,
+      "knockback": {
+        "x": 1.2,
+        "y": 0
+      }
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 3
+    },
+    "next": "knifeStab"
+  },
+  "knifeStab": {
+    "sound": "whoosh",
+    "startup": 0.1,
+    "active": 0.08,
+    "recovery": 0.3,
+    "damage": 15,
+    "hitbox": {
+      "forward": 1.0,
+      "up": 0.2,
+      "halfX": 0.6,
+      "halfY": 0.4,
+      "halfZ": 0.45
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 4,
+        "y": 2
+      },
+      "knockdown": true
+    },
+    "clip": {
+      "name": "Punch",
+      "speed": 2
+    }
+  },
+  "pipeToss": {
+    "sound": "whoosh",
+    "startup": 0.15,
+    "active": 0.1,
+    "recovery": 0.3,
+    "hitbox": {
+      "forward": 0.6,
+      "up": 0.3,
+      "halfX": 0.2,
+      "halfY": 0.2,
+      "halfZ": 0.2
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "damage": 0,
+    "clip": {
+      "name": "Punch",
+      "speed": 1.5
+    },
+    "projectile": {
+      "id": "pipeSpin",
+      "from": [
+        0.6,
+        0.4
+      ]
+    }
+  },
+  "knifeToss": {
+    "sound": "whoosh",
+    "startup": 0.1,
+    "active": 0.1,
+    "recovery": 0.25,
+    "hitbox": {
+      "forward": 0.6,
+      "up": 0.3,
+      "halfX": 0.2,
+      "halfY": 0.2,
+      "halfZ": 0.2
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "damage": 0,
+    "clip": {
+      "name": "Punch",
+      "speed": 2
+    },
+    "projectile": {
+      "id": "knife",
+      "from": [
+        0.6,
+        0.3
+      ]
+    }
+  },
+  "barrelHurl": {
+    "sound": "whoosh",
+    "startup": 0.2,
+    "active": 0.1,
+    "recovery": 0.35,
+    "hitbox": {
+      "forward": 0.6,
+      "up": 0.3,
+      "halfX": 0.2,
+      "halfY": 0.2,
+      "halfZ": 0.2
+    },
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "damage": 0,
+    "projectile": {
+      "id": "thrownBarrel",
+      "from": [
+        0.6,
+        1.1
+      ]
+    }
   }
 }

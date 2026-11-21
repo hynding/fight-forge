@@ -15,6 +15,7 @@ import { playSound } from '../audio/engine'
 import { feelHit, rumbleFor, type FeelState } from '../sim/feel'
 import { rumble } from '../input/gamepads'
 import { hurtEnemy } from './enemyDamage'
+import { dropWeapon } from './weaponDrops'
 import { propBox } from '../sim/props'
 import { rollDrop } from '../sim/pickups'
 import { boxesOverlap, type Box } from '../sim/combat'
@@ -94,6 +95,8 @@ export const landHit = (feel: FeelState, h: LandedHit): void => {
     rumbleFor(config.feel, { damage: shown, toPlayer, byPlayer: h.attacker === PLAYER, ko: knockedOut }),
     config.feel.rumble.duration
   )
+  // Knocked down or out: the weapon falls at its feet.
+  if ((!guarded && reaction.knockdown) || knockedOut) dropWeapon(target, t)
 
   if (damage <= 0) return
   // The special meter fills from hits the player lands and takes.

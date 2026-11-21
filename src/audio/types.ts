@@ -29,4 +29,6 @@ export interface AudioSettings {
   pickup?: string
   /** The level is cleared. */
   clear?: string
+  /** A weapon breaks. */
+  break?: string
 }

@@ -1,3 +1,4 @@
+import { walkFactor } from '../sim/weapons'
 import { forwardRef, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CuboidCollider, RigidBody, RapierRigidBody, useRapier } from '@react-three/rapier'
@@ -169,7 +170,8 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
         next = { x: runtime.facing.x * move.lunge, z: 0 }
       } else {
         const want = busy || runtime.blocking ? { x: 0, z: 0 } : intent.move
-        const factor = running ? getConfig().actions.run.speedFactor : 1
+        const weapon = runtime.weapon ? getConfig().weapons[runtime.weapon.id] : undefined
+        const factor = (running ? getConfig().actions.run.speedFactor : 1) * walkFactor(weapon)
         next = stepVelocity({ x: vel.x, z: vel.z }, { x: want.x * factor, z: want.z }, movement, dt)
       }
       let velY = vel.y

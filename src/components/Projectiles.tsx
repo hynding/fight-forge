@@ -17,12 +17,14 @@ import {
   projectileTargets,
   registerHit,
   stepProjectile,
+  type Projectile,
   type ProjectileShape,
   type ProjectileWorld,
 } from '../sim/projectiles'
 import type { FighterRuntime } from '../sim/fighter'
 import { playSound } from '../audio/engine'
 import { hitProps, landHit, PLAYER } from './landHit'
+import { placeWeapon } from './weaponDrops'
 
 interface Props {
   world: ProjectileWorld
@@ -66,22 +68,31 @@ export const Projectiles = ({ world, playerRef, runtimes, enemyRefs, stageLength
       const body = bodyOf(name)
       if (!def || !body) return
       const hurtsPlayer = name !== PLAYER && (rt.ownAttackSlot || useGameStore.getState().attackTokens.holders.includes(name))
-      launchProjectile(world, move.projectile.id, def, move.projectile, {
+      const p = launchProjectile(world, move.projectile.id, def, move.projectile, {
         owner: name,
         origin: body.translation(),
         facingX: rt.facing.x,
         scale: rt.scale,
         hurtsPlayer,
       })
+      // A thrown weapon rides along, to land as a pickup if it comes back.
+      if (rt.thrownWeapon) {
+        if (rt.thrownWeapon.returns) p.carries = rt.thrownWeapon.weapon
+        rt.thrownWeapon = null
+      }
       playSound(move.sound)
     })
 
     // Fly and hit.
     const floorTop = config.stage.floorThickness / 2
     const bounds = { minX: 0, maxX: stageLength, floorY: floorTop }
+    const end = (p: Projectile) => {
+      if (p.carries) placeWeapon(p.carries, { x: Math.min(stageLength - 0.5, Math.max(0.5, p.x)), z: p.z })
+      return false
+    }
     world.list = world.list.filter((p) => {
       const def = config.projectiles[p.def]
-      if (!def || stepProjectile(p, def, dt, bounds) !== 'flying') return false
+      if (!def || stepProjectile(p, def, dt, bounds) !== 'flying') return end(p)
       const box = projectileBox(p, def)
       for (const targetName of projectileTargets(p, PLAYER, enemyRefs.keys(), config.rules.friendlyFire)) {
         if (p.hit.has(targetName)) continue
@@ -104,13 +115,13 @@ export const Projectiles = ({ world, playerRef, runtimes, enemyRefs, stageLength
           hitSound: def.hitSound,
           at: { x: p.x, y: p.y },
         })
-        if (registerHit(p, targetName)) return false
+        if (registerHit(p, targetName)) return end(p)
       }
-      if (p.owner === PLAYER && hitProps(box, p.hit, def.damage, def.hitSound) > 0) return false
+      if (p.owner === PLAYER && hitProps(box, p.hit, def.damage, def.hitSound) > 0) return end(p)
       // Walls and other solid props stop it.
       for (const prop of useGameStore.getState().props) {
         const pd = config.props[prop.prop]
-        if (pd?.solid && boxesOverlap(box, propBox(prop, pd, floorTop))) return false
+        if (pd?.solid && boxesOverlap(box, propBox(prop, pd, floorTop))) return end(p)
       }
       return true
     })

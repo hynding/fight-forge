@@ -22,6 +22,15 @@ import { bossPhaseIndex, createPoiseState, phaseStats, stepPoise, transitionPush
 import { applyHit, isInvulnerable } from '../sim/reactions'
 import { playSound } from '../audio/engine'
 import { FighterBody } from './FighterBody'
+import { armedAttacks, holdWeapon, type WeaponDef } from '../sim/weapons'
+import type { AttackDef } from '../sim/attacks'
+
+// An armed enemy's attacks, worked out once per weapon definition.
+const armedCache = new WeakMap<WeaponDef, AttackDef[] | null>()
+const armedAttacksOf = (def: WeaponDef): AttackDef[] | null => {
+  if (!armedCache.has(def)) armedCache.set(def, armedAttacks(def))
+  return armedCache.get(def) ?? null
+}
 
 interface EnemyProps {
   id: string
@@ -78,7 +87,15 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const ownSlot = !!boss && !boss.sharesTokens
     // Seconds left in a phase change: invulnerable, standing its ground.
     const transitionLeft = useRef(0)
-    const cooldowns = useRef<AttackCooldowns>([])
+    const ownCooldowns = useRef<AttackCooldowns>([])
+    const armedCooldowns = useRef<AttackCooldowns>([])
+    // Armed: the weapon's moves in place of its own attacks (while it has some).
+    const armed = () => {
+      const w = runtime.weapon ? config.weapons[runtime.weapon.id] : undefined
+      return w ? armedAttacksOf(w) : null
+    }
+    const currentAttacks = () => armed() ?? stats.attacks
+    const cooldownsNow = () => (armed() ? armedCooldowns : ownCooldowns)
     const random = useMemo(() => seededRandom(id), [id])
     // Where the AI stood when it last asked to attack.
     const attackAt = useRef<'near' | 'far'>('near')
@@ -103,6 +120,15 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     useEffect(() => {
       runtime.poise = boss && boss.poise.hits > 0 ? { state: createPoiseState(), config: boss.poise } : null
     }, [runtime, boss])
+
+    // An armed type starts with its weapon.
+    const [startWeapon] = useState(() => def.weapon)
+    useEffect(() => {
+      const w = startWeapon ? config.weapons[startWeapon] : undefined
+      if (startWeapon && w) runtime.weapon = holdWeapon(startWeapon, w)
+      // Only on mount: a dropped weapon stays dropped.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [runtime, startWeapon])
 
     useEffect(() => {
       runtimes.set(id, runtime)
@@ -133,7 +159,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         tokensTaken: !ownSlot && holders.length >= config.rules.maxSimultaneousAttackers && !holders.includes(id),
         // Off screen (walking in, or left behind by the camera): come and fight.
         forceEngage: Math.abs(self.x - view.cameraX) > view.halfWidth,
-        farAttack: farAttackReady(stats.attacks, cooldowns.current),
+        farAttack: farAttackReady(currentAttacks(), cooldownsNow().current),
       }
       if (transitionLeft.current > 0) {
         wantsAttack.current = false
@@ -161,7 +187,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       interruptMove(runtime.move)
       runtime.reaction.invulnerableLeft = Math.max(runtime.reaction.invulnerableLeft, tr.duration)
       transitionLeft.current = tr.duration
-      cooldowns.current = []
+      ownCooldowns.current = []
       playSound(p.taunt)
       const me = enemyRefs.get(id)?.current?.translation()
       const player = runtimes.get('player')
@@ -186,7 +212,9 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     // Read live store state; a render-time selector can be frames stale.
     useSimSystem(`enemyAttackSlot:${id}`, SYSTEM_ORDER.enemyAttackSlot, (dt) => {
       stepMoveRunner(runtime.move, false, dt, MOVES, runtime.move.move ?? stats.attacks[0].move)
-      stepCooldowns(cooldowns.current, dt)
+      if (runtime.move.move === null) runtime.weaponMove = false
+      stepCooldowns(ownCooldowns.current, dt)
+      stepCooldowns(armedCooldowns.current, dt)
       if (runtime.poise) stepPoise(runtime.poise.state, dt)
       transitionLeft.current = Math.max(0, transitionLeft.current - dt)
       const store = useGameStore.getState()
@@ -216,15 +244,18 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       if (holding) return
 
       const eligible = wantsAttack.current && !isBusy(runtime) && canClaimAttackSlot(slotTimer.current) && transitionLeft.current === 0
-      const choice = eligible ? pickAttack(stats.attacks, attackAt.current, cooldowns.current, random) : null
+      const attacks = currentAttacks()
+      const cooldowns = cooldownsNow()
+      const choice = eligible ? pickAttack(attacks, attackAt.current, cooldowns.current, random) : null
       if (choice === null) {
         if (!ownSlot) store.cancelAttackRequest(id)
         return
       }
       if (ownSlot || store.requestAttackToken(id)) {
-        startCooldown(cooldowns.current, stats.attacks, choice)
+        startCooldown(cooldowns.current, attacks, choice)
         startAttackSlotHold(slotTimer.current, E)
-        startMove(runtime.move, stats.attacks[choice].move)
+        startMove(runtime.move, attacks[choice].move)
+        runtime.weaponMove = attacks !== stats.attacks
       }
     })
 

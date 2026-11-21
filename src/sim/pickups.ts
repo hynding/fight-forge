@@ -4,11 +4,14 @@
 import type { Vec2 } from './fighter'
 
 export interface PickupDef {
-  effect: 'heal' | 'score'
+  /** `weapon` lies on the floor until a fighter picks it up (attack while standing on it). */
+  effect: 'heal' | 'score' | 'weapon'
   amount: number
   /** Look: colour and rough size of the item. */
   color: string
   size: number
+  /** For `effect: "weapon"`: the weapon id. */
+  weapon?: string
 }
 
 /** A pickup lying on the stage. */
@@ -18,6 +21,8 @@ export interface PickupInstance {
   pickup: string
   x: number
   z: number
+  /** A dropped weapon's hits left (a fresh one has its full durability). */
+  durability?: number
 }
 
 /** A chance of an enemy dropping a pickup when defeated. */
@@ -45,4 +50,6 @@ export interface PickupTargetState {
 export const applyPickup = (s: PickupTargetState, def: PickupDef): Partial<PickupTargetState> =>
   def.effect === 'heal'
     ? { playerHealth: Math.min(s.playerMaxHealth, s.playerHealth + def.amount) }
-    : { score: s.score + def.amount }
+    : def.effect === 'score'
+      ? { score: s.score + def.amount }
+      : {}

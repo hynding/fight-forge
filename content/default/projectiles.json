@@ -56,5 +56,64 @@
     "pierce": 1,
     "hitSound": "heavy",
     "spin": -1.5
+  },
+  "pipeSpin": {
+    "shape": "box",
+    "size": [
+      1.0,
+      0.1,
+      0.1
+    ],
+    "color": "#8a8f96",
+    "speed": 10,
+    "lift": 2,
+    "gravity": 10,
+    "hitbox": {
+      "halfX": 0.5,
+      "halfY": 0.3,
+      "halfZ": 0.4
+    },
+    "damage": 14,
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 4,
+        "y": 3
+      },
+      "knockdown": true
+    },
+    "lifetime": 1.5,
+    "hitSound": "heavy",
+    "spin": 3
+  },
+  "thrownBarrel": {
+    "shape": "cylinder",
+    "size": [
+      0.8,
+      1.1,
+      0.8
+    ],
+    "color": "#7a2e1f",
+    "speed": 9,
+    "lift": 3,
+    "gravity": 12,
+    "hitbox": {
+      "halfX": 0.45,
+      "halfY": 0.55,
+      "halfZ": 0.5
+    },
+    "damage": 20,
+    "reaction": {
+      "hitstun": 0,
+      "knockback": {
+        "x": 5,
+        "y": 3
+      },
+      "knockdown": true
+    },
+    "lifetime": 2.5,
+    "pierce": 2,
+    "hitSound": "heavy",
+    "spin": -1.5
   }
 }

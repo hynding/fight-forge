@@ -2,6 +2,7 @@
 // for (Intent), how that turns into velocity and facing, and the state machine.
 // Pure TS so it is testable without React, Rapier, or WebGL.
 
+import type { HeldWeapon } from './weapons'
 import type { BossDef, PoiseState } from './boss'
 import { createMoveRunner, type MoveRunner } from './moves'
 import { createReactionState, type ReactionKind, type ReactionState } from './reactions'
@@ -167,6 +168,12 @@ export interface FighterRuntime {
   poise: { state: PoiseState; config: BossDef['poise'] } | null
   /** Attacks without an attack token (a boss's own slot). */
   ownAttackSlot: boolean
+  /** The weapon in its hands. */
+  weapon: HeldWeapon | null
+  /** The current move came from the weapon's rows (or an armed enemy's weapon attacks): its hits wear the weapon. */
+  weaponMove: boolean
+  /** A weapon on its way out of the hands with the throw move that just started; the projectile it fires takes it. */
+  thrownWeapon: { weapon: HeldWeapon; returns: boolean } | null
 }
 
 export const createFighterRuntime = (): FighterRuntime => ({
@@ -187,6 +194,9 @@ export const createFighterRuntime = (): FighterRuntime => ({
   thrown: null,
   poise: null,
   ownAttackSlot: false,
+  weapon: null,
+  weaponMove: false,
+  thrownWeapon: null,
 })
 
 /** Busy with a move, a hit reaction, a dodge or a grab: the controller's movement and jumps are ignored. */

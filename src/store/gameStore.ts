@@ -5,6 +5,7 @@ import type { EnemyType } from '../types/game'
 import { getConfig, getLevels } from '../content/active'
 import { applyPickup, type PickupInstance } from '../sim/pickups'
 import type { PropInstance } from '../sim/props'
+import type { HeldWeapon } from '../sim/weapons'
 import type { Level } from '../sim/level'
 
 
@@ -101,8 +102,10 @@ interface GameState {
   runKos: number
   /** Items on the ground. */
   pickups: PickupInstance[]
-  /** Props standing on the stage (broken ones are removed). */
+  /** Props standing on the stage (broken or lifted ones are removed). */
   props: PropInstance[]
+  /** The weapon in the player's hands, for the HUD (the player's runtime is the truth). */
+  playerWeapon: HeldWeapon | null
   /** Imported content packs, in load order after the default pack (see src/content/library.ts). */
   packs: PackSummary[]
   /** Why the chosen packs can't be played together, if they can't; the menu won't start a run meanwhile. */
@@ -143,6 +146,9 @@ interface GameState {
   placeProps: (props: PropInstance[]) => void
   /** Damages a breakable prop; true if that broke it (it's removed). */
   damageProp: (id: string, damage: number) => boolean
+  /** Takes a prop off the stage (lifted). */
+  removeProp: (id: string) => void
+  setPlayerWeapon: (weapon: HeldWeapon | null) => void
   togglePause: () => void
   setGameScreen: (screen: GameScreen) => void
   /** Queues for a token; true if this enemy holds one now. */
@@ -189,6 +195,7 @@ const freshLevel = (state: GameState): Partial<GameState> => ({
   enemies: [],
   pickups: [],
   props: [],
+  playerWeapon: null,
   attackTokens: EMPTY_POOL,
   isGameOver: false,
   isPaused: false,
@@ -237,6 +244,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   runKos: 0,
   pickups: [],
   props: [],
+  playerWeapon: null,
 
   toggleHitboxes: () => set((state) => ({ showHitboxes: !state.showHitboxes })),
   setInputDevice: (device, padLabels) => {
@@ -422,6 +430,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     }))
     return health <= 0
   },
+
+  removeProp: (id) => set((state) => ({ props: state.props.filter((p) => p.id !== id) })),
+
+  setPlayerWeapon: (weapon) => set({ playerWeapon: weapon ? { ...weapon } : null }),
 
   // Pausing is meaningless once the game or level is over (their overlay owns the screen).
   togglePause: () =>

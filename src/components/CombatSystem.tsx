@@ -12,6 +12,8 @@ import { isInvulnerable } from '../sim/reactions'
 import { isDodging } from '../sim/defense'
 import { hitProps, landHit, PLAYER } from './landHit'
 import { combatTargets } from '../sim/rules'
+import { wearWeapon } from '../sim/weapons'
+import { breakWeapon } from './weaponDrops'
 import type { FighterRuntime } from '../sim/fighter'
 import { playSound } from '../audio/engine'
 
@@ -114,6 +116,8 @@ export const CombatSystem = ({
           hitSound: move.hitSound,
           at: { x: hitbox.center.x, y: hitbox.center.y },
         })
+        // Each hit a weapon's move lands wears it down.
+        if (attacker.weapon && attacker.weaponMove && wearWeapon(attacker.weapon)) breakWeapon(attacker, feel, hitbox.center)
       }
 
       // The player's attacks also break breakable props (once per move instance).

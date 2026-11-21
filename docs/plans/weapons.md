@@ -1,6 +1,6 @@
 # Plan: weapons and throwables
 
-Status: **in progress**. Expands the Phase 6 stretch goal "Weapons and throwables: pickup items with their own movesets" (picked by Steve on 2026-11-21) into three PRs. Steve took every recommendation in [section 8](#8-decisions-for-steve) on 2026-11-21. W1 (projectiles) is built; W2 and W3 are next.
+Status: **in progress**. Expands the Phase 6 stretch goal "Weapons and throwables: pickup items with their own movesets" (picked by Steve on 2026-11-21) into three PRs. Steve took every recommendation in [section 8](#8-decisions-for-steve) on 2026-11-21. W1 (projectiles) and W2 (weapons) are built; W3 is next.
 
 ## 1. Goal
 
@@ -76,6 +76,7 @@ A **weapon** is a new content record, `weapons`, and a new pickup effect that pl
 - **Dropping:** a knockdown makes the holder drop it at their feet (`dropOn`). The player can also put it down on purpose with grab while holding down (toward the camera).
 - **Throwing:** the grab button throws the held weapon. Grab is already bound by default (O on the keyboard, right stick click on a pad) even when grabs are contact-only, and the on-screen help shows it while a weapon is held. Its `throw.projectile` flies with the weapon's model, and the weapon is gone unless the projectile's `returns` field makes it land as a pickup again (knives stay thrown; a pipe clatters to the floor).
 - **Lifting stage objects:** a prop with `liftable: "barrel"` names the weapon it becomes. Grab next to it lifts it overhead, and grab again hurls it. Breakable props keep breaking as before (decision 4).
+- **As built in W2:** a weapon's `throw` names a move (one that fires a projectile) rather than a projectile, and `returns` sits on the weapon's `throw`. A heavy weapon's `walkFactor` (default 0.6) sets how much it slows walking. A lifted prop with no pickup form (the barrel) is gone if its holder is knocked down. Lifting uses `rules.pickupRadius` as its reach.
 - **Enemies:** an enemy type can start with a `weapon`. It uses the weapon's moves in place of its `attacks` while armed, drops it when knocked down, and the player can take it (decision 3). Enemies don't pick weapons up from the floor in this plan.
 
 ## 5. HUD and feel

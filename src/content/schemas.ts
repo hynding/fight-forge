@@ -11,7 +11,7 @@ import { DIRECTIONS, MOVESET_ACTIONS, SITUATIONS } from '../sim/moveset'
 import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 11
+export const SCHEMA_VERSION = 12
 
 // ---------------------------------------------------------------- primitives
 
@@ -234,7 +234,14 @@ export const aiBehaviorSchema = z
   .strict()
 
 export const pickupSchema = z
-  .object({ effect: z.enum(['heal', 'score']), amount: nonNegative, color, size: positive })
+  .object({
+    effect: z.enum(['heal', 'score', 'weapon']),
+    amount: nonNegative,
+    color,
+    size: positive,
+    /** For `effect: "weapon"`: the weapon id it puts on the floor. */
+    weapon: idSchema.optional(),
+  })
   .strict()
 
 export const dropSchema = z.object({ pickup: idSchema, chance: fraction }).strict()
@@ -307,6 +314,8 @@ export const enemyTypeSchema = z
     /** False: can't be grabbed (default true). */
     grabbable: z.boolean().optional(),
     drop: dropSchema.optional(),
+    /** Weapon id it starts with: it fights with the weapon's moves and drops it when knocked down. */
+    weapon: idSchema.optional(),
     color,
     model: modelRefSchema,
     colliderHalfExtents: halfExtents.optional(),
@@ -330,6 +339,21 @@ export const moveTriggerSchema = z
     direction: z.enum(DIRECTIONS).optional(),
     move: idSchema,
     cost: z.object({ health: z.number().int().min(1).optional(), cooldown: positive.optional(), meter: positive.optional() }).strict().optional(),
+  })
+  .strict()
+
+/** An item fighters pick up and fight with. */
+export const weaponSchema = z
+  .object({
+    name: z.string().min(1).max(40),
+    kind: z.enum(['melee', 'heavy']),
+    model: z.object({ shape: z.enum(['box', 'cylinder', 'sphere']), size: z.tuple([positive, positive, positive]), color }).strict(),
+    hold: z.enum(['hand', 'overhead']),
+    durability: z.number().int().positive().optional(),
+    moveset: z.array(moveTriggerSchema),
+    /** The grab button throws it with this move (it must fire a projectile). */
+    throw: z.object({ move: idSchema, returns: z.boolean().optional() }).strict().optional(),
+    walkFactor: positive.optional(),
   })
   .strict()
 
@@ -504,6 +528,8 @@ export const settingsSchema = z
         ko: idSchema.optional(),
         pickup: idSchema.optional(),
         clear: idSchema.optional(),
+        /** A weapon breaks. */
+        break: idSchema.optional(),
       })
       .strict(),
   })
@@ -550,6 +576,8 @@ export const propSchema = z
     color,
     solid: z.boolean(),
     breakable: z.object({ health: positive, drop: dropSchema.optional() }).strict().optional(),
+    /** Weapon id: grab beside it to lift it (it becomes that weapon). */
+    liftable: idSchema.optional(),
   })
   .strict()
 
@@ -633,6 +661,7 @@ export const packSchema = z
     settings: settingsSchema.partial().default({}),
     moves: z.record(idSchema, moveSchema).default({}),
     projectiles: z.record(idSchema, projectileSchema).default({}),
+    weapons: z.record(idSchema, weaponSchema).default({}),
     ai: z.record(idSchema, aiBehaviorSchema).default({}),
     enemyTypes: z.record(idSchema, enemyTypeSchema).default({}),
     pickups: z.record(idSchema, pickupSchema).default({}),
@@ -651,6 +680,7 @@ export type AssetDef = z.infer<typeof assetSchema>
 export type ModelRefDef = z.infer<typeof modelRefSchema>
 export type MoveDefData = z.infer<typeof moveSchema>
 export type ProjectileDefData = z.infer<typeof projectileSchema>
+export type WeaponDefData = z.infer<typeof weaponSchema>
 export type AiBehaviorDef = z.infer<typeof aiBehaviorSchema>
 export type PickupDefData = z.infer<typeof pickupSchema>
 export type EnemyTypeData = z.infer<typeof enemyTypeSchema>

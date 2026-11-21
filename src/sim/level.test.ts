@@ -207,7 +207,8 @@ describe('stepLevel', () => {
 
   it('places level items with stable ids in absolute X', () => {
     const items = placeItems(DEFAULT_LEVEL)
-    expect(items[0]).toEqual({ id: 'item-1-0', pickup: 'coin', x: 45 + 5, depth: 0.3 })
+    expect(items[0]).toEqual({ id: 'item-0-0', pickup: 'pipe', x: 20, depth: 0.5 })
+    expect(items[1]).toEqual({ id: 'item-1-0', pickup: 'coin', x: 45 + 5, depth: 0.3 })
     expect(new Set(items.map((i) => i.id)).size).toBe(items.length)
   })
 })

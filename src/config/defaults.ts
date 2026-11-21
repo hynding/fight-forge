@@ -12,6 +12,7 @@ import type { ActionSettings, DeviceBindings } from '../sim/input'
 import type { BackdropLayer } from '../sim/backdrop'
 import type { PropDef } from '../sim/props'
 import type { ProjectileDef } from '../sim/projectiles'
+import type { WeaponDef } from '../sim/weapons'
 import type { AudioSettings, MusicDef, SoundDef } from '../audio/types'
 import type { FeelSettings } from '../sim/feel'
 
@@ -69,6 +70,8 @@ export interface EnemyTypeDef {
   boss?: BossDef
   /** What it may drop when defeated. */
   drop?: DropDef
+  /** Weapon id it starts with: it fights with the weapon's moves and drops it when knocked down. */
+  weapon?: string
   color: string
   model: ModelRef
   /** Collider half extents before `scale`; defaults to `body.colliderHalfExtents`. */
@@ -250,6 +253,8 @@ export interface GameConfig {
   props: Record<string, PropDef>
   /** Things moves throw (knives, barrels) by id. */
   projectiles: Record<string, ProjectileDef>
+  /** Things fighters pick up and fight with (pipes, knives, barrels) by id. */
+  weapons: Record<string, WeaponDef>
   /** Hit-stop, screen shake, sparks, dust and damage numbers. */
   feel: FeelSettings
   /** Which sound plays for each game event. */

@@ -5,6 +5,9 @@ import { getConfig } from '../content/active'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { interruptMove, stepMoves } from '../sim/moves'
+import { holdWeapon, liftableInReach, weaponInReach, weaponMoveset } from '../sim/weapons'
+import { dropWeapon, placeWeapon } from './weaponDrops'
+import { playSound } from '../audio/engine'
 import { createChordBuffer, matchTrigger, MOVESET_ACTIONS, relativeDirection, stepChords, type Direction, type MoveTrigger } from '../sim/moveset'
 import { createRunDetector, stepRunDetector } from '../sim/defense'
 import { inputIntent } from '../sim/controllers'
@@ -55,6 +58,10 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   const cooldowns = useRef(new Map<number, number>())
   // Toggle block: whether the guard is up.
   const blockOn = useRef(false)
+  // The grab button this step (for weapons: throw, drop or lift).
+  const grabPress = useRef(false)
+  // What the HUD last showed for the weapon in hand.
+  const shownWeapon = useRef('')
   const respawnSeen = useRef(useGameStore.getState().respawnCount)
   const playerHealth = useGameStore((state) => state.playerHealth)
 
@@ -89,14 +96,69 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
     const intent = runtime.intent
     if (runtime.grounded) airAttackUsed.current = false
     const inAir = !runtime.grounded
-    const stepPresses = presses.current
+    let stepPresses = presses.current
     presses.current = []
+    const grabbed = grabPress.current
+    grabPress.current = false
+
+    // Weapons: the grab button throws (or, holding down, drops) the one in
+    // hand, or lifts a liftable prop in front; attack while standing on one
+    // picks it up instead of attacking.
+    const body = (ref as RefObject<RapierRigidBody> | null)?.current
+    const at = body ? body.translation() : null
+    const store = useGameStore.getState()
+    // A throw cut short before it let go: the weapon falls where the player stands.
+    if (runtime.thrownWeapon && runtime.move.move === null) {
+      if (at && runtime.thrownWeapon.returns) placeWeapon(runtime.thrownWeapon.weapon, at)
+      runtime.thrownWeapon = null
+    }
+    const free = runtime.move.move === null && runtime.reaction.kind === null && runtime.grab.target === null && runtime.grounded
+    let weaponPress: string | null = null
+    let weaponStart: string | null = null
+    if (free && at && grabbed) {
+      const held = runtime.weapon
+      const def = held ? config.weapons[held.id] : undefined
+      if (held && def?.throw && direction.current !== 'down') {
+        weaponPress = 'grab'
+        weaponStart = def.throw.move
+        runtime.thrownWeapon = { weapon: held, returns: !!def.throw.returns }
+        runtime.weapon = null
+      } else if (held) {
+        dropWeapon(runtime, at)
+      } else {
+        const g = config.actions.grab
+        const prop = liftableInReach(store.props, config.props, at, runtime.facing.x, runtime.hurtbox.x, config.rules.pickupRadius, g.depthTolerance)
+        const lifted = prop && config.props[prop.prop].liftable
+        if (prop && lifted && config.weapons[lifted]) {
+          store.removeProp(prop.id)
+          runtime.weapon = holdWeapon(lifted, config.weapons[lifted])
+          playSound(config.audio.pickup)
+        }
+      }
+    }
+    if (free && at && !runtime.weapon && !weaponStart && stepPresses.includes('attack')) {
+      const item = weaponInReach(store.pickups, config.pickups, at, config.rules.pickupRadius)
+      const id = item && config.pickups[item.pickup].weapon
+      if (item && id && config.weapons[id]) {
+        store.collectPickup(item.id)
+        runtime.weapon = holdWeapon(id, config.weapons[id], item.durability)
+        playSound(config.audio.pickup)
+        stepPresses = stepPresses.filter((p) => p !== 'attack')
+      }
+    }
+    const heldDef = runtime.weapon ? config.weapons[runtime.weapon.id] : undefined
+    const moveset = weaponMoveset(heldDef, P.moveset)
+    // The weapon's rows come first; the fighter's own keep their indices (for cooldowns).
+    const weaponRows = moveset.length - (heldDef?.kind === 'heavy' ? 0 : P.moveset.length)
+    const rowKey = (i: number) => i - weaponRows
     // A press while free starts the first moveset trigger it matches; during a
     // move it's buffered for the move's `next` or `branches`.
-    let press: string | null = null
+    let press: string | null = weaponPress
     let trigger: MoveTrigger | null = null
     let index = -1
-    if (runtime.move.move !== null) press = stepPresses[0] ?? null
+    if (weaponStart) {
+      // The throw starts below, like a trigger's move.
+    } else if (runtime.move.move !== null) press = stepPresses[0] ?? null
     else if (runtime.reaction.kind === null && !(inAir && airAttackUsed.current)) {
       const { playerHealth, meter } = useGameStore.getState()
       const ctx = {
@@ -108,22 +170,24 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
         canPay: (t: MoveTrigger, i: number) =>
           (t.cost?.health === undefined || playerHealth > t.cost.health) &&
           (t.cost?.meter === undefined || meter >= t.cost.meter) &&
-          (cooldowns.current.get(i) ?? -Infinity) <= loop.time,
+          (cooldowns.current.get(rowKey(i)) ?? -Infinity) <= loop.time,
       }
       for (const p of stepPresses) {
-        index = matchTrigger(P.moveset, p, ctx)
+        index = matchTrigger(moveset, p, ctx)
         if (index >= 0) {
           press = p
-          trigger = P.moveset[index]
+          trigger = moveset[index]
           break
         }
       }
     }
-    const event = stepMoves(runtime.move, press, dt, config.moves, trigger?.move ?? null)
+    const event = stepMoves(runtime.move, press, dt, config.moves, weaponStart ?? trigger?.move ?? null)
+    if (event === 'started' && (weaponStart || trigger)) runtime.weaponMove = !weaponStart && index >= 0 && index < weaponRows
+    if (runtime.move.move === null) runtime.weaponMove = false
     if (event === 'started' && trigger) {
       if (trigger.cost?.health) useGameStore.getState().spendHealth(trigger.cost.health)
       if (trigger.cost?.meter) useGameStore.getState().spendMeter(trigger.cost.meter)
-      if (trigger.cost?.cooldown) cooldowns.current.set(index, loop.time + trigger.cost.cooldown)
+      if (trigger.cost?.cooldown) cooldowns.current.set(rowKey(index), loop.time + trigger.cost.cooldown)
       // A move for "away" comes out behind without turning round.
       if (trigger.direction === 'away') runtime.facing.x = facingBefore.current
     }
@@ -133,6 +197,13 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
     if (attacking !== wasAttacking.current) {
       wasAttacking.current = attacking
       setIsAttacking(attacking)
+    }
+    // Keep the HUD's weapon in step (picked up, worn, broken, dropped, thrown).
+    const w = runtime.weapon
+    const shown = w ? `${w.id}:${w.durability}` : ''
+    if (shown !== shownWeapon.current) {
+      shownWeapon.current = shown
+      useGameStore.getState().setPlayerWeapon(w)
     }
   })
 
@@ -190,6 +261,8 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
           if (Math.abs(pointer - screenX) > 0.02) intent.face = { x: Math.sign(pointer - screenX), z: 0 }
         }
         intent.grab = grabPressed
+        // With a weapon in hand (or a liftable prop near), the grab button is for weapons.
+        if (frame.pressed.grab) grabPress.current = true
         presses.current = chord.presses
         // Back + attack pressed together: the fighter turns on the first step
         // the direction is held, so judge "away" against the facing before a recent turn.

@@ -1,0 +1,78 @@
+{
+  "pipe": {
+    "name": "Lead pipe",
+    "kind": "melee",
+    "model": {
+      "shape": "cylinder",
+      "size": [
+        0.08,
+        1.0,
+        0.08
+      ],
+      "color": "#8a8f96"
+    },
+    "hold": "hand",
+    "durability": 12,
+    "moveset": [
+      {
+        "action": "attack",
+        "when": "air",
+        "move": "pipeAirSwing"
+      },
+      {
+        "action": "heavy",
+        "move": "pipeSmash"
+      },
+      {
+        "action": "attack",
+        "move": "pipeSwing"
+      }
+    ],
+    "throw": {
+      "move": "pipeToss",
+      "returns": true
+    }
+  },
+  "knife": {
+    "name": "Knife",
+    "kind": "melee",
+    "model": {
+      "shape": "box",
+      "size": [
+        0.06,
+        0.4,
+        0.1
+      ],
+      "color": "#c0c8d0"
+    },
+    "hold": "hand",
+    "durability": 10,
+    "moveset": [
+      {
+        "action": "attack",
+        "move": "knifeSlash"
+      }
+    ],
+    "throw": {
+      "move": "knifeToss"
+    }
+  },
+  "barrel": {
+    "name": "Barrel",
+    "kind": "heavy",
+    "model": {
+      "shape": "cylinder",
+      "size": [
+        0.8,
+        1.1,
+        0.8
+      ],
+      "color": "#7a2e1f"
+    },
+    "hold": "overhead",
+    "moveset": [],
+    "throw": {
+      "move": "barrelHurl"
+    }
+  }
+}

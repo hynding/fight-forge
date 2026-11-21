@@ -3,7 +3,7 @@ import { useGameStore } from '../store/gameStore'
 import { getConfig, getLevels } from '../content/active'
 import { getBindings } from '../content/bindings'
 import type { InputManager } from '../input/InputManager'
-import { actionLabel, deviceHelp, helpExtras } from '../sim/input'
+import { actionLabel, deviceHelp, helpExtras, promptLabel } from '../sim/input'
 import { formatTime } from '../utils/format'
 import { sceneProbe } from '../sim/probe'
 import { FRAME_BUDGET_MS, type PerfSnapshot } from '../sim/perf'
@@ -83,6 +83,8 @@ export const HUD = ({ input }: { input: InputManager }) => {
   const nextLevel = useGameStore((state) => state.nextLevel)
   const startRun = useGameStore((state) => state.startRun)
   const sandbox = useGameStore((state) => state.sandbox !== null)
+  const weapon = useGameStore((state) => state.playerWeapon)
+  const weaponDef = weapon ? getConfig().weapons[weapon.id] : undefined
   const lastLevel = sandbox || levelIndex >= getLevels().length - 1
 
   // The hitbox key (H by default) toggles the debug overlay.
@@ -175,6 +177,28 @@ export const HUD = ({ input }: { input: InputManager }) => {
               }}
             />
           </div>
+        </div>
+      )}
+
+      {/* The weapon in hand: its name, hits left, and how to throw or drop it */}
+      {weapon && weaponDef && (
+        <div data-testid="hud-weapon" style={{ marginBottom: '10px', fontSize: '12px' }}>
+          <div style={{ marginBottom: '3px' }}>
+            🗡 {weaponDef.name.toUpperCase()}
+            <span style={{ color: '#aab' }}>
+              {' '}
+              | {promptLabel(getBindings(), 'grab', inputDevice, padLabels ?? 'xbox')} - {weaponDef.throw ? 'Throw' : 'Drop'}
+              {weaponDef.throw ? ` (+ ${promptLabel(getBindings(), 'backward', inputDevice, padLabels ?? 'xbox')} to drop)` : ''}
+            </span>
+          </div>
+          {weapon.durability !== null && weaponDef.durability && (
+            <div style={{ width: '150px', height: '6px', backgroundColor: '#333', border: '1px solid #666', overflow: 'hidden' }}>
+              <div
+                data-durability={weapon.durability}
+                style={{ width: `${(weapon.durability / weaponDef.durability) * 100}%`, height: '100%', backgroundColor: '#ffd27a' }}
+              />
+            </div>
+          )}
         </div>
       )}
 

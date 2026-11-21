@@ -159,6 +159,8 @@ export const MIGRATIONS: MigrationTable = {
   },
   // v11: projectiles. The `projectiles` record and a move's `projectile` are new and optional.
   10: (pack) => pack,
+  // v12: weapons. The `weapons` record, weapon pickups, enemy `weapon`, prop `liftable` and `audio.break` are new and optional.
+  11: (pack) => pack,
 }
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }
