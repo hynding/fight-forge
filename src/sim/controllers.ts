@@ -1,6 +1,6 @@
 // Controllers turn a source of decisions (keyboard, AI) into a fighter Intent.
 
-import type { Controls } from '../hooks/useControls'
+import type { Controls } from './actions'
 import type { Intent, Vec2 } from './fighter'
 
 /** Keyboard (or later gamepad) to Intent. Opposite keys: forward and left win, as before. */

@@ -9,7 +9,7 @@ import {
   inputIntent,
   spacingPush,
 } from './controllers'
-import type { Controls } from '../hooks/useControls'
+import type { Controls } from './actions'
 
 const none: Controls = {
   forward: false,

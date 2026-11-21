@@ -24,7 +24,7 @@ export default tseslint.config(
   {
     // Gameplay reads the active content (getConfig / getLevels from src/content/active),
     // so a loaded pack takes effect. The static defaults are for tests and tools only.
-    files: ['src/components/**', 'src/store/**', 'src/sim/**', 'src/hooks/**', 'src/App.tsx'],
+    files: ['src/components/**', 'src/store/**', 'src/sim/**', 'src/input/**', 'src/App.tsx'],
     ignores: ['**/*.test.ts'],
     rules: {
       'no-restricted-imports': [
