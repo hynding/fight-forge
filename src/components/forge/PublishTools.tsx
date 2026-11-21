@@ -3,6 +3,7 @@ import { describeErrors } from '../../content/library'
 import { editPack, exportBundle, type WorkspacePack } from '../../forge/workspace'
 import {
   currentUser,
+  deletePack,
   devSignIn,
   githubSignInUrl,
   myPacks,
@@ -46,6 +47,7 @@ export const PublishTools = ({ pack, save, invalid }: Props) => {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null)
   const [offline, setOffline] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
 
   useEffect(() => {
     let live = true
@@ -87,6 +89,16 @@ export const PublishTools = ({ pack, save, invalid }: Props) => {
       setPublished(r.pack)
       setMessage({ text: `Published ${r.pack.name} v${r.pack.version}.` })
     } else setMessage({ text: r.errors ? `${r.message}\n${describeErrors(r.errors)}` : r.message, error: true })
+  }
+
+  const onRemove = () => {
+    setConfirmRemove(false)
+    deletePack(pack.id)
+      .then(() => {
+        setPublished(null)
+        setMessage({ text: 'Removed from the server. Your copy here is unchanged.' })
+      })
+      .catch((e: Error) => setMessage({ text: e.message, error: true }))
   }
 
   return (
@@ -135,6 +147,9 @@ export const PublishTools = ({ pack, save, invalid }: Props) => {
           </div>
           <div style={{ color: '#aab' }} data-testid="publish-status">
             {published ? `Published: v${published.version}, ${published.visibility}.` : 'Not published yet.'}
+            {published?.hidden && (
+              <span style={ui.error}> Taken down by a moderator: only you can see it. New versions stay hidden.</span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
             <select aria-label="Visibility" style={ui.input} value={visibility} onChange={(e) => setVisibility(e.target.value as Visibility)}>
@@ -162,6 +177,16 @@ export const PublishTools = ({ pack, save, invalid }: Props) => {
                 {busy ? 'Publishing…' : `Publish v${version}`}
               </button>
             )}
+            {published &&
+              (confirmRemove ? (
+                <button style={{ ...ui.button, borderColor: '#ff4444', color: '#ff6666' }} onClick={onRemove}>
+                  Really remove every version?
+                </button>
+              ) : (
+                <button style={ui.button} title="Take the pack off the server (your copy here stays)" onClick={() => setConfirmRemove(true)}>
+                  Remove from server
+                </button>
+              ))}
           </div>
           <div style={{ color: '#667' }}>
             License: {String((pack.json.meta as Record<string, unknown> | undefined)?.license ?? '')}. Only publish models and images you made or may share

@@ -13,6 +13,7 @@ import { validateLevel } from '../sim/level'
 import { addNode, buildTree, nodeValue, overrideNode, removeNode } from './tree'
 import { addModelAsset, assetFile, comboChain, fitModel, gltfModelFor, moveFrames, phaseAt, removeAsset, setComboChain } from './fighter'
 import { baseContent, duplicatePack, editPack, exportBundle, importBundle, newPack, remixBundle, slugify, uniqueId, validatePack } from './workspace'
+import { tinyGlb } from '../test/glb'
 
 const SAMPLE = join(__dirname, '../../content/samples/skeleton-remix')
 const sample = () => bundleFromFolder(SAMPLE, (p) => new Uint8Array(readFileSync(p)), (f) => readdirSync(f))
@@ -160,11 +161,7 @@ describe('content tree', () => {
 })
 
 describe('fighter tools', () => {
-  const glb = () => {
-    const b = new Uint8Array(32)
-    b.set([0x67, 0x6c, 0x54, 0x46])
-    return b
-  }
+  const glb = () => tinyGlb()
 
   it('imports a .glb as a pack asset that exports and validates', async () => {
     const wp = newPack('Models', [])
@@ -173,7 +170,7 @@ describe('fighter tools', () => {
     expect(r.assetId).toBe('hero-model')
     expect(r.pack.files).toHaveProperty(['models/hero-model.glb'])
     expect(addModelAsset(r.pack, 'Hero Model.glb', glb()).ok && 'second').toBe('second')
-    expect(addModelAsset(wp, 'x.glb', new Uint8Array(32))).toEqual({ ok: false, message: '"x.glb" isn\'t a binary glTF (.glb) file' })
+    expect(addModelAsset(wp, 'x.glb', new Uint8Array(32))).toEqual({ ok: false, message: '"x.glb" isn\'t a binary glTF (.glb)' })
 
     const json = setIn(r.pack.json, ['settings', 'player'], { ...baseContent().settings.player, model: gltfModelFor(r.assetId) })
     const withModel = editPack(r.pack, json as Record<string, unknown>)

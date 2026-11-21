@@ -22,6 +22,9 @@ const app = buildApp(openStore(join(dataDir, 'fight-forge.db')), diskBlobs(join(
   crossSite: env.CROSS_SITE === '1',
   sessionDays: Number(env.SESSION_DAYS) || 30,
   publishPerHour: Number(env.PUBLISH_PER_HOUR) || 20,
+  reportsPerHour: Number(env.REPORTS_PER_HOUR) || 10,
+  writesPerIpPerHour: Number(env.WRITES_PER_IP_PER_HOUR) || 600,
+  admins: (env.ADMINS ?? '').split(',').filter((a) => a.trim()),
 })
 
 app.listen({ port: Number(env.PORT) || 8787, host: env.HOST ?? '0.0.0.0' }).then((addr) => {

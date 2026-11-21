@@ -2,7 +2,22 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { getLevels } from '../content/active'
 import { describeErrors, installBundle } from '../content/library'
 import { readBundle } from '../content/bundle'
-import { coverUrl, fetchBundle, linkedPack, listPacks, packDetail, setLike, shareLink, type GallerySort, type PackDetail, type PublishedPack } from '../net/api'
+import {
+  coverUrl,
+  currentUser,
+  fetchBundle,
+  linkedPack,
+  listPacks,
+  packDetail,
+  reportPack,
+  setLike,
+  setPackHidden,
+  shareLink,
+  type GallerySort,
+  type PackDetail,
+  type PublishedPack,
+} from '../net/api'
+import { Moderation } from './Moderation'
 import { isUpdated, loadPlayed, recordPlayed } from '../net/played'
 import { remixBundle } from '../forge/workspace'
 import { forgeFocus, workspaceStore } from '../forge/storage'
@@ -37,6 +52,15 @@ export const Gallery = () => {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<GallerySort>('new')
   const [played, setPlayed] = useState(loadPlayed)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [moderating, setModerating] = useState(false)
+  const [reloads, setReloads] = useState(0)
+
+  useEffect(() => {
+    currentUser()
+      .then((u) => setIsAdmin(u?.role === 'admin'))
+      .catch(() => undefined)
+  }, [])
   const [owner, setOwner] = useState<string | null>(null)
   const [packs, setPacks] = useState<PublishedPack[] | null>(null)
   const [more, setMore] = useState(false)
@@ -67,7 +91,7 @@ export const Gallery = () => {
     return () => {
       live = false
     }
-  }, [query, owner, sort])
+  }, [query, owner, sort, reloads])
 
   const loadMore = async () => {
     const next = await listPacks({ q: query, owner: owner ?? undefined, sort, offset: packs?.length ?? 0 })
@@ -132,6 +156,11 @@ export const Gallery = () => {
           <option value="likes">Most liked</option>
           <option value="name">By name</option>
         </select>
+        {isAdmin && (
+          <button style={{ ...button, borderColor: '#ff9a7a', color: '#ffb89a' }} onClick={() => setModerating(true)}>
+            Reports
+          </button>
+        )}
         {owner && (
           <span style={{ border: '1px solid #ffd27a', color: '#ffd27a', borderRadius: '4px', padding: '4px 8px' }}>
             by {owner}{' '}
@@ -180,8 +209,19 @@ export const Gallery = () => {
         </button>
       )}
 
+      {moderating && (
+        <Moderation
+          onClose={() => {
+            setModerating(false)
+            setReloads((n) => n + 1)
+          }}
+          onOpenPack={setOpenId}
+        />
+      )}
       {openId && (
         <PackPage
+          isAdmin={isAdmin}
+          onChanged={() => setReloads((n) => n + 1)}
           key={openId}
           id={openId}
           onOpen={setOpenId}
@@ -226,8 +266,13 @@ const PackPage = ({
   onPlay,
   onOpen,
   onRemix,
+  isAdmin,
+  onChanged,
 }: {
   id: string
+  isAdmin: boolean
+  /** A moderator changed the pack. */
+  onChanged: () => void
   onOpen: (id: string) => void
   onRemix: (pack: PublishedPack, version: string) => Promise<void>
   onClose: () => void
@@ -239,6 +284,8 @@ const PackPage = ({
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [note, setNote] = useState<string | null>(null)
+  const [reporting, setReporting] = useState(false)
+  const [reason, setReason] = useState('')
 
   useEffect(() => {
     let live = true
@@ -262,6 +309,21 @@ const PackPage = ({
       })
       .catch((e: Error) => setError(e.message))
   }
+  const sendReport = () =>
+    reportPack(id, reason.trim())
+      .then((r) => {
+        setReporting(false)
+        setNote(r === 'signin' ? 'Sign in (in the Forge, under Publish online) to report a pack.' : 'Thanks. The moderators will take a look.')
+      })
+      .catch((e: Error) => setError(e.message))
+  const setHidden = (hidden: boolean) =>
+    setPackHidden(id, hidden, '')
+      .then(() => packDetail(id))
+      .then((d) => {
+        setDetail(d)
+        onChanged()
+      })
+      .catch((e: Error) => setError(e.message))
   const run = (task: () => Promise<void>) => {
     setBusy(true)
     setError(null)
@@ -294,6 +356,11 @@ const PackPage = ({
           <>
             <Cover pack={p} height={220} />
             <div style={{ padding: '16px 18px' }}>
+              {p.hidden && (
+                <div data-testid="taken-down" style={{ color: '#ff9a7a', border: '1px solid #ff9a7a55', borderRadius: '4px', padding: '6px 8px', marginBottom: '10px' }}>
+                  Taken down by a moderator: only its owner and moderators can see it.
+                </div>
+              )}
               <div style={{ fontSize: '22px', fontWeight: 'bold' }}>{p.name}</div>
               <div style={{ color: '#889', margin: '4px 0 10px' }}>
                 v{p.version} · by{' '}
@@ -347,10 +414,34 @@ const PackPage = ({
                 >
                   {copied ? 'Link copied' : 'Copy link'}
                 </button>
+                <button style={button} onClick={() => setReporting((r) => !r)}>
+                  ⚑ Report
+                </button>
+                {isAdmin && (
+                  <button style={{ ...button, borderColor: '#ff9a7a', color: '#ffb89a' }} onClick={() => setHidden(!p.hidden)}>
+                    {p.hidden ? 'Put back' : 'Take down'}
+                  </button>
+                )}
                 <button style={button} onClick={onClose}>
                   Close
                 </button>
               </div>
+              {reporting && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
+                  <textarea
+                    aria-label="What's wrong with this pack?"
+                    placeholder="What's wrong with this pack? (offensive, stolen art, broken…)"
+                    rows={3}
+                    maxLength={1000}
+                    style={{ ...input, resize: 'vertical' }}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  />
+                  <button style={{ ...button, alignSelf: 'flex-start' }} disabled={reason.trim().length < 3} onClick={sendReport}>
+                    Send report
+                  </button>
+                </div>
+              )}
               {error && <pre style={{ color: '#ff7a7a', whiteSpace: 'pre-wrap' }}>{error}</pre>}
               {note && <div style={{ color: '#ffd27a', marginTop: '8px' }}>{note}</div>}
               <div style={{ color: '#667', marginTop: '14px' }}>

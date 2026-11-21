@@ -3,24 +3,21 @@ import { join } from 'node:path'
 import { strToU8, unzipSync, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../config/defaults'
-import { BUNDLE_LIMITS, isLocalUrl, readBundle, sha256, writeBundle } from './bundle'
+import { audioType, BUNDLE_LIMITS, glbProblem, isLocalUrl, readBundle, sha256, writeBundle } from './bundle'
 import { bundleFromFolder } from './bundleFolder'
 import { defaultPack } from './defaultPack'
 import { loadContent } from './load'
 import { migratePack } from './migrations'
 import { buildRegistry, formatErrors, parsePack } from './registry'
 import type { ContentError, Result } from './registry'
+import { tinyGlb } from '../test/glb'
 
 const SAMPLE = join(__dirname, '../../content/samples/skeleton-remix')
 const sampleBundle = () =>
   bundleFromFolder(SAMPLE, (p) => new Uint8Array(readFileSync(p)), (f) => readdirSync(f))
 
-/** A tiny file that passes the .glb magic check. */
-const fakeGlb = (n = 64) => {
-  const b = new Uint8Array(n)
-  b.set(strToU8('glTF'))
-  return b
-}
+/** A tiny valid .glb of about `n` bytes. */
+const fakeGlb = (n = 64) => tinyGlb({}, n)
 
 const pack = (extra: Record<string, unknown> = {}) => ({
   schemaVersion: 1,
@@ -148,9 +145,9 @@ describe('bad bundles', () => {
 
   it('catches a size that does not match the pack', async () => {
     const zip = patchZip(await good(), (f) => {
-      f['models/hero.glb'] = fakeGlb(65)
+      f["models/hero.glb"] = fakeGlb(68)
     })
-    expect((await errorsOf(readBundle(zip)))[0].message).toBe('"models/hero.glb" is 65 bytes, but the pack says 64')
+    expect((await errorsOf(readBundle(zip)))[0].message).toBe('"models/hero.glb" is 68 bytes, but the pack says 64')
   })
 
   it('catches a missing asset file', async () => {
@@ -170,6 +167,33 @@ describe('bad bundles', () => {
   it('only takes binary glTF models', async () => {
     const zip = await writeBundle(withModel(), new Map([['models/hero.glb', strToU8('{"asset":{}}')]]))
     expect((await errorsOf(readBundle(zip)))[0].message).toBe('"models/hero.glb" isn\'t a binary glTF (.glb)')
+  })
+
+  it('checks a model is a whole, self-contained glTF 2.0 file', async () => {
+    const real = new Uint8Array(readFileSync(join(__dirname, '../../public/models/robot-expressive.glb')))
+    expect(glbProblem(real)).toBeNull()
+    expect(glbProblem(tinyGlb())).toBeNull()
+    expect(glbProblem(tinyGlb({ buffers: [{ uri: 'data:application/octet-stream;base64,AA==', byteLength: 1 }] }))).toBeNull()
+    expect(glbProblem(tinyGlb({ images: [{ uri: 'https://tracker.example/x.png' }] }))).toBe(
+      'refers to an outside file ("https://tracker.example/x.png"); embed everything in the .glb'
+    )
+    expect(glbProblem(tinyGlb({ buffers: [{ uri: 'hero.bin', byteLength: 4 }] }))).toMatch(/outside file/)
+    expect(glbProblem(tinyGlb({ asset: { version: '1.0' } }))).toBe("isn't glTF 2.0")
+    expect(glbProblem(tinyGlb().subarray(0, 24))).toMatch(/cut short/)
+    const v1 = tinyGlb()
+    v1[4] = 1
+    expect(glbProblem(v1)).toBe('is glTF version 1; only glTF 2 is supported')
+    const badJson = tinyGlb()
+    badJson[20] = 0x7d // '}'
+    expect(glbProblem(badJson)).toBe('has a glTF JSON chunk that is not valid JSON')
+  })
+
+  it('recognises audio files', () => {
+    expect(audioType(strToU8('OggS....'))).toBe('ogg')
+    expect(audioType(strToU8('RIFF....WAVEfmt '))).toBe('wav')
+    expect(audioType(strToU8('ID3....'))).toBe('mp3')
+    expect(audioType(new Uint8Array([0xff, 0xfb, 0x90]))).toBe('mp3')
+    expect(audioType(strToU8('<script>'))).toBeNull()
   })
 
   it('rejects asset paths that climb out of the bundle', async () => {
