@@ -230,6 +230,9 @@ export const blankLevel = (theme = 'default'): Omit<Level, 'id' | 'name'> => ({
   segments: [{ length: 40, triggers: [{ kind: 'goal', at: 38 }] }],
 })
 
+/** How much of a level's start `levelFrom(level, x, spawnX)` cuts off: a stage X in the cut level plus this is the X in the level. */
+export const levelCut = (x: number, spawnX: number): number => Math.max(0, snapX(x - spawnX))
+
 /**
  * The level as played from absolute `x`: everything more than `spawnX`
  * behind it is cut off and the rest shifted so the player, who starts at
@@ -237,7 +240,7 @@ export const blankLevel = (theme = 'default'): Omit<Level, 'id' | 'name'> => ({
  * (they would fire on the first step).
  */
 export const levelFrom = (level: Level, x: number, spawnX: number): Level => {
-  const cut = Math.max(0, snapX(x - spawnX))
+  const cut = levelCut(x, spawnX)
   const keepTriggerFrom = cut > 0 ? snapX(x) : 0
   const starts = segmentStarts(level)
   const segments: Segment[] = []

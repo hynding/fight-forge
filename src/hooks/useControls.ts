@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getBindings } from '../content/bindings'
 import { keyMap, normalizeKey, type InputAction } from '../sim/input'
+import { useGameStore } from '../store/gameStore'
 
 export interface Controls {
   forward: boolean
@@ -43,6 +44,8 @@ export const useControls = () => {
   useEffect(() => {
     const map = keyMap(getBindings())
     const setKey = (e: KeyboardEvent, pressed: boolean) => {
+      // The Forge is open over the paused game: keys are typing, not playing.
+      if (useGameStore.getState().editing) return
       const control = keyToControl(e.key, map)
       if (!control) return
       e.preventDefault()
@@ -55,11 +58,17 @@ export const useControls = () => {
     // would otherwise leave the player running or attacking forever.
     const handleBlur = () => setControls(INITIAL_CONTROLS)
 
+    // Nothing stays held across a trip to the Forge.
+    const unsubscribe = useGameStore.subscribe((s, prev) => {
+      if (s.editing !== prev.editing) setControls(INITIAL_CONTROLS)
+    })
+
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
     window.addEventListener('blur', handleBlur)
 
     return () => {
+      unsubscribe()
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
       window.removeEventListener('blur', handleBlur)

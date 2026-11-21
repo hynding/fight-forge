@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState, RefObject } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState, RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
 import { Billboard } from '@react-three/drei'
 import { Vector3 } from 'three'
@@ -37,6 +37,8 @@ interface EnemyProps {
 /** An enemy: a FighterBody driven by its type's AI archetype (`def.ai`). */
 export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
   ({ id, type, position, playerPositionRef, enemyRefs, stageLength, view, runtimes }, ref) => {
+    // Re-render when packs are reinstalled (a Forge playtest edit), so the steps below see the new tuning.
+    useGameStore((state) => state.packs)
     const config = getConfig()
     const { enemy: E, body: BODY, moves: MOVES } = config
     const def = config.enemyTypes[type]
@@ -46,14 +48,13 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const slotTimer = useRef(createAttackSlotTimer())
     // Set by the AI when it's in reach and wants to hit; acted on by the slot system.
     const wantsAttack = useRef(false)
-    const [ai] = useState<BrawlerConfig>(() => ({ ...E, aggroRange: E.aggroRange * def.aggression }))
+    const ai = useMemo<BrawlerConfig>(() => ({ ...E, aggroRange: E.aggroRange * def.aggression }), [E, def.aggression])
     const behavior = config.ai[def.ai]
     const attackMove = def.attackMove ?? E.attackMove
-    const [movement] = useState(() => ({
-      walkSpeed: def.speed,
-      deceleration: E.deceleration,
-      stopSpeed: BODY.stopSpeed,
-    }))
+    const movement = useMemo(
+      () => ({ walkSpeed: def.speed, deceleration: E.deceleration, stopSpeed: BODY.stopSpeed }),
+      [def.speed, E.deceleration, BODY.stopSpeed]
+    )
 
     const isAttacking = useGameStore((state) => state.attackTokens.holders.includes(id))
     const health = useGameStore(

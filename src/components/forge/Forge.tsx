@@ -3,6 +3,8 @@ import { useGameStore } from '../../store/gameStore'
 import { describeErrors, installBundle } from '../../content/library'
 import type { ContentError } from '../../content/registry'
 import { blankLevel } from '../../forge/level'
+import { planResume, spawnXOf } from '../../forge/playtest'
+import { sceneProbe } from '../../sim/probe'
 import { pathString, setIn } from '../../forge/paths'
 import { workspaceStore } from '../../forge/storage'
 import { GROUPS, addNode, buildTree, nodeValue, overrideNode, removeNode, type TreeNode } from '../../forge/tree'
@@ -72,6 +74,9 @@ const errorsFor = (errors: ContentError[], prefixes: string[]) =>
  */
 export const Forge = () => {
   const setGameScreen = useGameStore((s) => s.setGameScreen)
+  const editing = useGameStore((s) => s.editing)
+  const playtest = useGameStore((s) => s.playtest)
+  const [resuming, setResuming] = useState(false)
   const [packs, setPacks] = useState<WorkspacePack[] | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(last.packId)
   const [nodeKey, setNodeKey] = useState(last.nodeKey)
@@ -141,6 +146,20 @@ export const Forge = () => {
     if (!r.ok) return setMessage({ text: describeErrors(r.errors), error: true })
     setGameScreen('menu')
   }
+  // Back to the paused playtest with the edits: tuning applies in place; a changed level restarts where the player was.
+  const onBackToFight = async () => {
+    const target = packs?.find((p) => p.id === playtest?.packId) ?? pack
+    if (!target) return useGameStore.getState().resumePlaytest()
+    clearTimeout(saveTimer.current)
+    void store.put(target)
+    setResuming(true)
+    const r = await installBundle(await exportBundle(target))
+    setResuming(false)
+    if (!r.ok) return setMessage({ text: `${String(target.json.name)} can't be played yet:\n${describeErrors(r.errors)}`, error: true })
+    const plan = planResume(playtest ?? { packId: target.id }, target.json, sceneProbe.playerX(), spawnXOf(target.json))
+    if (plan.kind === 'resume') useGameStore.getState().resumePlaytest()
+    else useGameStore.getState().startSandbox(plan.level, plan.origin)
+  }
   const onDelete = async () => {
     if (!pack) return
     if (!confirmDelete) return setConfirmDelete(true)
@@ -167,6 +186,8 @@ export const Forge = () => {
         color: '#e8e8e8',
         fontFamily: 'monospace',
         fontSize: '12px',
+        // Above the paused game and its menus when open mid-playtest.
+        zIndex: 1500,
         display: 'grid',
         gridTemplateColumns: '250px 1fr 320px',
         gridTemplateRows: 'auto 1fr',
@@ -177,9 +198,26 @@ export const Forge = () => {
     >
       {/* Top bar */}
       <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <button style={ui.button} onClick={() => setGameScreen('menu')}>
-          ← Menu
-        </button>
+        {editing ? (
+          <>
+            <button
+              data-testid="back-to-fight"
+              style={{ ...ui.button, borderColor: '#ffd27a', color: '#ffd27a' }}
+              disabled={resuming}
+              title="Carry on with the paused fight, with your changes"
+              onClick={onBackToFight}
+            >
+              ▶ Back to the fight
+            </button>
+            <button style={ui.button} title="Leave the fight and stay in the Forge" onClick={() => useGameStore.getState().quitRun()}>
+              ■ End playtest
+            </button>
+          </>
+        ) : (
+          <button style={ui.button} onClick={() => setGameScreen('menu')}>
+            ← Menu
+          </button>
+        )}
         <div style={{ fontSize: '20px', fontWeight: 'bold', letterSpacing: '6px' }}>FORGE</div>
         {pack && (
           <>

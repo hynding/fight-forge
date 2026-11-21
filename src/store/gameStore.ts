@@ -57,6 +57,10 @@ interface GameState {
   levelIndex: number
   /** A Forge sandbox fight, played instead of the active levels; leaving it returns to the Forge. */
   sandbox: Level | null
+  /** Where a sandbox came from in the Forge, so editing mid-fight can come back to it. */
+  playtest: PlaytestOrigin | null
+  /** The Forge is open over a paused sandbox (the scene stays mounted underneath). */
+  editing: boolean
   /** Lives left, including the current one. Losing the last is game over. */
   lives: number
   /** Continues left after a game over (`rules.continues` per run). */
@@ -87,7 +91,11 @@ interface GameState {
   /** Starts a new run at a level (from the menu); goes through the loading screen. */
   startRun: (levelIndex: number) => void
   /** Starts a Forge sandbox fight in a generated level (through the loading screen). */
-  startSandbox: (level: Level) => void
+  startSandbox: (level: Level, origin?: PlaytestOrigin) => void
+  /** Mid-sandbox: open the Forge over the paused fight. */
+  editPlaytest: () => void
+  /** Close the Forge and carry on with the paused fight. */
+  resumePlaytest: () => void
   /** Leaves the run: back to the menu, or to the Forge from a sandbox. */
   quitRun: () => void
   /** After a level's results: the next level, keeping score and lives. */
@@ -125,9 +133,19 @@ export interface PackSummary {
   enabled: boolean
 }
 
-/** True while the game shouldn't advance: paused, game over, or level complete. */
-export const isFrozen = (s: Pick<GameState, 'isPaused' | 'isGameOver' | 'levelProgress'>): boolean =>
-  s.isPaused || s.isGameOver || s.levelProgress.complete
+/**
+ * Where a Forge sandbox came from: the workspace pack, and for a level
+ * playtest the level as it was played and how much of its start was cut off
+ * (`levelFrom`), so a stage position maps back to the level.
+ */
+export interface PlaytestOrigin {
+  packId: string
+  level?: { id: string; def: Level; cut: number }
+}
+
+/** True while the game shouldn't advance: paused, editing in the Forge, game over, or level complete. */
+export const isFrozen = (s: Pick<GameState, 'isPaused' | 'isGameOver' | 'levelProgress'> & { editing?: boolean }): boolean =>
+  s.isPaused || !!s.editing || s.isGameOver || s.levelProgress.complete
 
 /** Everything a level starts with; the scene remounts on the new `gameId`. */
 const freshLevel = (state: GameState): Partial<GameState> => ({
@@ -168,6 +186,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   contentError: null,
   levelIndex: 0,
   sandbox: null,
+  playtest: null,
+  editing: false,
   lives: getConfig().rules.lives,
   continuesLeft: getConfig().rules.continues,
   respawnCount: 0,
@@ -247,6 +267,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       ...freshRun(),
       // Keep a menu screen; restarting from the game goes back to playing.
       gameScreen: state.gameScreen === 'menu' || state.gameScreen === 'forge' ? state.gameScreen : 'playing',
+      editing: false,
     })),
 
   startRun: (levelIndex) =>
@@ -255,11 +276,25 @@ export const useGameStore = create<GameState>((set, get) => ({
       ...freshRun(),
       levelIndex: Math.max(0, Math.min(getLevels().length - 1, levelIndex)),
       sandbox: null,
+      playtest: null,
+      editing: false,
       gameScreen: 'loading',
     })),
 
-  startSandbox: (level) =>
-    set((state) => ({ ...freshLevel(state), ...freshRun(), levelIndex: 0, sandbox: level, gameScreen: 'loading' })),
+  startSandbox: (level, origin) =>
+    set((state) => ({
+      ...freshLevel(state),
+      ...freshRun(),
+      levelIndex: 0,
+      sandbox: level,
+      playtest: origin ?? null,
+      editing: false,
+      gameScreen: 'loading',
+    })),
+
+  editPlaytest: () => set((state) => (state.sandbox && state.gameScreen === 'playing' ? { editing: true, isPaused: false } : {})),
+
+  resumePlaytest: () => set({ editing: false }),
 
   quitRun: () =>
     set((state) => ({
@@ -267,6 +302,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       ...freshRun(),
       gameScreen: state.sandbox ? 'forge' : 'menu',
       sandbox: null,
+      playtest: null,
+      editing: false,
     })),
 
   nextLevel: () =>
@@ -334,6 +371,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setGameScreen: (screen) =>
     set({
       gameScreen: screen,
+      editing: false,
     }),
 
   requestAttackToken: (id) => {

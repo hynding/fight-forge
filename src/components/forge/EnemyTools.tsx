@@ -74,7 +74,7 @@ export const EnemyTools = ({ pack, node, save, onError, invalid }: Props) => {
     const r = await installBundle(await exportBundle(pack))
     setBusy(false)
     if (!r.ok) return onError(describeErrors(r.errors))
-    startSandbox(sandboxLevel(type, count))
+    startSandbox(sandboxLevel(type, count), { packId: pack.id })
   }
 
   return (

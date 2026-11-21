@@ -64,7 +64,7 @@ export const HUD = () => {
   // The hitbox key (H by default) toggles the debug overlay.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (actionForKey(e.key) === 'hitboxes' && !e.repeat) useGameStore.getState().toggleHitboxes()
+      if (actionForKey(e.key) === 'hitboxes' && !e.repeat && !useGameStore.getState().editing) useGameStore.getState().toggleHitboxes()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -89,6 +89,29 @@ export const HUD = () => {
       fontFamily: 'monospace',
       userSelect: 'none',
     }}>
+      {sandbox && (
+        <button
+          onClick={() => useGameStore.getState().editPlaytest()}
+          title="Open the Forge over this fight; come back to it with your changes"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            pointerEvents: 'auto',
+            padding: '6px 12px',
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            background: 'rgba(0, 0, 0, 0.5)',
+            color: '#ffd27a',
+            border: '1px solid #ffd27a',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          ✎ EDIT
+        </button>
+      )}
+
       {/* Health Bar */}
       <div style={{ marginBottom: '10px' }}>
         <div style={{ fontSize: '14px', marginBottom: '5px' }}>

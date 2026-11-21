@@ -6,6 +6,7 @@ import {
   addObject,
   addSegment,
   getObject,
+  levelCut,
   levelFrom,
   levelObjects,
   moveObject,
@@ -21,6 +22,7 @@ import {
   type NewObject,
 } from '../../forge/level'
 import { getIn, setIn } from '../../forge/paths'
+import { spawnXOf } from '../../forge/playtest'
 import { nodeValue, overrideNode, type TreeNode } from '../../forge/tree'
 import { baseContent, editPack, exportBundle, type PackJson, type WorkspacePack } from '../../forge/workspace'
 import type { Level, SpawnDef, Trigger } from '../../sim/level'
@@ -65,7 +67,7 @@ export const LevelTools = ({ pack, node, save, onError, invalid, errors }: Props
   const props = merged('props')
   const settings = (section: string) => (getIn(json, ['settings', section]) ?? (baseContent().settings as unknown as Json)[section]) as Json
   const band = (settings('stage').depthBand as [number, number]) ?? [-3, 3]
-  const spawnX = ((settings('player').spawnPosition as number[]) ?? [3])[0]
+  const spawnX = spawnXOf(json)
   const laneH = (band[1] - band[0]) * DPX
 
   const [sel, setSel] = useState<LevelRef | null>(null)
@@ -128,7 +130,7 @@ export const LevelTools = ({ pack, node, save, onError, invalid, errors }: Props
     const r = await installBundle(await exportBundle(pack))
     setBusy(false)
     if (!r.ok) return onError(describeErrors(r.errors))
-    startSandbox(levelFrom(level, cursor, spawnX))
+    startSandbox(levelFrom(level, cursor, spawnX), { packId: pack.id, level: { id: level.id, def: level, cut: levelCut(cursor, spawnX) } })
   }
 
   const objects = levelObjects(level)
