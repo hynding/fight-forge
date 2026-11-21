@@ -592,6 +592,31 @@ describe('key bindings', () => {
     expect(build(defaultPack(), old).settings.feel.bossKo).toEqual(DEFAULT_CONFIG.feel.bossKo)
   })
 
+  it('loads a v10 pack unchanged (projectiles are new and optional)', () => {
+    const old = { ...addon({ moves: { poke: clone(DEFAULT_CONFIG.moves.jab) } }), schemaVersion: 10 }
+    expect(build(defaultPack(), old).moves.poke).toEqual(DEFAULT_CONFIG.moves.jab)
+  })
+
+  it('checks projectiles and the moves that fire them', () => {
+    const moves = base().moves as Record<string, Record<string, unknown>>
+    const knife = (base().projectiles as Record<string, object>).knife
+    const errors = errorsOf(
+      base(),
+      addon({
+        projectiles: { dart: { ...knife, hitSound: 'nope' } },
+        moves: {
+          toss: { ...moves.knifeThrow, projectile: { id: 'missing', from: [0.5, 0] } },
+          both: { ...moves.throwForward, projectile: { id: 'dart', from: [0.5, 0] } },
+        },
+      })
+    )
+    expect(errors.map((e) => `${e.path}: ${e.message}`).sort()).toEqual([
+      'moves.both: a move can\'t both "throw" a held enemy and fire a "projectile"',
+      'moves.toss.projectile.id: unknown projectile "missing"',
+      'projectiles.dart.hitSound: unknown sound "nope"',
+    ])
+  })
+
   it('gives a v4 pack the analog and rumble defaults', () => {
     const { rumble: _r, ...feel } = DEFAULT_CONFIG.feel
     void _r

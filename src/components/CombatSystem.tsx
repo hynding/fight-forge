@@ -7,20 +7,13 @@ import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { useFeel, useSimSystem } from '../sim/simContext'
 import { boxesOverlap, hitboxWorld, knockbackDirection } from '../sim/combat'
-import { interruptMove, movePhase } from '../sim/moves'
-import { applyBlockstun, applyHit, isInvulnerable } from '../sim/reactions'
-import { blockedHit, facesAttacker, isDodging } from '../sim/defense'
-import { rollDrop } from '../sim/pickups'
-import { poiseHit } from '../sim/boss'
-import { hurtEnemy } from './enemyDamage'
-import { combatTargets, scaledDamage } from '../sim/rules'
-import { propBox } from '../sim/props'
+import { movePhase } from '../sim/moves'
+import { isInvulnerable } from '../sim/reactions'
+import { isDodging } from '../sim/defense'
+import { hitProps, landHit, PLAYER } from './landHit'
+import { combatTargets } from '../sim/rules'
 import type { FighterRuntime } from '../sim/fighter'
 import { playSound } from '../audio/engine'
-import { feelHit, rumbleFor } from '../sim/feel'
-import { rumble } from '../input/gamepads'
-
-const PLAYER = 'player'
 
 interface CombatSystemProps {
   playerRef: RefObject<RapierRigidBody>
@@ -74,8 +67,9 @@ export const CombatSystem = ({
       if (!moveName) return
       const move = getConfig().moves[moveName]
       if (movePhase(move, attacker.move.time) !== 'active') return
-      // A throw's effect is the throw (GrabSystem); its hitbox hits nothing.
-      if (move.throw) return
+      // A throw's effect is the throw (GrabSystem), a projectile's the projectile
+      // (ProjectileSystem); their hitboxes hit nothing.
+      if (move.throw || move.projectile) return
 
       // Read live store state; a render-time snapshot can lag the store by frames.
       const store = useGameStore.getState()
@@ -108,79 +102,22 @@ export const CombatSystem = ({
         record.targets.add(targetName)
         if (isInvulnerable(target.reaction) || isDodging(target.dodge)) continue
 
-        const dir = knockbackDirection(a.x, t.x, attacker.facing.x)
-        const v = targetBody.linvel()
-        let damage = move.damage
-        let reaction = move.reaction
-        const audio = getConfig().audio
-        const guarded = target.blocking && facesAttacker(target.facing.x, t.x, a.x)
-        if (guarded) playSound(audio.block)
-        else playSound(targetName === PLAYER ? (audio.hurt ?? move.hitSound ?? audio.hit) : (move.hitSound ?? audio.hit))
-        if (guarded) {
-          const blocked = blockedHit(move, getConfig().actions.block)
-          damage = blocked.damage
-          applyBlockstun(target.reaction, blocked.blockstun)
-          target.velocity = { x: dir * blocked.knockbackX, z: 0 }
-          targetBody.setLinvel({ x: dir * blocked.knockbackX, y: v.y, z: 0 }, true)
-          interruptMove(target.move)
-        } else {
-          // A boss's poise turns early knockdowns into staggers.
-          reaction = target.poise ? poiseHit(target.poise.state, target.poise.config, move.reaction) : move.reaction
-          if (reaction.knockdown || reaction.hitstun > target.armor) {
-            applyHit(target.reaction, reaction, getConfig().reactions)
-            const kb = reaction.knockback
-            target.velocity = { x: dir * kb.x, z: 0 }
-            targetBody.setLinvel({ x: dir * kb.x, y: kb.y > 0 ? kb.y : v.y, z: 0 }, true)
-            interruptMove(target.move)
-          }
-          // Otherwise super armor: the target takes the damage without flinching.
-        }
-
-        // Hit-stop, shake, sparks, dust and the damage number.
-        const shown = targetName === PLAYER ? scaledDamage(damage, rules.difficulty.damageTaken) : damage
-        const enemy = targetName === PLAYER ? undefined : store.enemies.find((e) => e.id === targetName)
-        const knockedOut = !!enemy && enemy.health - damage <= 0
-        feelHit(feel, getConfig().feel, {
-          at: { x: (hitbox.center.x + t.x) / 2, y: hitbox.center.y, z: t.z + 0.3 },
-          feet: { x: t.x, y: t.y - target.hurtbox.y, z: t.z },
-          damage: shown,
-          guarded,
-          toPlayer: targetName === PLAYER,
-          down: (!guarded && !!reaction.knockdown) || knockedOut,
+        landHit(feel, {
+          attacker: attackerName,
+          target: targetName,
+          targetRuntime: target,
+          targetBody,
+          fromX: a.x,
+          dirX: knockbackDirection(a.x, t.x, attacker.facing.x),
+          damage: move.damage,
+          reaction: move.reaction,
+          hitSound: move.hitSound,
+          at: { x: hitbox.center.x, y: hitbox.center.y },
         })
-        const feelSettings = getConfig().feel
-        rumble(
-          rumbleFor(feelSettings, { damage: shown, toPlayer: targetName === PLAYER, byPlayer: attackerName === PLAYER, ko: knockedOut }),
-          feelSettings.rumble.duration
-        )
-
-        if (damage <= 0) continue
-        // The special meter fills from hits the player lands and takes.
-        const meter = rules.meter
-        if (attackerName === PLAYER) store.gainMeter(damage * meter.perDamageDealt)
-        if (targetName === PLAYER) store.gainMeter(shown * meter.perDamageTaken)
-        if (targetName === PLAYER) {
-          if (shown > 0) store.damagePlayer(shown)
-        } else {
-          hurtEnemy(targetName, damage, t)
-        }
       }
 
       // The player's attacks also break breakable props (once per move instance).
-      if (attackerName === PLAYER) {
-        const config = getConfig()
-        const floorTop = config.stage.floorThickness / 2
-        for (const prop of useGameStore.getState().props) {
-          const def = config.props[prop.prop]
-          if (!def?.breakable || record.targets.has(prop.id)) continue
-          if (!boxesOverlap(hitbox, propBox(prop, def, floorTop))) continue
-          record.targets.add(prop.id)
-          playSound(move.hitSound ?? config.audio.hit)
-          if (!useGameStore.getState().damageProp(prop.id, move.damage)) continue
-          const dropped = rollDrop(def.breakable.drop)
-          if (dropped) useGameStore.getState().spawnPickup({ id: `drop-${prop.id}`, pickup: dropped, x: prop.x, z: prop.z })
-        }
-      }
+      if (attackerName === PLAYER) hitProps(hitbox, record.targets, move.damage, move.hitSound)
     })
   })
 

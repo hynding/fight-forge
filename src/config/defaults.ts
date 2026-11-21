@@ -11,6 +11,7 @@ import type { DropDef, PickupDef } from '../sim/pickups'
 import type { ActionSettings, DeviceBindings } from '../sim/input'
 import type { BackdropLayer } from '../sim/backdrop'
 import type { PropDef } from '../sim/props'
+import type { ProjectileDef } from '../sim/projectiles'
 import type { AudioSettings, MusicDef, SoundDef } from '../audio/types'
 import type { FeelSettings } from '../sim/feel'
 
@@ -247,6 +248,8 @@ export interface GameConfig {
   themes: Record<string, ThemeDef>
   /** Stage objects by id (crates, barrels, walls, platforms), placed by levels. */
   props: Record<string, PropDef>
+  /** Things moves throw (knives, barrels) by id. */
+  projectiles: Record<string, ProjectileDef>
   /** Hit-stop, screen shake, sparks, dust and damage numbers. */
   feel: FeelSettings
   /** Which sound plays for each game event. */

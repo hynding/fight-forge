@@ -26,5 +26,12 @@
     "standOff": 0.8,
     "attackFrom": "behind",
     "farReach": 5
+  },
+  "thrower": {
+    "approach": "beside",
+    "reach": 1.5,
+    "standOff": 3.5,
+    "attackFrom": "any",
+    "farReach": 8
   }
 }

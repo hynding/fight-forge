@@ -11,6 +11,8 @@ import { HUD } from './HUD'
 import { PauseMenu } from './PauseMenu'
 import { CombatSystem } from './CombatSystem'
 import { GrabSystem } from './GrabSystem'
+import { Projectiles } from './Projectiles'
+import { createProjectileWorld } from '../sim/projectiles'
 import { PerfMonitor } from './PerfMonitor'
 import { HealthBars } from './HealthBars'
 import { ModelBudgetDriver } from './ModelBudgetDriver'
@@ -64,6 +66,8 @@ export const GameScene = () => {
   const [modelBudget] = useState(createModelBudget)
   // Boss phase summons, spawned by the LevelDirector.
   const [summons] = useState<SummonRequest[]>(() => [])
+  // Projectiles in flight (knives, barrels): scene state, like the summons.
+  const [projectiles] = useState(createProjectileWorld)
   // Keyboard (and later mouse and gamepad) input, sampled once per sim step.
   const [input] = useState(() => new InputManager())
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -76,6 +80,7 @@ export const GameScene = () => {
   useEffect(() => {
     sceneProbe.playerX = () => playerPositionRef.current.x
     sceneProbe.runtime = (name) => runtimes.get(name) ?? null
+    sceneProbe.projectiles = () => projectiles.list
     sceneProbe.position = (name) => {
       const body = name === 'player' ? playerRef.current : enemyRefs.current.get(name)?.current
       if (!body) return null
@@ -86,8 +91,9 @@ export const GameScene = () => {
       sceneProbe.playerX = () => null
       sceneProbe.runtime = () => null
       sceneProbe.position = () => null
+      sceneProbe.projectiles = () => []
     }
-  }, [runtimes])
+  }, [runtimes, projectiles])
   // The level's music loops while the scene is up, quieter while it's frozen (paused, results, editing).
   useEffect(() => {
     playMusic(LEVEL.music)
@@ -196,6 +202,7 @@ export const GameScene = () => {
             playerPositionRef={playerPositionRef}
           />
           <GrabSystem playerRef={playerRef} runtimes={runtimes} enemyRefs={enemyRefs.current} />
+          <Projectiles world={projectiles} playerRef={playerRef} runtimes={runtimes} enemyRefs={enemyRefs.current} stageLength={STAGE_LENGTH} />
           <Pickups playerPositionRef={playerPositionRef} />
         </ScenePhysics>
         <Effects />

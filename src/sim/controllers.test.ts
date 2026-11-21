@@ -192,6 +192,18 @@ describe('far attacks', () => {
     expect(enemyIntent({ ...ctx({ x: 4, z: 0 }, [], true), farAttack: true }, fighting(), AI, BRAWLER, SIM_STEP).attack).toBe(false)
   })
 
+  it('keeps a thrower at its distance: it waits at its spot and throws when ready', () => {
+    const THROWER = DEFAULT_CONFIG.ai.thrower
+    const spot = THROWER.reach * THROWER.standOff
+    // Far away: walk in toward the spot.
+    expect(enemyIntent(ctx({ x: spot + 3, z: 0 }), fighting(), AI, THROWER, SIM_STEP).move.x).toBeCloseTo(-1)
+    // At the spot with nothing ready: stand still instead of jittering.
+    const waiting = enemyIntent(ctx({ x: spot, z: 0 }), fighting(), AI, THROWER, SIM_STEP)
+    expect(waiting.move).toEqual({ x: 0, z: 0 })
+    expect(waiting.attack).toBe(false)
+    expect(enemyIntent({ ...ctx({ x: spot, z: 0 }), farAttack: true }, fighting(), AI, THROWER, SIM_STEP).attack).toBe(true)
+  })
+
   it('tells near from far, and an archetype without farReach has no far band', () => {
     expect(attackRangeAt(ctx({ x: 1, z: 0 }), AI, BRAWLER)).toBe('near')
     expect(attackRangeAt(ctx({ x: 4, z: 0 }), AI, BRAWLER)).toBe('far')

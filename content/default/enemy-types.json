@@ -126,6 +126,48 @@
       }
     }
   },
+  "THROWER": {
+    "maxHealth": 35,
+    "scale": 0.9,
+    "speed": 2.2,
+    "aggression": 1,
+    "ai": "thrower",
+    "attacks": [
+      {
+        "move": "knifeThrow",
+        "range": "far",
+        "weight": 1,
+        "cooldown": 2.5
+      },
+      {
+        "move": "enemyPunch",
+        "range": "near",
+        "weight": 1
+      }
+    ],
+    "color": "#33ccdd",
+    "model": {
+      "kind": "gltf",
+      "url": "/models/robot-expressive.glb",
+      "scale": 0.4,
+      "offset": [0, -1, 0],
+      "rotationY": 3.141592653589793,
+      "tintMaterials": ["Main"],
+      "clips": {
+        "idle": "Idle",
+        "walk": "Walking",
+        "run": "Running",
+        "jump": "Jump",
+        "attack": "Punch",
+        "knockdown": "Death",
+        "getup": {
+          "name": "Standing",
+          "speed": 1
+        },
+        "dead": "Death"
+      }
+    }
+  },
   "HARV": {
     "maxHealth": 400,
     "scale": 1.6,
@@ -202,6 +244,31 @@
           "aggression": 2,
           "armor": 0.8,
           "color": "#ff4422",
+          "attacks": [
+            {
+              "move": "bossSwipe",
+              "range": "near",
+              "weight": 3
+            },
+            {
+              "move": "bossSlam",
+              "range": "near",
+              "weight": 1,
+              "cooldown": 5
+            },
+            {
+              "move": "bossCharge",
+              "range": "far",
+              "weight": 1,
+              "cooldown": 4
+            },
+            {
+              "move": "bossBarrel",
+              "range": "far",
+              "weight": 2,
+              "cooldown": 2.5
+            }
+          ],
           "taunt": "roar"
         }
       ]

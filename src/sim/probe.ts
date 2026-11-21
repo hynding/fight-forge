@@ -5,6 +5,7 @@
 
 import type { FighterRuntime } from './fighter'
 import type { PerfSnapshot } from './perf'
+import type { Projectile } from './projectiles'
 
 export const sceneProbe: {
   playerX: () => number | null
@@ -13,9 +14,12 @@ export const sceneProbe: {
   position: (name: string) => { x: number; z: number } | null
   /** Frame times and renderer counts (PerfMonitor). */
   perf: () => PerfSnapshot | null
+  /** Projectiles in flight. */
+  projectiles: () => readonly Projectile[]
 } = {
   playerX: () => null,
   runtime: () => null,
   position: () => null,
   perf: () => null,
+  projectiles: () => [],
 }

@@ -4,6 +4,7 @@
 
 import type { ClipRef } from './animation'
 import type { ThrowDef } from './grab'
+import type { ProjectileFire } from './projectiles'
 
 // Float slack so phase boundaries land on whole 60 Hz steps.
 const EPSILON = 1e-9
@@ -65,6 +66,8 @@ export interface MoveDef {
   sound?: string
   /** Sound id played when it lands, instead of the audio settings' `hit`. */
   hitSound?: string
+  /** Fires a projectile as the active frames begin; the move's own hitbox then hits nothing. */
+  projectile?: ProjectileFire
 }
 
 export type MoveSet = Record<string, MoveDef>

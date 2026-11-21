@@ -157,6 +157,8 @@ export const MIGRATIONS: MigrationTable = {
     if (!settings?.feel) return pack
     return { ...pack, settings: { ...settings, feel: { bossKo: BOSS_KO_V10, ...(settings.feel as Json) } } }
   },
+  // v11: projectiles. The `projectiles` record and a move's `projectile` are new and optional.
+  10: (pack) => pack,
 }
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }

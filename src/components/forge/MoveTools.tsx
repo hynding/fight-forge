@@ -143,6 +143,13 @@ export const MoveTools = ({ pack, node, save }: Props) => {
         <div>
           <div style={sectionHeading}>HITBOX (DRAG TO MOVE, CORNER TO RESIZE)</div>
           <HitboxEditor hitbox={hb} hurt={half} active={phase === 'active'} onChange={setHitbox} />
+          {(!!move.projectile || !!move.throw) && (
+            <div data-testid="move-fires" style={{ color: '#d9b44a', maxWidth: '300px', marginTop: '4px' }}>
+              {move.projectile
+                ? `Fires the projectile "${(move.projectile as { id?: string }).id}" as the active frames begin; this hitbox hits nothing.`
+                : 'Throws the held enemy as the active frames begin; this hitbox hits nothing.'}
+            </div>
+          )}
         </div>
         <div>
           <div style={sectionHeading}>ANIMATION</div>

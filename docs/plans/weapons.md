@@ -1,6 +1,6 @@
 # Plan: weapons and throwables
 
-Status: **proposed** (2026-11-21). Expands the Phase 6 stretch goal "Weapons and throwables: pickup items with their own movesets" (picked by Steve on 2026-11-21) into three PRs. Nothing here is built yet. The choices only Steve can make are in [section 8](#8-decisions-for-steve).
+Status: **in progress**. Expands the Phase 6 stretch goal "Weapons and throwables: pickup items with their own movesets" (picked by Steve on 2026-11-21) into three PRs. Steve took every recommendation in [section 8](#8-decisions-for-steve) on 2026-11-21. W1 (projectiles) is built; W2 and W3 are next.
 
 ## 1. Goal
 
@@ -40,7 +40,9 @@ A **projectile** is a hitbox with its own position and velocity, defined in a ne
 - **Flight:** pure stepping in `src/sim/projectiles.ts` (position, velocity, gravity, lifetime), run by a `projectiles` sim system after `combat`. Projectiles are store-free scene state, like the summon queue, and drawn with one instanced mesh per shape.
 - **Hits:** a projectile hits each target once, then stops, unless `pierce` lets it carry on. It uses the same rules as melee: guarding from the front blocks it with chip damage, dodging passes through, knocked-down fighters can't be hit, and boss poise applies.
 - **Who it hits:** the player's projectiles hit enemies and breakable props. An enemy's projectile hits the player if the enemy held an attack token (or had its own slot) when it fired, so ranged enemies still respect the attacker limit. A projectile keeps that permission until it lands, even after the token is released.
-- **Leaving the screen:** a projectile is removed when its lifetime runs out, it leaves the stage, or it hits the floor.
+- **Leaving the screen:** a projectile is removed when its lifetime runs out, it leaves the stage, or it hits the floor. A solid prop (a wall, a crate) stops it too.
+
+As built in W1: shapes are `box`, `cylinder` and `sphere`; a glTF model for a projectile comes with W2, where a thrown weapon flies with its own model. A move that fires a projectile (like a throw) has a hitbox that hits nothing.
 
 This is the system the bosses plan deferred (its decision 4): a boss attack can now be a `far` move that throws something.
 
@@ -100,15 +102,15 @@ Each is one PR, in order. Schema v11 is introduced in W1 and v12 in W2.
 | --- | --- | --- | --- |
 | **W1** | Projectiles | • Schema v11: `projectiles` record, move `projectile`<br>• `src/sim/projectiles.ts` (pure, tested) and the `projectiles` sim system, instanced drawing<br>• Token rules for enemy projectiles, blocking, dodging, poise<br>• Default pack: a knife-throwing enemy type (THROWER, a `far` knife attack) in level 1, and BIG HARV's last phase throws barrels<br>• Forge PROJECTILE card | THROWER throws knives from far range that can be blocked and dodged, and HARV's barrels fly in phase 3. Unit tests cover flight, hits, pierce and token rules. |
 | **W2** | Weapons | • Schema v12: `weapons` record, weapon pickups, enemy `weapon`, prop `liftable`<br>• Pick up, hold (weapon moveset first), durability, drop on knockdown, throw, lift and throw props<br>• HUD weapon icon and durability, pick-up prompt<br>• Default pack: lead pipe and knife placed in both levels and in some crates; barrels become liftable; a few enemies start armed | The player can pick up the pipe, use its moves until it breaks, take a knife from an enemy and throw it, and throw a barrel into a group. The headless check does each of these. |
-| **W3** | Forge weapon tools | • WEAPON card with the in-hand preview and moveset table<br>• "▶ Fight with it" sandbox<br>• Projectile flight-path preview<br>• Level editor weapon icons and liftable badges<br>• CLAUDE.md updated | A creator can make a new throwable weapon from an existing projectile and try it in the sandbox in under a minute, without touching JSON. |
+| **W3** | Forge weapon tools | • WEAPON card with the in-hand preview and moveset table<br>• "▶ Fight with it" sandbox, and "▶ Try it" on the PROJECTILE card<br>• Level editor weapon icons and liftable badges<br>• CLAUDE.md updated | A creator can make a new throwable weapon from an existing projectile and try it in the sandbox in under a minute, without touching JSON. |
 
-W1 is useful on its own: ranged enemies and boss projectiles. W2 needs W1 for throwing. W3's projectile card could land with W1 if review prefers smaller PRs.
+W1 is useful on its own: ranged enemies and boss projectiles. W2 needs W1 for throwing. W1 shipped the PROJECTILE card with its flight-path side view; its "▶ Try it" lands with W3's weapon sandbox.
 
 **Testing:** projectile flight and hits, weapon moveset precedence, durability, drops and lifting are pure modules with Vitest tests. Registry tests cover unknown projectiles, weapons and moves, a weapon pickup naming a missing weapon, and a liftable prop naming a non-weapon. Headless Playwright checks pick up, use, break and throw weapons with the default controls.
 
 ## 8. Decisions for Steve
 
-Recommendations first. Decisions 1 and 2 shape W2; the others can change later.
+Recommendations first. Decisions 1 and 2 shape W2; the others can change later. **Decided 2026-11-21: Steve took all five recommendations.**
 
 1. **How to pick a weapon up.** Recommended: press attack while standing on it, the classic arcade way, with no new button. Alternatives: walk over it to pick it up automatically (easy, but you can't walk past a weapon you don't want), or a dedicated pick-up button.
 2. **How a weapon's moves combine with yours.** Recommended: the weapon brings its own moveset rows, tried before yours, so a pipe combo replaces the punch combo but jumping, grabbing and specials still work. The alternative is `when: "armed"` rows in the player's own moveset, which is more flexible for one pack but means every weapon fights the same way.

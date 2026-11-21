@@ -11,7 +11,7 @@ import { DIRECTIONS, MOVESET_ACTIONS, SITUATIONS } from '../sim/moveset'
 import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 10
+export const SCHEMA_VERSION = 11
 
 // ---------------------------------------------------------------- primitives
 
@@ -196,6 +196,27 @@ export const moveSchema = z
       })
       .strict()
       .optional(),
+    /** Fires a projectile as the active frames begin, from [forward, up] off the attacker's centre. */
+    projectile: z.object({ id: idSchema, from: z.tuple([finite, finite]) }).strict().optional(),
+  })
+  .strict()
+
+/** A hitbox with its own position and velocity, fired by a move's `projectile`. */
+export const projectileSchema = z
+  .object({
+    shape: z.enum(['box', 'cylinder', 'sphere']),
+    size: z.tuple([positive, positive, positive]),
+    color,
+    speed: nonNegative,
+    lift: finite,
+    gravity: nonNegative,
+    hitbox: z.object({ halfX: positive, halfY: positive, halfZ: positive }).strict(),
+    damage: nonNegative,
+    reaction: hitReactionSchema,
+    lifetime: positive,
+    pierce: z.number().int().nonnegative().optional(),
+    hitSound: idSchema.optional(),
+    spin: finite.optional(),
   })
   .strict()
 
@@ -611,6 +632,7 @@ export const packSchema = z
     assets: z.array(assetSchema).default([]),
     settings: settingsSchema.partial().default({}),
     moves: z.record(idSchema, moveSchema).default({}),
+    projectiles: z.record(idSchema, projectileSchema).default({}),
     ai: z.record(idSchema, aiBehaviorSchema).default({}),
     enemyTypes: z.record(idSchema, enemyTypeSchema).default({}),
     pickups: z.record(idSchema, pickupSchema).default({}),
@@ -628,6 +650,7 @@ export const packSchema = z
 export type AssetDef = z.infer<typeof assetSchema>
 export type ModelRefDef = z.infer<typeof modelRefSchema>
 export type MoveDefData = z.infer<typeof moveSchema>
+export type ProjectileDefData = z.infer<typeof projectileSchema>
 export type AiBehaviorDef = z.infer<typeof aiBehaviorSchema>
 export type PickupDefData = z.infer<typeof pickupSchema>
 export type EnemyTypeData = z.infer<typeof enemyTypeSchema>

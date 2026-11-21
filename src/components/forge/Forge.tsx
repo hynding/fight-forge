@@ -26,6 +26,7 @@ import { BossTools } from './BossTools'
 import { LevelTools } from './LevelTools'
 import { FighterTools } from './FighterTools'
 import { MoveTools } from './MoveTools'
+import { ProjectileTools } from './ProjectileTools'
 import { SoundTools } from './SoundTools'
 import { PackInfoTools } from './PackInfoTools'
 import { PublishTools } from './PublishTools'
@@ -415,6 +416,7 @@ export const Forge = () => {
                 <MoveTools key={node.key} pack={pack} node={node} save={(wp) => put(wp, false)} />
               </div>
             )}
+            {node.group === 'projectiles' && <ProjectileTools key={node.key} pack={pack} node={node} />}
             {node.group === 'pack' && <PackInfoTools pack={pack} save={(wp) => put(wp)} onError={(text) => setMessage({ text, error: true })} />}
             {node.group === 'pack' && apiEnabled() && <PublishTools key={pack.id} pack={pack} save={(wp) => put(wp)} invalid={errors.length > 0} />}
             {node.key === 'settings/input' && <BindingsTools key={node.key} pack={pack} node={node} save={(wp) => put(wp)} />}
