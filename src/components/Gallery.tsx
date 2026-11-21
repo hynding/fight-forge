@@ -2,7 +2,10 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { getLevels } from '../content/active'
 import { describeErrors, installBundle } from '../content/library'
 import { readBundle } from '../content/bundle'
-import { coverUrl, fetchBundle, linkedPack, listPacks, packDetail, shareLink, type PackDetail, type PublishedPack } from '../net/api'
+import { coverUrl, fetchBundle, linkedPack, listPacks, packDetail, setLike, shareLink, type GallerySort, type PackDetail, type PublishedPack } from '../net/api'
+import { isUpdated, loadPlayed, recordPlayed } from '../net/played'
+import { remixBundle } from '../forge/workspace'
+import { forgeFocus, workspaceStore } from '../forge/storage'
 import { useGameStore } from '../store/gameStore'
 
 const PAGE = 24
@@ -32,7 +35,8 @@ export const Gallery = () => {
   const startRun = useGameStore((s) => s.startRun)
   const [q, setQ] = useState('')
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<'new' | 'name'>('new')
+  const [sort, setSort] = useState<GallerySort>('new')
+  const [played, setPlayed] = useState(loadPlayed)
   const [owner, setOwner] = useState<string | null>(null)
   const [packs, setPacks] = useState<PublishedPack[] | null>(null)
   const [more, setMore] = useState(false)
@@ -79,7 +83,21 @@ export const Gallery = () => {
     const read = await readBundle(zip)
     const own = read.ok ? read.value.pack.levels.map((l) => l.id) : []
     const at = getLevels().findIndex((l) => own.includes(l.id))
+    setPlayed(recordPlayed(id, version))
     startRun(Math.max(0, at))
+  }
+
+  /** Copy a published pack into the Forge as the reader's own, crediting the original. */
+  const remix = async (p: PublishedPack, version: string) => {
+    const zip = await fetchBundle(p.id, version)
+    const store = workspaceStore()
+    const taken = (await store.list()).map((w) => w.id)
+    const r = await remixBundle(zip, { id: p.id, version, name: p.name, owner: p.owner }, taken)
+    if (!r.ok) throw new Error(describeErrors(r.errors))
+    await store.put(r.value)
+    forgeFocus.packId = r.value.id
+    forgeFocus.nodeKey = 'pack'
+    setGameScreen('forge')
   }
 
   const back = () => {
@@ -109,8 +127,9 @@ export const Gallery = () => {
         </button>
         <div style={{ fontSize: '20px', fontWeight: 'bold', letterSpacing: '6px', marginRight: '10px' }}>PACKS</div>
         <input aria-label="Search packs" placeholder="Search…" style={{ ...input, width: '240px' }} value={q} onChange={(e) => setQ(e.target.value)} />
-        <select aria-label="Sort" style={input} value={sort} onChange={(e) => setSort(e.target.value as 'new' | 'name')}>
+        <select aria-label="Sort" style={input} value={sort} onChange={(e) => setSort(e.target.value as GallerySort)}>
           <option value="new">Newest</option>
+          <option value="likes">Most liked</option>
           <option value="name">By name</option>
         </select>
         {owner && (
@@ -137,9 +156,16 @@ export const Gallery = () => {
           >
             <Cover pack={p} height={124} />
             <div style={{ padding: '8px 10px' }}>
-              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{p.name}</div>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'baseline' }}>
+                <span style={{ fontWeight: 'bold', fontSize: '14px', flex: 1 }}>{p.name}</span>
+                {isUpdated(played, p.id, p.version) && (
+                  <span data-testid="updated-badge" title="A newer version than you played" style={{ color: '#12131f', background: '#ffd27a', borderRadius: '3px', padding: '0 4px', fontSize: '11px' }}>
+                    UPDATED
+                  </span>
+                )}
+              </div>
               <div style={{ color: '#889' }}>
-                v{p.version} · by {p.owner}
+                v{p.version} · by {p.owner} · ♥ {p.likes}
               </div>
               {p.description && (
                 <div style={{ color: '#aab', marginTop: '4px', maxHeight: '3.6em', overflow: 'hidden' }}>{p.description}</div>
@@ -156,7 +182,10 @@ export const Gallery = () => {
 
       {openId && (
         <PackPage
+          key={openId}
           id={openId}
+          onOpen={setOpenId}
+          onRemix={remix}
           onClose={() => setOpenId(null)}
           onOwner={(name) => {
             setOwner(name)
@@ -195,8 +224,12 @@ const PackPage = ({
   onClose,
   onOwner,
   onPlay,
+  onOpen,
+  onRemix,
 }: {
   id: string
+  onOpen: (id: string) => void
+  onRemix: (pack: PublishedPack, version: string) => Promise<void>
   onClose: () => void
   onOwner: (name: string) => void
   onPlay: (id: string, version: string) => Promise<void>
@@ -205,6 +238,7 @@ const PackPage = ({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
 
   useEffect(() => {
     let live = true
@@ -218,6 +252,24 @@ const PackPage = ({
 
   const p = detail?.pack
   const latest = detail?.versions[detail.versions.length - 1]
+
+  const toggleLike = () => {
+    if (!detail) return
+    setLike(detail.pack.id, !detail.liked)
+      .then((r) => {
+        if (!r) return setNote('Sign in (in the Forge, under Publish online) to like packs.')
+        setDetail({ ...detail, liked: r.liked, pack: { ...detail.pack, likes: r.likes } })
+      })
+      .catch((e: Error) => setError(e.message))
+  }
+  const run = (task: () => Promise<void>) => {
+    setBusy(true)
+    setError(null)
+    task().catch((e: Error) => {
+      setError(e.message)
+      setBusy(false)
+    })
+  }
 
   return (
     <div
@@ -250,22 +302,39 @@ const PackPage = ({
                 </button>
                 {p.author && p.author !== p.owner && ` · credited to ${p.author}`}
               </div>
+              {detail.remixOf && (
+                <div style={{ color: '#aab', marginBottom: '10px' }} data-testid="remix-of">
+                  Remix of{' '}
+                  <button style={{ ...button, padding: '0 6px', color: '#ffd27a', border: 'none' }} onClick={() => onOpen(detail.remixOf!.id)}>
+                    {detail.remixOf.name}
+                  </button>{' '}
+                  by {detail.remixOf.owner}
+                </div>
+              )}
               {p.description && <div style={{ whiteSpace: 'pre-wrap', marginBottom: '10px' }}>{p.description}</div>}
               <div style={{ color: '#889', marginBottom: '12px' }}>License: {latest.license}</div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   style={{ ...button, borderColor: '#ff4444', color: '#ff8080', fontSize: '15px' }}
                   disabled={busy}
-                  onClick={() => {
-                    setBusy(true)
-                    setError(null)
-                    onPlay(p.id, latest.version).catch((e: Error) => {
-                      setError(e.message)
-                      setBusy(false)
-                    })
-                  }}
+                  onClick={() => run(() => onPlay(p.id, latest.version))}
                 >
                   {busy ? 'Loading…' : '▶ Play'}
+                </button>
+                <button
+                  style={{ ...button, ...(detail.liked && { borderColor: '#ff6b9a', color: '#ff9ab8' }) }}
+                  aria-pressed={detail.liked}
+                  onClick={toggleLike}
+                >
+                  {detail.liked ? '♥' : '♡'} {p.likes}
+                </button>
+                <button
+                  style={button}
+                  disabled={busy}
+                  title="Copy this pack into the Forge to make your own version; it keeps credit to this one"
+                  onClick={() => run(() => onRemix(p, latest.version))}
+                >
+                  Remix in Forge
                 </button>
                 <button
                   style={button}
@@ -283,6 +352,7 @@ const PackPage = ({
                 </button>
               </div>
               {error && <pre style={{ color: '#ff7a7a', whiteSpace: 'pre-wrap' }}>{error}</pre>}
+              {note && <div style={{ color: '#ffd27a', marginTop: '8px' }}>{note}</div>}
               <div style={{ color: '#667', marginTop: '14px' }}>
                 Versions:{' '}
                 {[...detail.versions]
@@ -290,6 +360,16 @@ const PackPage = ({
                   .map((v) => `v${v.version} (${new Date(v.created).toLocaleDateString()})`)
                   .join(', ')}
               </div>
+              {detail.remixes.length > 0 && (
+                <div style={{ color: '#889', marginTop: '8px' }} data-testid="remixes">
+                  Remixes:{' '}
+                  {detail.remixes.map((r) => (
+                    <button key={r.id} style={{ ...button, padding: '0 6px', marginRight: '4px' }} onClick={() => onOpen(r.id)}>
+                      {r.name} by {r.owner}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}

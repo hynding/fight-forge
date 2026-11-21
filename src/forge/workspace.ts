@@ -84,6 +84,33 @@ export const importBundle = async (zip: Uint8Array, taken: Iterable<string>, now
   return { ok: true, value: { id, json: { ...(structuredClone(pack) as PackJson), id }, files: byPath, updatedAt: now } }
 }
 
+export interface RemixSource {
+  id: string
+  version: string
+  name: string
+  owner: string
+}
+
+/**
+ * A published pack copied into the workspace to remix: a new id (the original
+ * stays its owner's), version 1.0.0, and `meta.remixOf` crediting the original.
+ */
+export const remixBundle = async (zip: Uint8Array, source: RemixSource, taken: Iterable<string>, now = Date.now()): Promise<Result<WorkspacePack>> => {
+  const r = await importBundle(zip, [], now)
+  if (!r.ok) return r
+  const id = uniqueId(`${slugify(source.id)}-remix`, taken)
+  const json = r.value.json
+  const meta = json.meta as Record<string, unknown>
+  return {
+    ok: true,
+    value: {
+      ...r.value,
+      id,
+      json: { ...json, id, name: `${String(json.name)} (remix)`, version: '1.0.0', meta: { ...meta, remixOf: { ...source } } },
+    },
+  }
+}
+
 /** The pack as a bundle file, ready to share or play. */
 export const exportBundle = (wp: WorkspacePack): Promise<Uint8Array> =>
   writeBundle(wp.json, new Map(Object.entries(wp.files)))

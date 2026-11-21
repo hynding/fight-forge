@@ -6,7 +6,7 @@ import { blankLevel } from '../../forge/level'
 import { planResume, spawnXOf } from '../../forge/playtest'
 import { sceneProbe } from '../../sim/probe'
 import { pathString, setIn } from '../../forge/paths'
-import { workspaceStore } from '../../forge/storage'
+import { forgeFocus as last, workspaceStore } from '../../forge/storage'
 import { GROUPS, addNode, buildTree, nodeValue, overrideNode, removeNode, type TreeNode } from '../../forge/tree'
 import {
   duplicatePack,
@@ -62,8 +62,6 @@ const nodePrefixes = (json: PackJson, node: TreeNode): string[] => {
   return [own, `levels.${String(id)}`]
 }
 
-/** Where the creator was, so coming back from a playtest lands on the same item. */
-const last = { packId: null as string | null, nodeKey: 'pack' }
 
 const errorsFor = (errors: ContentError[], prefixes: string[]) =>
   errors.filter((e) => prefixes.some((p) => e.path === p || e.path.startsWith(`${p}.`) || e.path.startsWith(`${p}[`)))

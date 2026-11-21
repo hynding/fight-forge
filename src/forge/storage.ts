@@ -51,3 +51,6 @@ export const workspaceStore = (): PackStore => {
   if (!store) store = typeof indexedDB === 'undefined' ? memoryStore() : indexedDbStore()
   return store
 }
+
+/** Where the creator was in the Forge, so coming back (from a playtest, or after a remix) lands on that pack and item. */
+export const forgeFocus = { packId: null as string | null, nodeKey: 'pack' }

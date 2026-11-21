@@ -25,6 +25,7 @@ export interface PublishedPack {
   visibility: Visibility
   version: string
   cover: boolean
+  likes: number
   updated: number
 }
 
@@ -89,10 +90,25 @@ export const publishBundle = async (zip: Uint8Array, visibility: Visibility): Pr
 export interface PackDetail {
   pack: PublishedPack
   versions: { version: string; bytes: number; license: string; created: number }[]
+  /** Whether the signed-in reader likes it. */
+  liked: boolean
+  /** The pack this one remixes, while it's there to see. */
+  remixOf: PublishedPack | null
+  remixes: PublishedPack[]
 }
 
-/** The public gallery: newest first or by name, optionally matching words or by one creator. */
-export const listPacks = async (opts: { q?: string; owner?: string; sort?: 'new' | 'name'; offset?: number } = {}): Promise<PublishedPack[]> => {
+export type GallerySort = 'new' | 'name' | 'likes'
+
+/** Like or unlike a pack; null when not signed in. */
+export const setLike = async (id: string, liked: boolean): Promise<{ liked: boolean; likes: number } | null> => {
+  const res = await call(`/packs/${encodeURIComponent(id)}/like`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ liked }) })
+  if (res.status === 401) return null
+  if (!res.ok) throw new Error(`couldn't save the like (${res.status})`)
+  return json(res)
+}
+
+/** The public gallery: newest first, by name or most liked, optionally matching words or by one creator. */
+export const listPacks = async (opts: { q?: string; owner?: string; sort?: GallerySort; offset?: number } = {}): Promise<PublishedPack[]> => {
   const params = new URLSearchParams()
   if (opts.q) params.set('q', opts.q)
   if (opts.owner) params.set('owner', opts.owner)
