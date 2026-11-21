@@ -96,6 +96,8 @@ describe('server', () => {
     const cover = await app.inject({ url: '/packs/big-brawl/cover' })
     expect(cover.headers['content-type']).toBe('image/png')
 
+    expect((await app.inject({ url: '/packs?owner=MAKER' })).json().packs).toHaveLength(1)
+    expect((await app.inject({ url: '/packs?owner=someone' })).json().packs).toHaveLength(0)
     const list = (await app.inject({ url: '/packs?q=fight' })).json()
     expect(list.packs.map((p: { id: string }) => p.id)).toEqual(['big-brawl'])
     expect((await app.inject({ url: '/packs?q=nothing' })).json().packs).toEqual([])

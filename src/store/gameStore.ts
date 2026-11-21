@@ -15,7 +15,7 @@ export interface Enemy {
   position: [number, number, number]
 }
 
-type GameScreen = 'menu' | 'loading' | 'playing' | 'forge'
+type GameScreen = 'menu' | 'loading' | 'playing' | 'forge' | 'gallery'
 
 /** What the HUD shows about the level. Per-frame level state lives in the level runtime. */
 export interface LevelProgress {
@@ -266,7 +266,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       ...freshLevel(state),
       ...freshRun(),
       // Keep a menu screen; restarting from the game goes back to playing.
-      gameScreen: state.gameScreen === 'menu' || state.gameScreen === 'forge' ? state.gameScreen : 'playing',
+      gameScreen: state.gameScreen === 'menu' || state.gameScreen === 'forge' || state.gameScreen === 'gallery' ? state.gameScreen : 'playing',
       editing: false,
     })),
 
