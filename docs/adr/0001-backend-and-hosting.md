@@ -1,6 +1,6 @@
 # ADR 0001: Backend for pack sharing, and hosting the game
 
-- **Status:** Proposed (waiting on Steve's choice of backend)
+- **Status:** Accepted (Steve chose our own small server, 2026-11-21)
 - **Date:** 2026-11-20
 - **Milestone:** M4.1 (unblocks M4.2 to M4.5)
 
@@ -34,26 +34,37 @@ Constraints:
 | Cost at low use | Free tier (pauses after a week idle on free) | Free tier | A small VM, about $5 to $10 a month | Free tier | A small VM |
 | Lock-in | Low: it's Postgres, and it's open source and self-hostable | High | None | Medium | Low |
 
-## Decision (proposed)
+## Decision
 
-**Use Supabase**, unless Steve picks otherwise on the decision card.
+**Run our own small server.** Steve chose it for full control and no lock-in. We accept that we'll run, patch and back it up ourselves. The design keeps that upkeep as small as we can.
 
-- **Accounts:** Supabase Auth with an email magic link, plus GitHub and Google sign-in.
-- **Data:** Postgres tables `profiles`, `packs` (id, owner, visibility, current version), `pack_versions` (version, bundle path, size, hash, license, cover path, created), `likes`, `reports` and `moderation_actions`. Row-level security means:
-  - only an owner writes their packs;
-  - public and unlisted versions are readable by anyone;
-  - private ones are readable only by the owner.
-- **Files:** a `bundles` bucket. Clients upload to a pending path, and only the server moves a bundle to its public path after validating it. Covers are extracted to a public `covers` bucket for the gallery.
-- **Publishing:** an Edge Function `publish-pack`:
-  1. Takes the uploaded bundle.
-  2. Runs the shared `readBundle` and `buildRegistry` code with the default pack.
+- **One process, one box.** A Node (TypeScript) API using Fastify lives in `server/` in this repository and is deployed as one container. It is small enough for the cheapest VM or container host (about $5 a month).
+- **Data in SQLite, files on disk to start.**
+  - SQLite (one file, in WAL mode) holds `users`, `sessions`, `packs` (id, owner, visibility, current version), `pack_versions` (version, size, hash, license, created), `likes`, `reports` and `moderation_actions`.
+  - Bundles and covers are stored as files named by their SHA-256.
+  - Both sit behind small interfaces (`Store`, `Blobs`), so moving to Postgres or S3-compatible storage later is a contained change, not a rewrite.
+  - Backup is a nightly copy of the SQLite file and the blob folder.
+- **Accounts.**
+  - Sign-in is with GitHub (OAuth), plus an email link once there's a mail sender.
+  - No passwords are stored.
+  - A session is an opaque random token in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie. The server keeps only its hash, with an expiry.
+- **Publishing.** `POST /packs/:id/versions` takes a bundle and:
+  1. Requires a signed-in owner.
+  2. Runs the same `readBundle` and `buildRegistry` code the game uses, with the default pack. That code moves into a shared module imported by both the client and the server, so they can't drift.
   3. Enforces `BUNDLE_LIMITS`, a declared license and a version higher than the last.
-  4. Writes the `pack_versions` row.
-  5. On any failure, deletes the upload and returns the same error list the Forge already shows.
+  4. Stores the bundle and extracts the cover.
 
-  The validation code moves into a package both the client and the function import, so the two can't drift.
-- **Gallery:** Postgres full-text search on name, description and author, sorted by newest, most liked or most played.
-- **Client:** `@supabase/supabase-js` is loaded only on the screens that need it (gallery, publish), so the game itself stays a static, offline-capable client. The project URL and the public anon key are build-time variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`). They are meant to be public; security comes from row-level security, not from hiding them. No service-role key is ever in the client or the repository.
+  It returns the same error list the Forge already shows. Uploads are size-capped before parsing, and requests are rate-limited per user and per IP.
+- **Reading.**
+  - `GET /packs` serves the gallery, with search (SQLite FTS5 on name, description and author) and sorting (new, likes, plays).
+  - `GET /packs/:id` and `GET /packs/:id/versions/:v/bundle` serve the details and the bundle.
+  - Public and unlisted packs are readable by anyone; private ones only by their owner.
+  - Bundles are immutable per version, so they're served with long cache headers.
+- **Client.** The game stays a static site. It reaches the API at a build-time `VITE_API_URL`. The server allows that one origin with credentials (CORS). Without an API URL, the sharing screens simply don't appear, so the game still works offline and in forks.
+- **Secrets.** These live only in the server's environment and never in the repository or the client:
+  - the GitHub OAuth client secret;
+  - the session signing key;
+  - mail credentials.
 
 ### Hosting the game
 
@@ -67,14 +78,27 @@ Vercel or Netlify would add preview deploys per PR. That's worth revisiting if r
 
 ## Consequences
 
-- **Steve needs to set things up once:**
-  - Enable Pages (Settings → Pages → Source: GitHub Actions).
-  - Create the Supabase project and share its URL and anon key (M4.2).
-- **Moderation (M4.5)** uses Supabase's dashboard plus a small admin view. Hiding a pack is a flag the RLS policies respect, and every action is logged in `moderation_actions`.
-- **Free-tier projects pause after a week without traffic.** The game still works then, because only the gallery and publishing need the backend. Moving to the paid tier, about $25 a month, removes the pause when it matters.
-- **If Supabase stops fitting**, the data is plain Postgres and the files are plain objects, and the validation code is ours. Moving to our own server is a port, not a rewrite.
+- **Upkeep is ours:** OS and dependency updates, backups, uptime. To keep it small:
+  - one container;
+  - Dependabot for dependency updates;
+  - a health check;
+  - a daily backup job;
+  - `npm audit` in CI.
+- **Steve sets up, once (needed for M4.2 to go live, not to build it):**
+  - a host for the container (e.g. Fly.io, Render, Railway or a small VPS);
+  - a GitHub OAuth app (its client id and secret go into the server's environment);
+  - the API's public URL;
+  - enabling Pages for the game.
+- **Development and tests need no accounts.** The server runs locally with a dev sign-in and temporary SQLite. Its tests run in CI with the rest.
+- **Moderation (M4.5)** is an admin role:
+  - hiding a pack is a flag every read respects;
+  - banning a user ends their sessions;
+  - every action is logged in `moderation_actions`.
+- **Outgrowing one box** means moving SQLite to Postgres and files to object storage behind the existing interfaces, then running more than one API process.
 
-## If another option is chosen
+## Alternatives not taken
 
-- **Firebase:** same plan, with Firestore collections instead of tables and Cloud Functions instead of Edge Functions. Search needs an extra service or a simple prefix index.
-- **Own server:** a small Node API (Fastify) with Postgres and S3-compatible storage. We'd also need auth (e.g. Lucia or Auth.js), hosting, backups and patching.
+- **Supabase** (managed Postgres, auth and storage) was recommended for its lower upkeep. It remains the fallback if running a server becomes a burden; the data model above maps onto it directly.
+- **Firebase**: managed, but NoSQL with weak search and high lock-in.
+- **Cloudflare Workers + D1 + R2**: cheap, but much of the same code is ours anyway, on a more constrained runtime.
+- **PocketBase**: an easy single binary, but its Go/JS hooks would split our validation code from the game's TypeScript.
