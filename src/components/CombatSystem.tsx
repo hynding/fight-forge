@@ -14,6 +14,7 @@ import { rollDrop } from '../sim/pickups'
 import { combatTargets, scaledDamage } from '../sim/rules'
 import { propBox } from '../sim/props'
 import type { FighterRuntime } from '../sim/fighter'
+import { playSound } from '../audio/engine'
 
 const PLAYER = 'player'
 
@@ -83,6 +84,8 @@ export const CombatSystem = ({
       if (!record || record.instance !== attacker.move.instance) {
         record = { instance: attacker.move.instance, targets: new Set() }
         hits.current.set(attackerName, record)
+        // The swing: once per move instance, as its active frames begin.
+        playSound(move.sound)
       }
 
       const rules = getConfig().rules
@@ -101,7 +104,11 @@ export const CombatSystem = ({
         const dir = knockbackDirection(a.x, t.x, attacker.facing.x)
         const v = targetBody.linvel()
         let damage = move.damage
-        if (target.blocking && facesAttacker(target.facing.x, t.x, a.x)) {
+        const audio = getConfig().audio
+        const guarded = target.blocking && facesAttacker(target.facing.x, t.x, a.x)
+        if (guarded) playSound(audio.block)
+        else playSound(targetName === PLAYER ? (audio.hurt ?? move.hitSound ?? audio.hit) : (move.hitSound ?? audio.hit))
+        if (guarded) {
           const blocked = blockedHit(move, getConfig().actions.block)
           damage = blocked.damage
           applyBlockstun(target.reaction, blocked.blockstun)
@@ -124,11 +131,10 @@ export const CombatSystem = ({
         } else {
           const enemy = store.enemies.find((e) => e.id === targetName)
           store.damageEnemy(targetName, damage)
+          const defeated = !!enemy && !useGameStore.getState().enemies.some((e) => e.id === targetName)
+          if (defeated) playSound(audio.ko)
           // Defeated: maybe drop a pickup where it fell.
-          const dropped =
-            enemy && !useGameStore.getState().enemies.some((e) => e.id === targetName)
-              ? rollDrop(getConfig().enemyTypes[enemy.type].drop)
-              : null
+          const dropped = defeated ? rollDrop(getConfig().enemyTypes[enemy.type].drop) : null
           if (dropped) {
             useGameStore
               .getState()
@@ -146,6 +152,7 @@ export const CombatSystem = ({
           if (!def?.breakable || record.targets.has(prop.id)) continue
           if (!boxesOverlap(hitbox, propBox(prop, def, floorTop))) continue
           record.targets.add(prop.id)
+          playSound(move.hitSound ?? config.audio.hit)
           if (!useGameStore.getState().damageProp(prop.id, move.damage)) continue
           const dropped = rollDrop(def.breakable.drop)
           if (dropped) useGameStore.getState().spawnPickup({ id: `drop-${prop.id}`, pickup: dropped, x: prop.x, z: prop.z })

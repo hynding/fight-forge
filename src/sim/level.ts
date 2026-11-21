@@ -63,6 +63,8 @@ export interface Level {
   name: string
   /** Theme id in the content's `themes`: how the stage looks. */
   theme: string
+  /** Music id in the content's `music`, looping while the level plays. */
+  music?: string
   segments: Segment[]
 }
 

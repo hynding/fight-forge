@@ -1,5 +1,6 @@
 {
   "jab": {
+    "sound": "whoosh",
     "startup": 0.05,
     "active": 0.08,
     "recovery": 0.17,
@@ -25,6 +26,7 @@
     "next": "jab2"
   },
   "jab2": {
+    "sound": "whoosh",
     "startup": 0.05,
     "active": 0.08,
     "recovery": 0.17,
@@ -50,6 +52,7 @@
     "next": "hook"
   },
   "hook": {
+    "sound": "whoosh",
     "startup": 0.08,
     "active": 0.1,
     "recovery": 0.22,
@@ -75,6 +78,8 @@
     "next": "uppercut"
   },
   "uppercut": {
+    "sound": "whoosh",
+    "hitSound": "heavy",
     "startup": 0.12,
     "active": 0.1,
     "recovery": 0.35,
@@ -100,6 +105,8 @@
     }
   },
   "jumpKick": {
+    "sound": "whoosh",
+    "hitSound": "heavy",
     "startup": 0.06,
     "active": 0.25,
     "recovery": 0.1,
@@ -125,6 +132,8 @@
     "air": true
   },
   "dashPunch": {
+    "sound": "whoosh",
+    "hitSound": "heavy",
     "startup": 0.1,
     "active": 0.15,
     "recovery": 0.35,
@@ -151,6 +160,8 @@
     "lunge": 7
   },
   "rushPunch": {
+    "sound": "whoosh",
+    "hitSound": "heavy",
     "startup": 0.2,
     "active": 0.15,
     "recovery": 0.5,
@@ -176,6 +187,7 @@
     "lunge": 9
   },
   "enemyPunch": {
+    "sound": "whoosh",
     "startup": 0.4,
     "active": 0.1,
     "recovery": 0.4,

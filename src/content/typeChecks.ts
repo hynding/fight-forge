@@ -8,15 +8,18 @@ import type { AiBehavior } from '../sim/controllers'
 import type { Level } from '../sim/level'
 import type { MoveDef } from '../sim/moves'
 import type { PickupDef } from '../sim/pickups'
+import type { MusicDef, SoundDef } from '../audio/types'
 import type {
   AiBehaviorDef,
   EnemyTypeData,
   LevelDef,
   ModelRefDef,
+  MusicDefData,
   MoveDefData,
   PickupDefData,
   PropDefData,
   Settings,
+  SoundDefData,
   ThemeDefData,
 } from './schemas'
 
@@ -26,7 +29,9 @@ type Check<T extends true> = T
 // The schema's gltf model may name a pack asset instead of a URL; otherwise identical.
 type RuntimeModelData = Exclude<ModelRef, { kind: 'gltf' }> | (Omit<Extract<ModelRef, { kind: 'gltf' }>, 'url'> & { url?: string; asset?: string })
 type Runtime<T> = { [K in keyof T]: T[K] extends ModelRef ? RuntimeModelData : T[K] }
-type SettingsKeys = Exclude<keyof GameConfig, 'enemyTypes' | 'ai' | 'moves' | 'pickups' | 'themes' | 'props'>
+type SettingsKeys = Exclude<keyof GameConfig, 'enemyTypes' | 'ai' | 'moves' | 'pickups' | 'themes' | 'props' | 'sounds' | 'music'>
+// Sounds and music may name a pack asset instead of a URL; otherwise identical.
+type FileData<T> = T extends { kind: 'file' } ? Omit<T, 'url'> & { url?: string; asset?: string } : T
 
 export type ContentTypeChecks = [
   Check<Same<MoveDefData, MoveDef>>,
@@ -40,5 +45,7 @@ export type ContentTypeChecks = [
   Check<Same<LevelDef, Level>>,
   Check<Same<ThemeDefData, ThemeDef>>,
   Check<Same<PropDefData, PropDef>>,
+  Check<Same<SoundDefData, FileData<SoundDef>>>,
+  Check<Same<MusicDefData, FileData<MusicDef>>>,
   Check<Same<Runtime<{ m: ModelRef }>['m'], RuntimeModelData>>,
 ]

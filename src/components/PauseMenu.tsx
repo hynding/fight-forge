@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { actionForKey } from '../content/bindings'
+import { VolumeControls } from './VolumeControls'
 
 export const PauseMenu = () => {
   const isPaused = useGameStore((state) => state.isPaused)
@@ -122,6 +123,10 @@ export const PauseMenu = () => {
         >
           {inSandbox ? 'BACK TO FORGE' : 'MAIN MENU'}
         </button>
+      </div>
+
+      <div style={{ marginTop: '30px', width: '300px', fontSize: '13px', fontFamily: 'monospace' }}>
+        <VolumeControls />
       </div>
 
       <div style={{

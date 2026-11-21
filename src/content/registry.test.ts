@@ -479,3 +479,43 @@ describe('themes and props', () => {
     expect(build(defaultPack(), old).get('level:old')?.theme).toBe('default')
   })
 })
+
+describe('audio content', () => {
+  it('checks the sounds and music that moves, levels and settings name', () => {
+    const errors = errorsOf(
+      base(),
+      addon({
+        assets: [{ id: 'pic', kind: 'texture', path: 'p.png' }],
+        settings: { audio: { hit: 'nope' } },
+        moves: { jab: { ...(base().moves as Record<string, object>).jab, sound: 'missing' } },
+        sounds: { pic: { kind: 'file', asset: 'pic', volume: 1 }, both: { kind: 'file', asset: 'pic', url: '/x.ogg', volume: 1 } },
+        music: { tune: { kind: 'pattern', tempo: 100, volume: 0.5, tracks: [{ wave: 'sine', volume: 1, notes: 'A4 H9' }] } },
+        levels: [{ ...(base().levels as object[])[0], id: 'extra', music: 'silence' }],
+      })
+    )
+    expect(errors.map((e) => `${e.path}: ${e.message}`)).toEqual([
+      'sounds.both: needs exactly one of "url" or "asset"',
+      'music.tune.tracks[0].notes: use notes like C4, F#3 or Bb2, "." for a rest and "-" to hold, separated by spaces',
+    ])
+    const refs = errorsOf(
+      base(),
+      addon({
+        assets: [{ id: 'pic', kind: 'texture', path: 'p.png' }],
+        settings: { audio: { hit: 'nope' } },
+        moves: { jab: { ...(base().moves as Record<string, object>).jab, sound: 'missing' } },
+        sounds: { pic: { kind: 'file', asset: 'pic', volume: 1 } },
+        levels: [{ ...(base().levels as object[])[0], id: 'extra', music: 'silence' }],
+      })
+    )
+    expect(paths(refs).sort()).toEqual(['levels.extra.music', 'moves.jab.sound', 'settings.audio.hit', 'sounds.pic.asset'])
+  })
+
+  it('gives file sounds a URL and keeps synth sounds as they are', () => {
+    const reg = build(base(), addon({ sounds: { tune: { kind: 'file', url: '/audio/t.ogg', volume: 0.5 } } }))
+    const { config, levels } = reg.toGameConfig()
+    expect(config.sounds.tune).toEqual({ kind: 'file', url: '/audio/t.ogg', volume: 0.5 })
+    expect(config.sounds.punch.kind).toBe('synth')
+    expect(levels[0].music).toBe('alley')
+    expect(config.audio.hit).toBe('punch')
+  })
+})

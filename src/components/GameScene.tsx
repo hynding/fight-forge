@@ -21,6 +21,7 @@ import { LevelDirector } from './LevelDirector'
 import { Backdrop } from './Backdrop'
 import { Props } from './Props'
 import { sceneProbe } from '../sim/probe'
+import { duckMusic, playMusic, stopMusic } from '../audio/engine'
 
 export const GameScene = () => {
   // The scene remounts for each level (keyed on gameId), so read the level once.
@@ -54,6 +55,15 @@ export const GameScene = () => {
       sceneProbe.playerX = () => null
     }
   }, [])
+  // The level's music loops while the scene is up, quieter while it's frozen (paused, results, editing).
+  useEffect(() => {
+    playMusic(LEVEL.music)
+    return () => {
+      stopMusic()
+      duckMusic(false)
+    }
+  }, [LEVEL])
+  useEffect(() => duckMusic(frozen), [frozen])
   // Clean up enemy refs when enemies are removed
   useEffect(() => {
     const currentEnemyIds = new Set(enemies.map((e) => e.id))

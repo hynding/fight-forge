@@ -3,6 +3,7 @@
     "id": "level-1",
     "name": "Back Alley",
     "theme": "default",
+    "music": "alley",
     "segments": [
       {
         "length": 45,
@@ -252,6 +253,7 @@
     "id": "level-2",
     "name": "The Docks",
     "theme": "docks",
+    "music": "docks",
     "segments": [
       {
         "length": 40,

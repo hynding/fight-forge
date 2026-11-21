@@ -52,6 +52,10 @@ export interface MoveDef {
   next?: string
   /** Seconds into the move from which a buffered press cancels into `next`; defaults to the end of the active phase. */
   cancelFrom?: number
+  /** Sound id played when the move starts. */
+  sound?: string
+  /** Sound id played when it lands, instead of the audio settings' `hit`. */
+  hitSound?: string
 }
 
 export type MoveSet = Record<string, MoveDef>

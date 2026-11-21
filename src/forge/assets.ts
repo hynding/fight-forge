@@ -1,7 +1,7 @@
 // Pack assets in the Forge: adding a cover image, and finding where each
 // asset is used so the creator can tell what's safe to remove.
 
-import { BUNDLE_LIMITS, imageType } from '../content/bundle'
+import { audioType, BUNDLE_LIMITS, imageType } from '../content/bundle'
 import { assetsOf, fileStem } from './fighter'
 import { pathString } from './paths'
 import { uniqueId, type PackJson, type WorkspacePack } from './workspace'
@@ -23,6 +23,23 @@ export const addImageAsset = (
   const id = uniqueId(fileStem(filename, 'image'), assets.map((a) => String(a.id)))
   const path = `images/${id}.${type === 'jpeg' ? 'jpg' : type}`
   const json = { ...wp.json, assets: [...assets, { id, kind: 'texture', path }] }
+  return { ok: true, pack: { ...wp, json, files: { ...wp.files, [path]: bytes }, updatedAt: Date.now() }, assetId: id }
+}
+
+/** Add an MP3, Ogg or WAV file to the pack as an audio asset. */
+export const addAudioAsset = (
+  wp: WorkspacePack,
+  filename: string,
+  bytes: Uint8Array
+): { ok: true; pack: WorkspacePack; assetId: string } | { ok: false; message: string } => {
+  const type = audioType(bytes)
+  if (!type) return { ok: false, message: `"${filename}" isn't an MP3, Ogg or WAV file` }
+  if (bytes.length > BUNDLE_LIMITS.audio)
+    return { ok: false, message: `"${filename}" is ${bytes.length} bytes; audio files can be up to ${BUNDLE_LIMITS.audio}` }
+  const assets = assetsOf(wp.json)
+  const id = uniqueId(fileStem(filename, 'sound'), assets.map((a) => String(a.id)))
+  const path = `audio/${id}.${type}`
+  const json = { ...wp.json, assets: [...assets, { id, kind: 'audio', path }] }
   return { ok: true, pack: { ...wp, json, files: { ...wp.files, [path]: bytes }, updatedAt: Date.now() }, assetId: id }
 }
 
@@ -54,3 +71,6 @@ export const assetUsage = (json: PackJson): Map<string, string[]> => {
 
 /** A data or blob URL is made by the caller; this gives the MIME type for an image's bytes. */
 export const imageMime = (bytes: Uint8Array): string => `image/${imageType(bytes) ?? 'png'}`
+
+/** The MIME type of an audio file's bytes. */
+export const audioMime = (bytes: Uint8Array): string => ({ mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav' })[audioType(bytes) ?? 'mp3']

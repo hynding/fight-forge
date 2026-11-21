@@ -25,6 +25,7 @@ import { EnemyTools } from './EnemyTools'
 import { LevelTools } from './LevelTools'
 import { FighterTools } from './FighterTools'
 import { MoveTools } from './MoveTools'
+import { SoundTools } from './SoundTools'
 import { PackInfoTools } from './PackInfoTools'
 import { PublishTools } from './PublishTools'
 import { apiEnabled } from '../../net/api'
@@ -393,6 +394,9 @@ export const Forge = () => {
               <div style={{ marginTop: '10px' }}>
                 <FighterTools key={node.key} pack={pack} node={node} save={(wp) => put(wp, false)} onError={(text) => setMessage({ text, error: true })} />
               </div>
+            )}
+            {(node.group === 'sounds' || node.group === 'music') && (
+              <SoundTools key={node.key} pack={pack} node={node} save={(wp) => put(wp, false)} onError={(text) => setMessage({ text, error: true })} />
             )}
             {node.group === 'moves' && (
               <div style={{ marginTop: '10px' }}>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readBundle } from '../content/bundle'
-import { addImageAsset, assetUsage, setCover } from './assets'
+import { addAudioAsset, addImageAsset, assetUsage, setCover } from './assets'
 import { bindKey, unbindKey } from './bindings'
 import { addModelAsset, gltfModelFor } from './fighter'
 import { setIn } from './paths'
@@ -22,6 +22,19 @@ describe('forge pack assets', () => {
     const read = await readBundle(await exportBundle(wp))
     expect(read.ok && read.value.pack.meta.cover).toBe('my-cover')
     expect(setCover(wp.json, undefined).meta).not.toHaveProperty('cover')
+  })
+
+  it('adds an audio file a sound can play, which survives export', async () => {
+    const OGG = new TextEncoder().encode('OggS and some sound')
+    const r = addAudioAsset(newPack('Loud', []), 'Big Hit.ogg', OGG)
+    if (!r.ok) throw new Error(r.message)
+    expect(r.pack.json.assets).toEqual([{ id: 'big-hit', kind: 'audio', path: 'audio/big-hit.ogg' }])
+    const json = setIn(r.pack.json, ['sounds', 'boom'], { kind: 'file', asset: 'big-hit', volume: 0.7 }) as PackJson
+    expect(validatePack(json)).toEqual([])
+    expect(assetUsage(json).get('big-hit')).toEqual(['sounds.boom'])
+    const read = await readBundle(await exportBundle({ ...r.pack, json }))
+    expect(read.ok && read.value.files.get('big-hit')).toEqual(OGG)
+    expect(addAudioAsset(newPack('x', []), 'x.mp3', PNG)).toEqual({ ok: false, message: '"x.mp3" isn\'t an MP3, Ogg or WAV file' })
   })
 
   it('refuses files that are not images', () => {
