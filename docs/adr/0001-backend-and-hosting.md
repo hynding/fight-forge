@@ -47,7 +47,9 @@ Constraints:
 - **Accounts.**
   - Sign-in is with GitHub (OAuth), plus an email link once there's a mail sender.
   - No passwords are stored.
-  - A session is an opaque random token in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie. The server keeps only its hash, with an expiry.
+  - A session is an opaque random token in an `HttpOnly` cookie. The server keeps only its hash, with an expiry.
+  - The game (GitHub Pages) and the API are on different sites, so in production the cookie is `Secure; SameSite=None`. CORS allows only the game's origin.
+  - Every state-changing request must carry an `x-fight-forge: 1` header. That forces a CORS preflight, so other sites can't act with the cookie.
 - **Publishing.** `POST /packs/:id/versions` takes a bundle and:
   1. Requires a signed-in owner.
   2. Runs the same `readBundle` and `buildRegistry` code the game uses, with the default pack. That code moves into a shared module imported by both the client and the server, so they can't drift.
