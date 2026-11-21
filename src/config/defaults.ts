@@ -9,6 +9,7 @@ import type { Bindings } from '../sim/input'
 import type { BackdropLayer } from '../sim/backdrop'
 import type { PropDef } from '../sim/props'
 import type { AudioSettings, MusicDef, SoundDef } from '../audio/types'
+import type { FeelSettings } from '../sim/feel'
 
 /**
  * Every gameplay tuning value in one typed object. The values come from
@@ -217,6 +218,8 @@ export interface GameConfig {
   themes: Record<string, ThemeDef>
   /** Stage objects by id (crates, barrels, walls, platforms), placed by levels. */
   props: Record<string, PropDef>
+  /** Hit-stop, screen shake, sparks, dust and damage numbers. */
+  feel: FeelSettings
   /** Which sound plays for each game event. */
   audio: AudioSettings
   /** Sound effects by id. */

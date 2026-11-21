@@ -244,6 +244,39 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "speed": 1.5,
     },
   },
+  "feel": {
+    "damageNumbers": {
+      "color": "#ffffff",
+      "enabled": true,
+      "life": 0.7,
+      "playerColor": "#ff6060",
+    },
+    "dust": {
+      "color": "#b8aa94",
+      "enabled": true,
+      "life": 0.45,
+    },
+    "hitStop": {
+      "base": 0.03,
+      "enabled": true,
+      "max": 0.12,
+      "perDamage": 0.004,
+    },
+    "shake": {
+      "base": 0.02,
+      "decay": 9,
+      "enabled": true,
+      "max": 0.25,
+      "perDamage": 0.006,
+    },
+    "sparks": {
+      "blockColor": "#8ad4ff",
+      "color": "#ffe08a",
+      "count": 6,
+      "enabled": true,
+      "life": 0.25,
+    },
+  },
   "input": {
     "bindings": {
       "attack": [

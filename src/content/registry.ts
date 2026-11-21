@@ -69,6 +69,7 @@ export const SETTINGS_SECTIONS = [
   'scoring',
   'rules',
   'input',
+  'feel',
   'audio',
 ] as const satisfies readonly (keyof Settings)[]
 
