@@ -419,27 +419,53 @@ describe('schema version 1 packs', () => {
 })
 
 describe('key bindings', () => {
-  const withBindings = (b: Record<string, string[]>) =>
-    addon({ settings: { input: { bindings: { ...DEFAULT_CONFIG.input.bindings, ...b } } } })
+  const withBindings = (b: Record<string, string[]>, device: 'keyboard' | 'mouse' | 'gamepad' = 'keyboard') => {
+    const all = DEFAULT_CONFIG.input.bindings
+    return addon({ settings: { input: { bindings: { ...all, [device]: { ...all[device], ...b } } } } })
+  }
 
   it('lets a pack rebind keys', () => {
-    expect(build(defaultPack(), withBindings({ attack: ['z'] })).settings.input.bindings.attack).toEqual(['z'])
+    expect(build(defaultPack(), withBindings({ attack: ['z'] })).settings.input.bindings.keyboard.attack).toEqual(['z'])
   })
 
-  it('rejects a key bound to two actions', () => {
+  it('rejects an input bound to two actions on one device', () => {
     expect(errorsOf(defaultPack(), withBindings({ block: ['j'] }))).toEqual([
-      { pack: 'remix', path: 'settings.input.bindings', message: '"j" is bound to both attack and block' },
+      { pack: 'remix', path: 'settings.input.bindings.keyboard', message: '"j" is bound to both attack and block' },
+    ])
+    expect(errorsOf(defaultPack(), withBindings({ jump: ['x'] }, 'gamepad'))).toEqual([
+      { pack: 'remix', path: 'settings.input.bindings.gamepad', message: '"x" is bound to both jump and attack' },
     ])
   })
 
-  it('needs keys for moving, attacking and pausing', () => {
-    expect(paths(errorsOf(defaultPack(), withBindings({ attack: [] })))).toEqual(['settings.input.bindings.attack'])
+  it('lets the same name mean different inputs on different devices', () => {
+    // "left" is a mouse button, a d-pad direction and an action.
+    const reg = build(defaultPack(), withBindings({ attack: [], jump: ['left'] }, 'mouse'))
+    expect(reg.settings.input.bindings.mouse.jump).toEqual(['left'])
+    expect(reg.settings.input.bindings.gamepad.left).toContain('left')
   })
 
-  it('needs lowercase keys and every action listed', () => {
+  it('needs keys for moving, attacking and pausing, and pad buttons for moving and pausing', () => {
+    expect(paths(errorsOf(defaultPack(), withBindings({ attack: [] })))).toEqual(['settings.input.bindings.keyboard.attack'])
+    expect(paths(errorsOf(defaultPack(), withBindings({ pause: [] }, 'gamepad')))).toEqual(['settings.input.bindings.gamepad.pause'])
+    // The mouse is optional.
+    expect(build(defaultPack(), withBindings({ attack: [], block: [] }, 'mouse')).settings.input.bindings.mouse.attack).toEqual([])
+  })
+
+  it('needs lowercase keys, real buttons and every action listed', () => {
     const bad = withBindings({ attack: ['J'] })
-    delete ((bad.settings as Record<string, Record<string, Record<string, unknown>>>).input.bindings).hitboxes
-    expect(paths(errorsOf(defaultPack(), bad)).sort()).toEqual(['settings.input.bindings.attack[0]', 'settings.input.bindings.hitboxes'])
+    delete ((bad.settings as Record<string, Record<string, Record<string, Record<string, unknown>>>>).input.bindings.keyboard).hitboxes
+    expect(paths(errorsOf(defaultPack(), bad)).sort()).toEqual(['settings.input.bindings.keyboard.attack[0]', 'settings.input.bindings.keyboard.hitboxes'])
+    expect(paths(errorsOf(defaultPack(), withBindings({ attack: ['thumb'] }, 'mouse')))).toEqual(['settings.input.bindings.mouse.attack[0]'])
+    expect(paths(errorsOf(defaultPack(), withBindings({ attack: ['b7', 'axis2-', 'paddle'] }, 'gamepad')))).toEqual([
+      'settings.input.bindings.gamepad.attack[2]',
+    ])
+  })
+
+  it('moves a v3 pack\'s key map into the keyboard, adding mouse and gamepad defaults', () => {
+    const keyboard = { ...DEFAULT_CONFIG.input.bindings.keyboard, attack: ['z'] }
+    const old = { ...addon({ settings: { input: { bindings: keyboard } } }), schemaVersion: 3 }
+    const reg = build(defaultPack(), old)
+    expect(reg.settings.input.bindings).toEqual({ ...DEFAULT_CONFIG.input.bindings, keyboard })
   })
 })
 

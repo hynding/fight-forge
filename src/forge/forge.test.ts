@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { describe, expect, it } from 'vitest'
 import { bundleFromFolder } from '../content/bundleFolder'
 import { readBundle } from '../content/bundle'
-import { moveSchema, packSchema, settingsSchema } from '../content/schemas'
+import { moveSchema, packSchema, SCHEMA_VERSION, settingsSchema } from '../content/schemas'
 import { deleteIn, getIn, pathString, setIn } from './paths'
 import { defaultFor, fieldKind, labelFor } from './schemaForm'
 import { memoryStore } from './storage'
@@ -90,7 +90,7 @@ describe('workspace', () => {
     if (!r.ok) throw new Error(r.errors[0].message)
     const wp = r.value
     expect(wp.id).toBe('skeleton-remix-2')
-    expect(wp.json.schemaVersion).toBe(3)
+    expect(wp.json.schemaVersion).toBe(SCHEMA_VERSION)
     expect(Object.keys(wp.files)).toEqual(['models/skeleton-warrior.glb'])
     const back = await readBundle(await exportBundle(editPack(wp, { ...wp.json, name: 'Bones' })))
     if (!back.ok) throw new Error(back.errors[0].message)

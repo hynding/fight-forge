@@ -5,25 +5,26 @@
 // so a tap that goes down and up between two steps still counts as a press.
 // Pure TS.
 
-import { INPUT_ACTIONS, normalizeKey, type Bindings, type InputAction } from './input'
+import { DEVICES, INPUT_ACTIONS, inputName, type DeviceBindings, type InputAction, type InputDevice } from './input'
 import type { Vec2 } from './fighter'
 
-export type InputDevice = 'keyboard' | 'mouse' | 'gamepad'
+export type { InputDevice }
 
 /** Input name to action. */
 export type InputMap = ReadonlyMap<string, InputAction>
 
 /** The input name for a keyboard key (`KeyboardEvent.key`, lowercased). */
-export const keyInput = (key: string): string => `key:${normalizeKey(key)}`
+export const keyInput = (key: string): string => inputName('keyboard', key)
 
-/** Input name to action for the keyboard bindings. A key bound twice goes to the first action in INPUT_ACTIONS order. */
-export const inputMap = (bindings: Bindings): InputMap => {
+/** Input name to action for every device. An input bound twice goes to the first action in INPUT_ACTIONS order. */
+export const inputMap = (bindings: DeviceBindings): InputMap => {
   const map = new Map<string, InputAction>()
-  for (const action of INPUT_ACTIONS)
-    for (const key of bindings[action]) {
-      const input = keyInput(key)
-      if (!map.has(input)) map.set(input, action)
-    }
+  for (const device of DEVICES)
+    for (const action of INPUT_ACTIONS)
+      for (const name of bindings[device][action]) {
+        const input = inputName(device, name)
+        if (!map.has(input)) map.set(input, action)
+      }
   return map
 }
 

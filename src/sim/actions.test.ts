@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../config/defaults'
-import { mergeBindings } from './input'
+import { mergeDeviceBindings } from './input'
 import {
   createActionSampler,
   dropEdges,
@@ -39,7 +39,7 @@ describe('inputMap', () => {
 
   it('ignores unmapped keys and follows remapping', () => {
     expect(map.get(keyInput('q'))).toBeUndefined()
-    const remapped = inputMap(mergeBindings(DEFAULT_CONFIG.input.bindings, { attack: ['z'] }))
+    const remapped = inputMap(mergeDeviceBindings(DEFAULT_CONFIG.input.bindings, { keyboard: { attack: ['z'] } }))
     expect(remapped.get(keyInput('z'))).toBe('attack')
     expect(remapped.get(keyInput('j'))).toBeUndefined()
   })

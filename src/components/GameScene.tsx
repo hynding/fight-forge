@@ -57,7 +57,8 @@ export const GameScene = () => {
   const [runtimes] = useState(() => new Map<string, FighterRuntime>())
   // Keyboard (and later mouse and gamepad) input, sampled once per sim step.
   const [input] = useState(() => new InputManager())
-  useEffect(() => input.attach(window), [input])
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  useEffect(() => input.attach(window, () => canvasRef.current), [input])
 
   const enemies = useGameStore((state) => state.enemies)
   const frozen = useGameStore(isFrozen)
@@ -97,7 +98,7 @@ export const GameScene = () => {
   return (
     <>
       {/* While the Forge is open over the paused scene, stop drawing it. */}
-      <Canvas shadows dpr={[1, 2]} frameloop={editing ? 'never' : 'always'}>
+      <Canvas ref={canvasRef} shadows dpr={[1, 2]} frameloop={editing ? 'never' : 'always'}>
         {/* Without an explicit background the canvas is transparent over a white page,
             which made the white HUD text unreadable. */}
         <color attach="background" args={[THEME.sky]} />

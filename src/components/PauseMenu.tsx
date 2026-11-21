@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 import type { InputManager } from '../input/InputManager'
+import { getBindings } from '../content/bindings'
+import { actionLabel } from '../sim/input'
 import { VolumeControls } from './VolumeControls'
 
 export const PauseMenu = ({ input }: { input: InputManager }) => {
@@ -132,7 +134,7 @@ export const PauseMenu = ({ input }: { input: InputManager }) => {
         fontSize: '14px',
         color: '#666666',
       }}>
-        Press ESC to resume
+        Press {actionLabel(getBindings().keyboard, 'pause')} to resume
       </div>
     </div>
   )

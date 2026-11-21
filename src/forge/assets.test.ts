@@ -61,7 +61,7 @@ describe('forge pack assets', () => {
 })
 
 describe('forge key bindings', () => {
-  const base = DEFAULT_CONTENT.config.input.bindings
+  const base = DEFAULT_CONTENT.config.input.bindings.keyboard
   it('binds a key to one action only', () => {
     const b = bindKey(base, 'jump', 'J')
     expect(b.jump).toContain('j')

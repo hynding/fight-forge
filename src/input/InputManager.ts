@@ -1,4 +1,5 @@
-// The scene's input: device sources feed an ActionSampler (src/sim/actions.ts),
+// The scene's input: device sources (keyboard, and the mouse over the game
+// view) feed an ActionSampler (src/sim/actions.ts),
 // which the `input` sim system samples once per fixed step. Not React state:
 // GameScene owns one per scene, like `runtimes`. Pause and the hitbox toggle
 // subscribe to presses directly, since they must work while the sim is frozen.
@@ -17,7 +18,7 @@ import {
   type ActionFrame,
   type InputMap,
 } from '../sim/actions'
-import type { InputAction } from '../sim/input'
+import { MOUSE_BUTTONS, inputName, type InputAction, type InputDevice } from '../sim/input'
 import { isFrozen, useGameStore } from '../store/gameStore'
 
 type PressListener = (action: InputAction) => void
@@ -41,21 +42,55 @@ export class InputManager {
     return () => this.listeners.delete(fn)
   }
 
-  /** Starts listening on `target` with the bindings in effect now. Returns the detach function. */
-  attach(target: Window): () => void {
+  /** A bound input went down: latch it and tell the press listeners. Returns whether it's bound. */
+  private press(input: string, device: InputDevice): boolean {
+    const action = this.map.get(input)
+    if (!action) return false
+    if (this.sampler.down.has(input)) return true
+    inputDown(this.sampler, input, device)
+    for (const fn of this.listeners) fn(action)
+    return true
+  }
+
+  /**
+   * Starts listening on `target` with the bindings in effect now. Mouse
+   * buttons and the wheel count only over `view()` (the game's canvas), so
+   * clicking a menu button never attacks. Returns the detach function.
+   */
+  attach(target: Window, view: () => Element | null = () => null): () => void {
     this.map = inputMap(getBindings())
     const editing = () => useGameStore.getState().editing
+    const overView = (e: Event) => e.target !== null && e.target === view()
 
     const onKeyDown = (e: KeyboardEvent) => {
       // The Forge is open over the paused game: keys are typing, not playing.
       if (editing()) return
       const input = keyInput(e.key)
-      const action = this.map.get(input)
-      if (!action) return
+      if (!this.map.has(input)) return
       e.preventDefault()
-      if (e.repeat || this.sampler.down.has(input)) return
-      inputDown(this.sampler, input, 'keyboard')
-      for (const fn of this.listeners) fn(action)
+      if (!e.repeat) this.press(input, 'keyboard')
+    }
+    const onMouseDown = (e: MouseEvent) => {
+      const button = MOUSE_BUTTONS[e.button]
+      if (editing() || !button || !overView(e)) return
+      if (this.press(inputName('mouse', button), 'mouse')) e.preventDefault()
+    }
+    // Released anywhere, so a drag off the canvas doesn't leave a button held.
+    const onMouseUp = (e: MouseEvent) => {
+      const button = MOUSE_BUTTONS[e.button]
+      if (button) inputUp(this.sampler, inputName('mouse', button))
+    }
+    // A wheel notch is a tap: down and up before the next step, which still counts as one press.
+    const onWheel = (e: WheelEvent) => {
+      if (editing() || e.deltaY === 0 || !overView(e)) return
+      const input = inputName('mouse', e.deltaY < 0 ? 'wheelup' : 'wheeldown')
+      if (!this.press(input, 'mouse')) return
+      e.preventDefault()
+      inputUp(this.sampler, input)
+    }
+    // The right button can be bound, so no context menu over the game.
+    const onContextMenu = (e: MouseEvent) => {
+      if (overView(e)) e.preventDefault()
     }
     const onKeyUp = (e: KeyboardEvent) => {
       if (editing()) return
@@ -79,11 +114,19 @@ export class InputManager {
     target.addEventListener('keydown', onKeyDown)
     target.addEventListener('keyup', onKeyUp)
     target.addEventListener('blur', onBlur)
+    target.addEventListener('mousedown', onMouseDown)
+    target.addEventListener('mouseup', onMouseUp)
+    target.addEventListener('wheel', onWheel, { passive: false })
+    target.addEventListener('contextmenu', onContextMenu)
     return () => {
       unsubscribe()
       target.removeEventListener('keydown', onKeyDown)
       target.removeEventListener('keyup', onKeyUp)
       target.removeEventListener('blur', onBlur)
+      target.removeEventListener('mousedown', onMouseDown)
+      target.removeEventListener('mouseup', onMouseUp)
+      target.removeEventListener('wheel', onWheel)
+      target.removeEventListener('contextmenu', onContextMenu)
       releaseAll(this.sampler)
     }
   }

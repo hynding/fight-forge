@@ -13,6 +13,21 @@ export type MigrationTable = Readonly<Record<number, (pack: Json) => Json>>
 
 const DEFAULT_RULES_V2 = { maxSimultaneousAttackers: 1, friendlyFire: false, difficulty: { damageTaken: 1, enemyHealth: 1 } }
 
+const ACTIONS_V4 = ['left', 'right', 'forward', 'backward', 'jump', 'attack', 'block', 'dodge', 'pause', 'hitboxes']
+const deviceMapV4 = (bound: Record<string, string[]>) => Object.fromEntries(ACTIONS_V4.map((a) => [a, bound[a] ?? []]))
+const MOUSE_V4 = deviceMapV4({ attack: ['left'], block: ['right'] })
+const GAMEPAD_V4 = deviceMapV4({
+  left: ['left', 'ls-left'],
+  right: ['right', 'ls-right'],
+  forward: ['up', 'ls-up'],
+  backward: ['down', 'ls-down'],
+  jump: ['a'],
+  attack: ['x'],
+  block: ['lb', 'lt'],
+  dodge: ['rb', 'rt'],
+  pause: ['start'],
+})
+
 export const MIGRATIONS: MigrationTable = {
   // v2: the attacker limit moved from `enemy` to `rules`, which also gained
   // friendly fire and difficulty; key bindings arrived as `input` (a pack
@@ -39,6 +54,17 @@ export const MIGRATIONS: MigrationTable = {
     Array.isArray(pack.levels)
       ? { ...pack, levels: pack.levels.map((l: unknown) => (typeof l === 'object' && l !== null && !('theme' in l) ? { ...l, theme: 'default' } : l)) }
       : pack,
+  // v4: bindings are per device. The old key map becomes `keyboard`; mouse and
+  // gamepad get the defaults of the time.
+  3: (pack) => {
+    const settings = pack.settings as Json | undefined
+    const input = settings?.input as Json | undefined
+    if (!input || typeof input.bindings !== 'object' || input.bindings === null) return pack
+    return {
+      ...pack,
+      settings: { ...settings, input: { ...input, bindings: { keyboard: input.bindings, mouse: MOUSE_V4, gamepad: GAMEPAD_V4 } } },
+    }
+  },
 }
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }

@@ -7,10 +7,10 @@
 // they drift apart. Times are seconds of game time, distances world units.
 
 import { z } from 'zod'
-import { INPUT_ACTIONS, type InputAction } from '../sim/input'
+import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 // ---------------------------------------------------------------- primitives
 
@@ -219,6 +219,10 @@ export const enemyTypeSchema = z
 // ----------------------------------------------------------------- settings
 
 /** Tuning sections. A pack may leave sections out to inherit them from packs loaded before it. */
+/** Every input action mapped to a list of one device's inputs. */
+const actionMap = <T extends z.ZodTypeAny>(input: T) =>
+  z.object(Object.fromEntries(INPUT_ACTIONS.map((a) => [a, z.array(input)])) as Record<InputAction, z.ZodArray<T>>).strict()
+
 export const settingsSchema = z
   .object({
     physics: z.object({ gravity: vec3 }).strict(),
@@ -323,12 +327,15 @@ export const settingsSchema = z
       .strict(),
     input: z
       .object({
+        /** One map per device: action to inputs. */
         bindings: z
-          .object(
-            Object.fromEntries(
-              INPUT_ACTIONS.map((a) => [a, z.array(z.string().min(1).refine((k) => k === k.toLowerCase(), 'keys must be lowercase'))])
-            ) as Record<InputAction, z.ZodArray<z.ZodEffects<z.ZodString>>>
-          )
+          .object({
+            keyboard: actionMap(z.string().min(1).refine((k) => k === k.toLowerCase(), 'keys must be lowercase')),
+            mouse: actionMap(z.string().refine((b) => (MOUSE_INPUTS as readonly string[]).includes(b), 'not a mouse button or wheel direction')),
+            gamepad: actionMap(
+              z.string().refine((b) => (GAMEPAD_INPUTS as readonly string[]).includes(b) || RAW_PAD_INPUT.test(b), 'not a gamepad button or stick direction')
+            ),
+          })
           .strict(),
       })
       .strict(),
