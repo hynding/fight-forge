@@ -381,6 +381,8 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "right": [],
       },
     },
+    "chordWindow": 0.06,
+    "turnGrace": 0.12,
   },
   "moves": {
     "dashPunch": {
@@ -661,11 +663,8 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
   },
   "player": {
     "color": "#4444ff",
-    "dashAttack": "dashPunch",
     "deceleration": 0.85,
-    "jumpAttack": "jumpKick",
     "jumpVelocity": 8,
-    "lightAttack": "jab",
     "linearDamping": 0,
     "maxHealth": 100,
     "model": {
@@ -695,6 +694,22 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       ],
       "url": "/models/robot-expressive.glb",
     },
+    "moveset": [
+      {
+        "action": "attack",
+        "move": "jumpKick",
+        "when": "air",
+      },
+      {
+        "action": "attack",
+        "move": "dashPunch",
+        "when": "running",
+      },
+      {
+        "action": "attack",
+        "move": "jab",
+      },
+    ],
     "spawnPosition": [
       3,
       2,

@@ -48,8 +48,14 @@ export interface MoveDef {
   air?: boolean
   /** Forward speed during startup and active (e.g. a dash attack's lunge). */
   lunge?: number
-  /** Combo: the move an attack press chains into. */
+  /** Combo: the move a press of the button that started this move chains into. */
   next?: string
+  /**
+   * Other buttons that cancel this move into another, by press (an action
+   * like `heavy`, or a chord like `attack+jump`), e.g. `{ "heavy": "uppercut" }`.
+   * They use the same cancel window as `next`.
+   */
+  branches?: Record<string, string>
   /** Seconds into the move from which a buffered press cancels into `next`; defaults to the end of the active phase. */
   cancelFrom?: number
   /** Sound id played when the move starts. */
@@ -82,8 +88,12 @@ export interface MoveRunner {
   time: number
   /** Increments each time a move starts; combat uses it for one-hit-per-move. */
   instance: number
-  /** An attack press during the move, waiting for the cancel window. */
+  /** A press during the move, waiting for the cancel window. */
   buffered: boolean
+  /** The move that buffered press cancels into. */
+  bufferedMove: string | null
+  /** The press (action or chord key) that started the current move; its `next` chains on the same press. */
+  action: string | null
   /** Last step's button state, for press (edge) detection. */
   held: boolean
 }
@@ -93,14 +103,18 @@ export const createMoveRunner = (): MoveRunner => ({
   time: 0,
   instance: 0,
   buffered: false,
+  bufferedMove: null,
+  action: null,
   held: false,
 })
 
-export const startMove = (r: MoveRunner, name: string): void => {
+export const startMove = (r: MoveRunner, name: string, action: string | null = r.action): void => {
   r.move = name
   r.time = 0
   r.instance++
   r.buffered = false
+  r.bufferedMove = null
+  r.action = action
 }
 
 /** Stops the current move (e.g. the fighter was hit). */
@@ -108,6 +122,7 @@ export const interruptMove = (r: MoveRunner): void => {
   r.move = null
   r.time = 0
   r.buffered = false
+  r.bufferedMove = null
 }
 
 export const isMoveActive = (r: MoveRunner, moves: MoveSet): boolean =>
@@ -116,11 +131,47 @@ export const isMoveActive = (r: MoveRunner, moves: MoveSet): boolean =>
 export type MoveEvent = 'started' | 'ended' | null
 
 /**
- * Advances the current move by `dt` and handles the attack button: a press
- * while free starts `first`; a press during a move is buffered and cancels into
- * the move's `next` once the cancel window opens. A held button doesn't repeat.
- * A move started this step has `time` 0, so a zero-startup move hits on the
- * step it starts.
+ * Advances the current move by `dt` and handles this step's press (an
+ * action like `attack`, a chord like `attack+jump`, or null). While free, a
+ * press starts `start` (the move the moveset picked for it, or null for
+ * none). During a move, a press is buffered: the press that started the move
+ * chains into its `next`, another press into its `branches` entry, once the
+ * cancel window opens. A move started this step has `time` 0, so a
+ * zero-startup move hits on the step it starts.
+ */
+export const stepMoves = (r: MoveRunner, press: string | null, dt: number, moves: MoveSet, start: string | null): MoveEvent => {
+  if (r.move !== null) {
+    const m = moves[r.move]
+    r.time += dt
+    if (press && !r.buffered) {
+      const target = press === r.action ? m.next : m.branches?.[press]
+      if (target) {
+        r.buffered = true
+        r.bufferedMove = target
+        r.action = press
+      }
+    }
+    if (r.buffered && r.bufferedMove && r.time + EPSILON >= cancelTime(m)) {
+      startMove(r, r.bufferedMove)
+      return 'started'
+    }
+    if (movePhase(m, r.time) === null) {
+      interruptMove(r)
+      return 'ended'
+    }
+    return null
+  }
+
+  if (press && start) {
+    startMove(r, start, press)
+    return 'started'
+  }
+  return null
+}
+
+/**
+ * The single-button form: a press (the button going down) while free starts
+ * `first`; a press during a move chains into its `next`. A held button doesn't repeat.
  */
 export const stepMoveRunner = (
   r: MoveRunner,
@@ -131,27 +182,8 @@ export const stepMoveRunner = (
 ): MoveEvent => {
   const pressed = held && !r.held
   r.held = held
-
-  if (r.move !== null) {
-    const m = moves[r.move]
-    r.time += dt
-    if (pressed && m.next) r.buffered = true
-    if (r.buffered && m.next && r.time + EPSILON >= cancelTime(m)) {
-      startMove(r, m.next)
-      return 'started'
-    }
-    if (movePhase(m, r.time) === null) {
-      interruptMove(r)
-      return 'ended'
-    }
-    return null
-  }
-
-  if (pressed) {
-    startMove(r, first)
-    return 'started'
-  }
-  return null
+  if (r.move !== null && r.action === null) r.action = 'attack'
+  return stepMoves(r, pressed ? 'attack' : null, dt, moves, first)
 }
 
 /** Problems in a move set and the moves that reference it (empty when valid). */
@@ -161,6 +193,8 @@ export const validateMoves = (moves: MoveSet, referenced: string[]): string[] =>
   for (const [name, m] of Object.entries(moves)) {
     if (m.startup < 0 || m.active <= 0 || m.recovery < 0) errors.push(`${name}: bad phase timing`)
     if (m.next && !moves[m.next]) errors.push(`${name}: next "${m.next}" doesn't exist`)
+    for (const [press, target] of Object.entries(m.branches ?? {}))
+      if (!moves[target]) errors.push(`${name}: branch ${press} "${target}" doesn't exist`)
     const c = cancelTime(m)
     if (c < m.startup || c > moveDuration(m)) errors.push(`${name}: cancelFrom outside the move`)
   }

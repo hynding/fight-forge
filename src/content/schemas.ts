@@ -7,10 +7,11 @@
 // they drift apart. Times are seconds of game time, distances world units.
 
 import { z } from 'zod'
+import { DIRECTIONS, MOVESET_ACTIONS, SITUATIONS } from '../sim/moveset'
 import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 5
+export const SCHEMA_VERSION = 6
 
 // ---------------------------------------------------------------- primitives
 
@@ -175,6 +176,8 @@ export const moveSchema = z
     lunge: nonNegative.optional(),
     /** Move id a buffered press chains into. */
     next: idSchema.optional(),
+    /** Other presses (an action, or a chord like `attack+jump`) that cancel into another move. */
+    branches: z.record(z.string(), idSchema).optional(),
     cancelFrom: nonNegative.optional(),
     /** Sound played when the move starts (a whoosh). */
     sound: idSchema.optional(),
@@ -225,6 +228,19 @@ export const enemyTypeSchema = z
 const actionMap = <T extends z.ZodTypeAny>(input: T) =>
   z.object(Object.fromEntries(INPUT_ACTIONS.map((a) => [a, z.array(input)])) as Record<InputAction, z.ZodArray<T>>).strict()
 
+const movesetAction = z.enum(MOVESET_ACTIONS)
+
+/** One moveset row: which press, in which situation and direction, starts which move. */
+export const moveTriggerSchema = z
+  .object({
+    action: z.union([movesetAction, z.array(movesetAction).min(2).max(3)]),
+    when: z.enum(SITUATIONS).optional(),
+    direction: z.enum(DIRECTIONS).optional(),
+    move: idSchema,
+    cost: z.object({ health: z.number().int().min(1).optional(), cooldown: positive.optional() }).strict().optional(),
+  })
+  .strict()
+
 export const settingsSchema = z
   .object({
     physics: z.object({ gravity: vec3 }).strict(),
@@ -247,9 +263,7 @@ export const settingsSchema = z
         jumpVelocity: nonNegative,
         deceleration: fraction,
         linearDamping: nonNegative,
-        lightAttack: idSchema,
-        jumpAttack: idSchema,
-        dashAttack: idSchema,
+        moveset: z.array(moveTriggerSchema).min(1),
       })
       .strict(),
     enemy: z
@@ -341,6 +355,8 @@ export const settingsSchema = z
           .strict(),
         /** Analog sticks: no movement inside `deadZone`; past `runThreshold` the fighter runs. */
         analog: z.object({ deadZone: unit, runThreshold: unit }).strict(),
+        chordWindow: finite.min(0).max(0.5),
+        turnGrace: finite.min(0).max(0.5),
       })
       .strict(),
     /** Game feel on hits: each effect can be tuned or turned off. */

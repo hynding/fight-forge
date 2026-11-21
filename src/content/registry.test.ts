@@ -270,13 +270,28 @@ describe('bad packs: references', () => {
 
   it('checks the player and enemy moves', () => {
     const p = base()
-    settings(p).player.lightAttack = 'jabb'
-    settings(p).player.dashAttack = 'slide'
+    settings(p).player.moveset = [
+      { action: 'attack', when: 'running', move: 'slide' },
+      { action: 'attack', move: 'jabb' },
+    ]
     settings(p).enemy.attackMove = 'bite'
     expect(errorsOf(p).map((e) => `${e.path}: ${e.message}`).sort()).toEqual([
       'settings.enemy.attackMove: unknown move "bite"',
-      'settings.player.dashAttack: unknown move "slide"',
-      'settings.player.lightAttack: unknown move "jabb"',
+      'settings.player.moveset[0].move: unknown move "slide"',
+      'settings.player.moveset[1].move: unknown move "jabb"',
+    ])
+  })
+
+  it('checks branch presses and chords', () => {
+    const p = base()
+    const moves = p.moves as Record<string, Record<string, unknown>>
+    moves.jab.branches = { 'attack+jump': 'jab2', heavy: 'hook', dodge: 'nope' }
+    settings(p).player.moveset = [{ action: ['attack', 'attack'], move: 'jab' }, ...DEFAULT_CONFIG.player.moveset]
+    expect(errorsOf(p).map((e) => `${e.path}: ${e.message}`).sort()).toEqual([
+      'moves.jab.branches.attack+jump: "attack+jump" isn\'t an action or a chord the player\'s moveset uses',
+      'moves.jab.branches.dodge: unknown move "nope"',
+      'moves.jab.branches.heavy: "heavy" isn\'t an action or a chord the player\'s moveset uses',
+      'settings.player.moveset[0].action: a chord needs different actions',
     ])
   })
 
@@ -467,6 +482,17 @@ describe('key bindings', () => {
     const reg = build(defaultPack(), old)
     expect(reg.settings.input.bindings).toEqual({ ...DEFAULT_CONFIG.input.bindings, keyboard })
     expect(reg.settings.input.analog).toEqual(DEFAULT_CONFIG.input.analog)
+  })
+
+  it('turns a v5 pack\'s three attack slots into a moveset that plays the same', () => {
+    const { moveset: _m, ...rest } = DEFAULT_CONFIG.player
+    void _m
+    const old = { ...addon({ settings: { player: { ...rest, lightAttack: 'hook', jumpAttack: 'jumpKick', dashAttack: 'dashPunch' } } }), schemaVersion: 5 }
+    expect(build(defaultPack(), old).settings.player.moveset).toEqual([
+      { action: 'attack', when: 'air', move: 'jumpKick' },
+      { action: 'attack', when: 'running', move: 'dashPunch' },
+      { action: 'attack', move: 'hook' },
+    ])
   })
 
   it('gives a v4 pack the analog and rumble defaults', () => {

@@ -78,7 +78,7 @@ describe('sampleActions', () => {
     down(s, 'j')
     up(s, 'j')
     const started = [0, 1, 2].map(
-      () => stepMoveRunner(runner, frameControls(sampleActions(s, map)).attack, SIM_STEP, DEFAULT_CONFIG.moves, DEFAULT_CONFIG.player.lightAttack) === 'started'
+      () => stepMoveRunner(runner, frameControls(sampleActions(s, map)).attack, SIM_STEP, DEFAULT_CONFIG.moves, 'jab') === 'started'
     )
     expect(started).toEqual([true, false, false])
   })
