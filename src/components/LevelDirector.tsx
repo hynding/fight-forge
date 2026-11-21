@@ -68,10 +68,13 @@ export const LevelDirector = ({
     }
     const id = nextEnemyId()
     const maxHealth = scaledHealth(getConfig().enemyTypes[def.type].maxHealth, getConfig().rules.difficulty.enemyHealth)
+    // The Forge can start a sandbox boss part-way down, at a later phase.
+    const { sandbox, sandboxBossHealth } = useGameStore.getState()
+    const start = sandbox && getConfig().enemyTypes[def.type].boss ? Math.max(1, Math.round(maxHealth * sandboxBossHealth)) : maxHealth
     useGameStore.getState().spawnEnemy({
       id,
       type: def.type,
-      health: maxHealth,
+      health: start,
       maxHealth,
       position: [at.x, getConfig().spawning.height, at.z],
     })

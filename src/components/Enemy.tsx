@@ -58,8 +58,14 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const wantsAttack = useRef(false)
     const boss = def.boss
     // Boss phases started so far (0 = none); stats come from the phases reached.
-    const [phase, setPhase] = useState(0)
-    const phaseRef = useRef(0)
+    // A boss that arrives already hurt (a Forge sandbox "from phase N") starts
+    // just before that phase, so only that phase's change plays.
+    const [startPhase] = useState(() => {
+      const me = useGameStore.getState().enemies.find((e) => e.id === id)
+      return boss && me ? Math.max(0, bossPhaseIndex(boss.phases, me.health / me.maxHealth) - 1) : 0
+    })
+    const [phase, setPhase] = useState(startPhase)
+    const phaseRef = useRef(startPhase)
     const stats = useMemo(
       () =>
         phaseStats(
