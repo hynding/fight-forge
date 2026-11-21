@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useGameStore } from '../store/gameStore'
-import { getLevels } from '../content/active'
+import { getConfig, getLevels } from '../content/active'
 import { getBindings } from '../content/bindings'
 import type { InputManager } from '../input/InputManager'
-import { actionLabel, deviceHelp } from '../sim/input'
+import { actionLabel, deviceHelp, helpExtras } from '../sim/input'
 import { formatTime } from '../utils/format'
 
 const ResultRow = ({ label, value }: { label: string; value: ReactNode }) => (
@@ -47,6 +47,7 @@ export const HUD = ({ input }: { input: InputManager }) => {
   const padLabels = useGameStore((state) => state.padLabels)
   const playerHealth = useGameStore((state) => state.playerHealth)
   const playerMaxHealth = useGameStore((state) => state.playerMaxHealth)
+  const meter = useGameStore((state) => state.meter)
   const score = useGameStore((state) => state.score)
   const enemies = useGameStore((state) => state.enemies)
   const isGameOver = useGameStore((state) => state.isGameOver)
@@ -137,6 +138,26 @@ export const HUD = ({ input }: { input: InputManager }) => {
         </div>
       </div>
 
+      {/* Meter: shown when some move spends it */}
+      {getConfig().player.moveset.some((t) => t.cost?.meter) && (
+        <div style={{ marginBottom: '10px' }}>
+          <div style={{ fontSize: '12px', marginBottom: '3px' }}>
+            METER{meter >= getConfig().rules.meter.max ? ' MAX' : ''}
+          </div>
+          <div style={{ width: '300px', height: '10px', backgroundColor: '#333', border: '2px solid #666', overflow: 'hidden' }}>
+            <div
+              data-meter={meter}
+              style={{
+                width: `${(meter / getConfig().rules.meter.max) * 100}%`,
+                height: '100%',
+                backgroundColor: '#44aaff',
+                transition: 'width 0.2s',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Score and lives */}
       <div style={{ fontSize: '20px', marginBottom: '10px' }}>
         SCORE: {score} | LIVES: {lives}
@@ -169,7 +190,7 @@ export const HUD = ({ input }: { input: InputManager }) => {
 
       {/* Controls */}
       <div style={{ fontSize: '12px', marginTop: '20px', opacity: 0.7 }}>
-        {deviceHelp(getBindings(), inputDevice, padLabels ?? 'xbox', true)}
+        {deviceHelp(getBindings(), inputDevice, padLabels ?? 'xbox', true, helpExtras(getConfig().input.actions))}
         <br />
         {actionLabel(getBindings().keyboard, 'hitboxes')} - Hitboxes{showHitboxes ? ' (ON)' : ''}
       </div>

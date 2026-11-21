@@ -6,7 +6,7 @@ import type { ActionsConfig } from '../sim/defense'
 import type { AiBehavior } from '../sim/controllers'
 import { DEFAULT_CONTENT } from '../content/defaultContent'
 import type { DropDef, PickupDef } from '../sim/pickups'
-import type { DeviceBindings } from '../sim/input'
+import type { ActionSettings, DeviceBindings } from '../sim/input'
 import type { BackdropLayer } from '../sim/backdrop'
 import type { PropDef } from '../sim/props'
 import type { AudioSettings, MusicDef, SoundDef } from '../audio/types'
@@ -207,12 +207,24 @@ export interface GameConfig {
       /** Multiplies every enemy's max health. */
       enemyHealth: number
     }
+    /** The special meter: filled by landing and taking hits, spent by moveset rows with a `meter` cost. */
+    meter: {
+      max: number
+      /** Meter at the start of a run. */
+      start: number
+      /** Meter per point of damage the player deals. */
+      perDamageDealt: number
+      /** Meter per point of damage the player takes. */
+      perDamageTaken: number
+    }
   }
   /** Bindings per device (keyboard keys as lowercase `KeyboardEvent.key` values, mouse buttons, gamepad buttons); the player can remap them. */
   input: {
     bindings: DeviceBindings
     /** Analog sticks: no movement inside `deadZone` (0-1); past `runThreshold` the fighter runs. */
     analog: { deadZone: number; runThreshold: number }
+    /** Which optional actions are on, and how run and block behave. */
+    actions: ActionSettings
     /** Seconds within which a chord's actions count as pressed together. */
     chordWindow: number
     /**

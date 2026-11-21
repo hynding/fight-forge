@@ -28,6 +28,13 @@ const GAMEPAD_V4 = deviceMapV4({
   pause: ['start'],
 })
 
+const NEW_INPUTS_V7: Record<string, Record<string, string[]>> = {
+  keyboard: { heavy: ['l'], special: ['i'], run: ['q'] },
+  mouse: { heavy: [], special: [], run: [] },
+  gamepad: { heavy: ['y'], special: ['b'], run: ['ls'] },
+}
+const ACTIONS_V7 = { heavy: { enabled: true }, special: { enabled: true }, run: { mode: 'both' }, block: { mode: 'hold' } }
+
 export const MIGRATIONS: MigrationTable = {
   // v2: the attacker limit moved from `enemy` to `rules`, which also gained
   // friendly fire and difficulty; key bindings arrived as `input` (a pack
@@ -94,6 +101,26 @@ export const MIGRATIONS: MigrationTable = {
       }
     }
     if (settings.input) next.input = { chordWindow: 0.06, turnGrace: 0.12, ...(settings.input as Json) }
+    return { ...pack, settings: next }
+  },
+  // v7: heavy, special and run actions (each device gets the default inputs
+  // the pack doesn't already use), `input.actions`, and the special meter in `rules`.
+  6: (pack) => {
+    const settings = pack.settings as Json | undefined
+    if (!settings || (!settings.input && !settings.rules)) return pack
+    const next = { ...settings }
+    const input = settings.input as Json | undefined
+    if (input) {
+      const bindings = { ...(input.bindings as Record<string, Record<string, string[]>>) }
+      for (const [device, defaults] of Object.entries(NEW_INPUTS_V7)) {
+        const map = { ...(bindings[device] ?? {}) }
+        const used = new Set(Object.values(map).flat())
+        for (const [action, inputs] of Object.entries(defaults)) if (!(action in map)) map[action] = inputs.filter((i) => !used.has(i))
+        bindings[device] = map
+      }
+      next.input = { actions: ACTIONS_V7, ...input, bindings }
+    }
+    if (settings.rules) next.rules = { meter: { max: 100, start: 0, perDamageDealt: 1, perDamageTaken: 0.5 }, ...(settings.rules as Json) }
     return { ...pack, settings: next }
   },
 }

@@ -4,7 +4,7 @@ import { bindKey, unbindKey } from '../forge/bindings'
 import {
   ACTION_NAMES,
   GAMEPAD_INPUTS,
-  INPUT_ACTIONS,
+  enabledActions,
   MOUSE_BUTTONS,
   actionLabel,
   inputLabel,
@@ -15,7 +15,7 @@ import {
 import { VolumeControls } from './VolumeControls'
 import { useGameStore } from '../store/gameStore'
 import { getConfig } from '../content/active'
-import { loadPadPrefs, savePadPrefs } from '../input/prefs'
+import { loadControlPrefs, saveControlPrefs } from '../input/prefs'
 import { usePadCapture } from '../input/usePadCapture'
 
 const PAD_SET_NAMES = { xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', generic: 'standard' } as const
@@ -102,11 +102,29 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
   }, [listening])
 
   const bindings = getBindings()
+  // Only the actions this pack uses (heavy, special and the run button can be off).
+  const packActions = getConfig().input.actions
+  const actions = enabledActions(packActions)
+  const prefs = loadControlPrefs()
+  const check = (label: string, key: 'toggleBlock' | 'faceCursor', hint: string) => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }} title={hint}>
+      <span style={{ flex: 1, color: '#bbbbbb' }}>{label}</span>
+      <input
+        type="checkbox"
+        aria-label={label}
+        checked={prefs[key]}
+        onChange={(e) => {
+          saveControlPrefs({ ...loadControlPrefs(), [key]: e.target.checked })
+          changed()
+        }}
+      />
+    </label>
+  )
   const padName = (b: string) => inputLabel('gamepad', b, padLabels ?? 'xbox')
-  const deadZone = loadPadPrefs().deadZone ?? getConfig().input.analog.deadZone
+  const deadZone = loadControlPrefs().deadZone ?? getConfig().input.analog.deadZone
   const override = getOverride()
   const customized = Object.keys(override).length > 0
-  const tabCustomized = tab === 'keyboard' ? !!(override.keyboard || override.mouse) : !!override.gamepad || loadPadPrefs().deadZone !== null
+  const tabCustomized = tab === 'keyboard' ? !!(override.keyboard || override.mouse) : !!override.gamepad || loadControlPrefs().deadZone !== null
   const setPad = (next: typeof bindings.gamepad) => {
     setDeviceOverride('gamepad', next)
     changed()
@@ -170,7 +188,7 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
             ))}
           </div>
           {tab === 'keyboard' &&
-            INPUT_ACTIONS.map((action) => {
+            actions.map((action) => {
               const mouse = bindings.mouse[action].length ? actionLabel(bindings.mouse, action, 'mouse') : ''
               const keys = bindings.keyboard[action].length ? actionLabel(bindings.keyboard, action) : ''
               return (
@@ -196,7 +214,7 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
                 {padLabels ? `Controller ready (${PAD_SET_NAMES[padLabels]} buttons).` : 'Press any button on your controller.'} To add a button,
                 choose + and press it, or pick it from the list.
               </div>
-              {INPUT_ACTIONS.map((action) => (
+              {actions.map((action) => (
                 <div key={action} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }}>
                   <span style={{ flex: '1 0 120px', color: '#bbbbbb' }}>{ACTION_NAMES[action]}</span>
                   {bindings.gamepad[action].map((b) => (
@@ -241,7 +259,7 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
                   value={deadZone}
                   aria-label="Stick dead zone"
                   onChange={(e) => {
-                    savePadPrefs({ ...loadPadPrefs(), deadZone: Number(e.target.value) })
+                    saveControlPrefs({ ...loadControlPrefs(), deadZone: Number(e.target.value) })
                     changed()
                   }}
                 />
@@ -251,15 +269,17 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
                 <span style={{ flex: 1, color: '#bbbbbb' }}>Vibration</span>
                 <input
                   type="checkbox"
-                  checked={loadPadPrefs().rumble}
+                  checked={loadControlPrefs().rumble}
                   onChange={(e) => {
-                    savePadPrefs({ ...loadPadPrefs(), rumble: e.target.checked })
+                    saveControlPrefs({ ...loadControlPrefs(), rumble: e.target.checked })
                     changed()
                   }}
                 />
               </label>
             </>
           )}
+          {packActions.block.mode === 'hold' && check('Toggle block', 'toggleBlock', 'Press block once to raise the guard and again to lower it')}
+          {tab === 'keyboard' && check('Face the cursor', 'faceCursor', 'Standing still, turn toward the mouse pointer')}
           <button
             style={{ ...small, marginTop: '6px' }}
             disabled={!tabCustomized}
@@ -269,7 +289,7 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
                 setDeviceOverride('mouse', {})
               } else {
                 setDeviceOverride('gamepad', {})
-                savePadPrefs({ ...loadPadPrefs(), deadZone: null })
+                saveControlPrefs({ ...loadControlPrefs(), deadZone: null })
               }
               setListening(null)
               changed()

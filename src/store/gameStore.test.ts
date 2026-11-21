@@ -290,3 +290,19 @@ describe('props', () => {
     expect(useGameStore.getState().props).toEqual([])
   })
 })
+
+describe('meter', () => {
+  it('fills up to the max and is spent only when there is enough', () => {
+    const s = useGameStore.getState()
+    expect(s.meter).toBe(DEFAULT_CONFIG.rules.meter.start)
+    s.gainMeter(30)
+    expect(s.spendMeter(50)).toBe(false)
+    expect(useGameStore.getState().meter).toBe(30)
+    s.gainMeter(500)
+    expect(useGameStore.getState().meter).toBe(DEFAULT_CONFIG.rules.meter.max)
+    expect(s.spendMeter(50)).toBe(true)
+    expect(useGameStore.getState().meter).toBe(DEFAULT_CONFIG.rules.meter.max - 50)
+    s.gainMeter(-20)
+    expect(useGameStore.getState().meter).toBe(DEFAULT_CONFIG.rules.meter.max - 50)
+  })
+})

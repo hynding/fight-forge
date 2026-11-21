@@ -6,7 +6,7 @@
 import { choosePad, padInputs, type PadLike } from '../sim/gamepad'
 import { labelSetFor } from '../sim/input'
 import { useGameStore } from '../store/gameStore'
-import { loadPadPrefs } from './prefs'
+import { loadControlPrefs } from './prefs'
 
 /** The pad driving player 1: the first to press something. */
 let active: number | null = null
@@ -45,7 +45,7 @@ interface Actuator {
 
 /** A short rumble on player 1's pad, if it has a motor and the player hasn't turned it off. */
 export const rumble = (strength: number, seconds: number): void => {
-  if (strength <= 0 || active === null || !loadPadPrefs().rumble) return
+  if (strength <= 0 || active === null || !loadControlPrefs().rumble) return
   const pad = allPads().find((p) => p?.index === active) as (PadLike & { vibrationActuator?: Actuator }) | undefined
   const motor = pad?.vibrationActuator
   if (!motor?.playEffect) return

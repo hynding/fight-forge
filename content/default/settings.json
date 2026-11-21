@@ -38,8 +38,10 @@
     "deceleration": 0.85,
     "linearDamping": 0,
     "moveset": [
+      { "action": "special", "move": "shockwave", "cost": { "meter": 50 } },
       { "action": "attack", "when": "air", "move": "jumpKick" },
       { "action": "attack", "when": "running", "move": "dashPunch" },
+      { "action": "heavy", "move": "haymaker" },
       { "action": "attack", "move": "jab" }
     ]
   },
@@ -118,7 +120,8 @@
     "difficulty": {
       "damageTaken": 1,
       "enemyHealth": 1
-    }
+    },
+    "meter": { "max": 100, "start": 0, "perDamageDealt": 1, "perDamageTaken": 0.5 }
   },
   "input": {
     "bindings": {
@@ -131,6 +134,9 @@
         "attack": ["j"],
         "block": ["k"],
         "dodge": ["shift"],
+        "heavy": ["l"],
+        "special": ["i"],
+        "run": ["q"],
         "pause": ["escape"],
         "hitboxes": ["h"]
       },
@@ -143,6 +149,9 @@
         "attack": ["left"],
         "block": ["right"],
         "dodge": [],
+        "heavy": [],
+        "special": [],
+        "run": [],
         "pause": [],
         "hitboxes": []
       },
@@ -155,11 +164,20 @@
         "attack": ["x"],
         "block": ["lb", "lt"],
         "dodge": ["rb", "rt"],
+        "heavy": ["y"],
+        "special": ["b"],
+        "run": ["ls"],
         "pause": ["start"],
         "hitboxes": []
       }
     },
     "analog": { "deadZone": 0.2, "runThreshold": 0.85 },
+    "actions": {
+      "heavy": { "enabled": true },
+      "special": { "enabled": true },
+      "run": { "mode": "both" },
+      "block": { "mode": "hold" }
+    },
     "chordWindow": 0.06,
     "turnGrace": 0.12
   },

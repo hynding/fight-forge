@@ -40,7 +40,7 @@ describe('inputMap', () => {
   })
 
   it('ignores unmapped keys and follows remapping', () => {
-    expect(map.get(keyInput('q'))).toBeUndefined()
+    expect(map.get(keyInput('x'))).toBeUndefined()
     const remapped = inputMap(mergeDeviceBindings(DEFAULT_CONFIG.input.bindings, { keyboard: { attack: ['z'] } }))
     expect(remapped.get(keyInput('z'))).toBe('attack')
     expect(remapped.get(keyInput('j'))).toBeUndefined()

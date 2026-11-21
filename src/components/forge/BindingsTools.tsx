@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { bindKey, unbindKey } from '../../forge/bindings'
 import { setIn } from '../../forge/paths'
 import { nodeValue, overrideNode, type TreeNode } from '../../forge/tree'
+import { effectiveActions } from '../../forge/fighter'
 import { editPack, type PackJson, type WorkspacePack } from '../../forge/workspace'
 import {
   ACTION_NAMES,
   GAMEPAD_INPUTS,
-  INPUT_ACTIONS,
+  enabledActions,
   MOUSE_INPUTS,
   inputLabel,
   type Bindings,
@@ -42,6 +43,8 @@ export const BindingsTools = ({ pack, node, save }: Props) => {
   const json = pack.json
   const [device, setDevice] = useState<InputDevice>('keyboard')
   const all = (nodeValue(json, node) as { bindings?: Partial<DeviceBindings> } | undefined)?.bindings ?? {}
+  // Heavy, special and the run button only when the pack turns them on.
+  const actions = enabledActions(effectiveActions(json))
   const bindings = (all[device] ?? {}) as Bindings
   const [listening, setListening] = useState<InputAction | null>(null)
   const label = (k: string) => inputLabel(device, k)
@@ -92,7 +95,7 @@ export const BindingsTools = ({ pack, node, save }: Props) => {
         ))}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 12px', alignItems: 'center' }}>
-        {INPUT_ACTIONS.map((action) => (
+        {actions.map((action) => (
           <div key={action} style={{ display: 'contents' }}>
             <span style={{ color: '#aab' }}>{ACTION_NAMES[action]}</span>
             <span style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>

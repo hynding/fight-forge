@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../config/defaults'
-import { actionLabel, bindingConflicts, controlsHelp, keyLabel, keyMap, mergeBindings, rebind, type Bindings } from './input'
+import {
+  actionEnabled,
+  actionLabel,
+  bindingConflicts,
+  controlsHelp,
+  enabledActions,
+  helpExtras,
+  keyLabel,
+  keyMap,
+  mergeBindings,
+  padHelp,
+  rebind,
+  type ActionSettings,
+  type Bindings,
+} from './input'
 
 const base: Bindings = DEFAULT_CONFIG.input.bindings.keyboard
 
@@ -69,5 +83,30 @@ describe('labels', () => {
       'A/D - Move (double-tap to run) | W/S - Depth | SPACE - Jump | J - Attack (tap for combo) | K - Block | SHIFT - Dodge | ESC - Pause'
     )
     expect(controlsHelp(mergeBindings(base, { attack: ['z'] }))).toContain('Z - Attack |')
+  })
+})
+
+describe('optional actions', () => {
+  const on = DEFAULT_CONFIG.input.actions
+  const off: ActionSettings = { heavy: { enabled: false }, special: { enabled: false }, run: { mode: 'doubleTap' }, block: { mode: 'toggle' } }
+
+  it('turns heavy, special and the run button on and off', () => {
+    expect(enabledActions(on)).toContain('heavy')
+    expect(enabledActions(off)).not.toEqual(expect.arrayContaining(['heavy']))
+    expect(enabledActions(off).filter((a) => ['heavy', 'special', 'run'].includes(a))).toEqual([])
+    expect(actionEnabled(off, 'block')).toBe(true)
+    expect(actionEnabled({ ...off, run: { mode: 'hold' } }, 'run')).toBe(true)
+    expect(helpExtras(on)).toEqual(['heavy', 'special', 'run'])
+    expect(helpExtras(off)).toEqual([])
+  })
+
+  it('adds the extras to the help text after Attack, and Run after Dodge on the keyboard', () => {
+    const text = controlsHelp(base, true, helpExtras(on))
+    expect(text).toBe(
+      'A/D - Move | W/S - Depth | SPACE - Jump | J - Attack (tap for combo) | L - Heavy | I - Special | K - Block | SHIFT - Dodge | Q - Run | ESC - Pause'
+    )
+    const pad = padHelp(DEFAULT_CONFIG.input.bindings.gamepad, 'xbox', false, helpExtras(on))
+    expect(pad).toContain('Y - Heavy')
+    expect(pad).not.toContain('Run')
   })
 })

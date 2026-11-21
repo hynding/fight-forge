@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { actionFor, addRow, moveRow, PRESS_CHOICES, removeRow, setRow } from './moveset'
 import type { Moveset } from '../sim/moveset'
+import { unusedActions } from './fighter'
+import { DEFAULT_CONFIG } from '../config/defaults'
 
 const set: Moveset = [
   { action: 'attack', when: 'air', move: 'jumpKick' },
@@ -21,5 +23,19 @@ describe('moveset editing', () => {
     expect(addRow(set, 'hook')[0]).toEqual({ action: 'attack', direction: 'away', move: 'hook' })
     expect(removeRow(set, 0)).toHaveLength(1)
     expect(removeRow([set[0]], 0)).toHaveLength(1)
+  })
+})
+
+describe('unusedActions', () => {
+  const actions = DEFAULT_CONFIG.input.actions
+  it('flags heavy and special when they are on but nothing uses them', () => {
+    expect(unusedActions(set, {}, actions)).toEqual(['heavy', 'special'])
+    expect(unusedActions(set, {}, { ...actions, special: { enabled: false } })).toEqual(['heavy'])
+  })
+
+  it('counts moveset rows, chords and move branches as uses', () => {
+    const withRows: Moveset = [...set, { action: ['special', 'jump'], move: 'shockwave' }]
+    expect(unusedActions(withRows, { jab: { branches: { heavy: 'haymaker' } } }, actions)).toEqual([])
+    expect(unusedActions(DEFAULT_CONFIG.player.moveset, {}, actions)).toEqual([])
   })
 })

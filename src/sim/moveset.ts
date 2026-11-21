@@ -5,8 +5,8 @@
 
 import type { Vec2 } from './fighter'
 
-/** Actions a trigger can use. Chords can also include jump, block and dodge. */
-export const MOVESET_ACTIONS = ['attack', 'jump', 'block', 'dodge'] as const
+/** Actions a trigger can use (attack, heavy and special on their own; jump, block and dodge in chords too). */
+export const MOVESET_ACTIONS = ['attack', 'heavy', 'special', 'jump', 'block', 'dodge'] as const
 export type MovesetAction = (typeof MOVESET_ACTIONS)[number]
 
 /** Where the fighter is: `ground` (the default; not blocking), `air`, `running` or `blocking`. */
@@ -22,6 +22,8 @@ export interface MoveCost {
   health?: number
   /** Seconds before this trigger can fire again. */
   cooldown?: number
+  /** Special meter spent (see `rules.meter`); the move can't start without enough. */
+  meter?: number
 }
 
 export interface MoveTrigger {

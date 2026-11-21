@@ -287,6 +287,20 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     },
   },
   "input": {
+    "actions": {
+      "block": {
+        "mode": "hold",
+      },
+      "heavy": {
+        "enabled": true,
+      },
+      "run": {
+        "mode": "both",
+      },
+      "special": {
+        "enabled": true,
+      },
+    },
     "analog": {
       "deadZone": 0.2,
       "runThreshold": 0.85,
@@ -312,6 +326,9 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
           "up",
           "ls-up",
         ],
+        "heavy": [
+          "y",
+        ],
         "hitboxes": [],
         "jump": [
           "a",
@@ -326,6 +343,12 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "right": [
           "right",
           "ls-right",
+        ],
+        "run": [
+          "ls",
+        ],
+        "special": [
+          "b",
         ],
       },
       "keyboard": {
@@ -346,6 +369,9 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
           "w",
           "arrowup",
         ],
+        "heavy": [
+          "l",
+        ],
         "hitboxes": [
           "h",
         ],
@@ -363,6 +389,12 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
           "d",
           "arrowright",
         ],
+        "run": [
+          "q",
+        ],
+        "special": [
+          "i",
+        ],
       },
       "mouse": {
         "attack": [
@@ -374,11 +406,14 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         ],
         "dodge": [],
         "forward": [],
+        "heavy": [],
         "hitboxes": [],
         "jump": [],
         "left": [],
         "pause": [],
         "right": [],
+        "run": [],
+        "special": [],
       },
     },
     "chordWindow": 0.06,
@@ -438,8 +473,38 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "sound": "whoosh",
       "startup": 0.4,
     },
+    "haymaker": {
+      "active": 0.1,
+      "clip": {
+        "name": "Punch",
+        "speed": 1.2,
+      },
+      "damage": 22,
+      "hitSound": "heavy",
+      "hitbox": {
+        "forward": 0.9,
+        "halfX": 0.65,
+        "halfY": 0.55,
+        "halfZ": 0.5,
+        "up": 0.2,
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 6,
+          "y": 4,
+        },
+        "knockdown": true,
+      },
+      "recovery": 0.4,
+      "sound": "whoosh",
+      "startup": 0.18,
+    },
     "hook": {
       "active": 0.1,
+      "branches": {
+        "heavy": "haymaker",
+      },
       "clip": {
         "name": "Punch",
         "speed": 2.1,
@@ -466,6 +531,9 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     },
     "jab": {
       "active": 0.08,
+      "branches": {
+        "heavy": "haymaker",
+      },
       "clip": {
         "name": "Punch",
         "speed": 2.8,
@@ -492,6 +560,9 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     },
     "jab2": {
       "active": 0.08,
+      "branches": {
+        "heavy": "haymaker",
+      },
       "clip": {
         "name": "Punch",
         "speed": 2.8,
@@ -569,6 +640,33 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       "recovery": 0.5,
       "sound": "whoosh",
       "startup": 0.2,
+    },
+    "shockwave": {
+      "active": 0.15,
+      "clip": {
+        "name": "Jump",
+        "speed": 1.6,
+      },
+      "damage": 25,
+      "hitSound": "heavy",
+      "hitbox": {
+        "forward": 0,
+        "halfX": 1.8,
+        "halfY": 0.9,
+        "halfZ": 0.9,
+        "up": 0,
+      },
+      "reaction": {
+        "hitstun": 0,
+        "knockback": {
+          "x": 6,
+          "y": 5,
+        },
+        "knockdown": true,
+      },
+      "recovery": 0.45,
+      "sound": "heavy",
+      "startup": 0.15,
     },
     "uppercut": {
       "active": 0.1,
@@ -696,6 +794,13 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     },
     "moveset": [
       {
+        "action": "special",
+        "cost": {
+          "meter": 50,
+        },
+        "move": "shockwave",
+      },
+      {
         "action": "attack",
         "move": "jumpKick",
         "when": "air",
@@ -704,6 +809,10 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
         "action": "attack",
         "move": "dashPunch",
         "when": "running",
+      },
+      {
+        "action": "heavy",
+        "move": "haymaker",
       },
       {
         "action": "attack",
@@ -798,6 +907,12 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "friendlyFire": false,
     "lives": 3,
     "maxSimultaneousAttackers": 1,
+    "meter": {
+      "max": 100,
+      "perDamageDealt": 1,
+      "perDamageTaken": 0.5,
+      "start": 0,
+    },
     "pickupRadius": 0.9,
     "respawnInvulnerability": 2,
   },
