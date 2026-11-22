@@ -23,12 +23,15 @@ import {
 } from '../sim/projectiles'
 import type { FighterRuntime } from '../sim/fighter'
 import { playSound } from '../audio/engine'
-import { hitProps, landHit, PLAYER } from './landHit'
+import { hitProps, landHit } from './landHit'
+import { activePlayerIds, fighterBody, type ScenePlayers } from './scenePlayers'
+import { isPlayerId } from '../sim/players'
+import { tokenTarget } from '../sim/tokens'
 import { placeWeapon } from './weaponDrops'
 
 interface Props {
   world: ProjectileWorld
-  playerRef: RefObject<RapierRigidBody>
+  players: ScenePlayers
   runtimes: Map<string, FighterRuntime>
   enemyRefs: Map<string, RefObject<RapierRigidBody>>
   stageLength: number
@@ -40,20 +43,20 @@ const SHAPES: ProjectileShape[] = ['box', 'cylinder', 'sphere']
 /**
  * The `projectiles` sim system (after combat) and their drawing. A fighter
  * whose move has a `projectile` fires it as the active frames begin; an
- * enemy's may hit the player only if it held an attack token (or its own
- * slot) then. Each projectile flies, hits each target once with the same
+ * enemy's may hit only the player it held an attack token against then (any
+ * player, with its own slot). Each projectile flies, hits each target once with the same
  * rules as a melee hit (guard, dodge, knockdowns, poise, armor), and stops at
- * its first hit unless it pierces. The player's also break breakable props;
+ * its first hit unless it pierces. The players' also break breakable props;
  * any solid prop stops one. Drawn as one instanced mesh per shape.
  */
-export const Projectiles = ({ world, playerRef, runtimes, enemyRefs, stageLength }: Props) => {
+export const Projectiles = ({ world, players, runtimes, enemyRefs, stageLength }: Props) => {
   const feel = useFeel()
   // The move instance each fighter last fired from, so a move fires once.
   const fired = useRef(new Map<string, number>())
 
   useSimSystem('projectiles', SYSTEM_ORDER.projectiles, (dt) => {
     const config = getConfig()
-    const bodyOf = (name: string) => (name === PLAYER ? playerRef.current : (enemyRefs.get(name)?.current ?? null))
+    const bodyOf = (name: string) => fighterBody(players, enemyRefs, name)
     fired.current.forEach((_, name) => {
       if (!runtimes.has(name)) fired.current.delete(name)
     })
@@ -67,13 +70,14 @@ export const Projectiles = ({ world, playerRef, runtimes, enemyRefs, stageLength
       const def = config.projectiles[move.projectile.id]
       const body = bodyOf(name)
       if (!def || !body) return
-      const hurtsPlayer = name !== PLAYER && (rt.ownAttackSlot || useGameStore.getState().attackTokens.holders.includes(name))
+      const held = isPlayerId(name) ? null : tokenTarget(useGameStore.getState().attackTokens, name)
+      const hurts = isPlayerId(name) ? [] : rt.ownAttackSlot ? activePlayerIds() : held ? [held] : []
       const p = launchProjectile(world, move.projectile.id, def, move.projectile, {
         owner: name,
         origin: body.translation(),
         facingX: rt.facing.x,
         scale: rt.scale,
-        hurtsPlayer,
+        hurts,
       })
       // A thrown weapon rides along, to land as a pickup if it comes back.
       if (rt.thrownWeapon) {
@@ -94,7 +98,7 @@ export const Projectiles = ({ world, playerRef, runtimes, enemyRefs, stageLength
       const def = config.projectiles[p.def]
       if (!def || stepProjectile(p, def, dt, bounds) !== 'flying') return end(p)
       const box = projectileBox(p, def)
-      for (const targetName of projectileTargets(p, PLAYER, enemyRefs.keys(), config.rules.friendlyFire)) {
+      for (const targetName of projectileTargets(p, enemyRefs.keys(), config.rules.friendlyFire)) {
         if (p.hit.has(targetName)) continue
         const target = runtimes.get(targetName)
         const targetBody = bodyOf(targetName)
@@ -117,7 +121,7 @@ export const Projectiles = ({ world, playerRef, runtimes, enemyRefs, stageLength
         })
         if (registerHit(p, targetName)) return end(p)
       }
-      if (p.owner === PLAYER && hitProps(box, p.hit, def.damage, def.hitSound) > 0) return end(p)
+      if (isPlayerId(p.owner) && hitProps(box, p.hit, def.damage, def.hitSound) > 0) return end(p)
       // Walls and other solid props stop it.
       for (const prop of useGameStore.getState().props) {
         const pd = config.props[prop.prop]

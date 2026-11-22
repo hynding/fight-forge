@@ -27,11 +27,11 @@ const knife: ProjectileDef = {
 const barrel: ProjectileDef = { ...knife, shape: 'cylinder', speed: 8, lift: 5, gravity: 20, lifetime: 3, hitbox: { halfX: 0.4, halfY: 0.4, halfZ: 0.5 } }
 const bounds = { minX: 0, maxX: 100, floorY: 0 }
 const shooter = (over: Partial<Parameters<typeof launchProjectile>[4]> = {}) => ({
-  owner: 'player',
+  owner: 'p1',
   origin: { x: 10, y: 1, z: -1 },
   facingX: 1,
   scale: 1,
-  hurtsPlayer: false,
+  hurts: [] as readonly string[],
   ...over,
 })
 
@@ -99,12 +99,12 @@ describe('hits', () => {
   it("aims the player's at enemies and an enemy's at the player only with permission", () => {
     const w = createProjectileWorld()
     const mine = launchProjectile(w, 'knife', knife, { id: 'knife', from: [0, 0] }, shooter())
-    expect(projectileTargets(mine, 'player', ['e1', 'e2'], false)).toEqual(['e1', 'e2'])
-    const theirs = launchProjectile(w, 'knife', knife, { id: 'knife', from: [0, 0] }, shooter({ owner: 'e1', hurtsPlayer: true }))
-    expect(projectileTargets(theirs, 'player', ['e1', 'e2'], false)).toEqual(['player'])
-    expect(projectileTargets(theirs, 'player', ['e1', 'e2'], true)).toEqual(['player', 'e2'])
+    expect(projectileTargets(mine, ['e1', 'e2'], false)).toEqual(['e1', 'e2'])
+    const theirs = launchProjectile(w, 'knife', knife, { id: 'knife', from: [0, 0] }, shooter({ owner: 'e1', hurts: ['p1'] }))
+    expect(projectileTargets(theirs, ['e1', 'e2'], false)).toEqual(['p1'])
+    expect(projectileTargets(theirs, ['e1', 'e2'], true)).toEqual(['p1', 'e2'])
     const waiting = launchProjectile(w, 'knife', knife, { id: 'knife', from: [0, 0] }, shooter({ owner: 'e2' }))
-    expect(projectileTargets(waiting, 'player', ['e1', 'e2'], true)).toEqual([])
+    expect(projectileTargets(waiting, ['e1', 'e2'], true)).toEqual([])
   })
 })
 

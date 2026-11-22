@@ -1,7 +1,7 @@
-import { useRef, type RefObject } from 'react'
+import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
-import { Group, MeshStandardMaterial, Vector3 } from 'three'
+import { Group, MeshStandardMaterial } from 'three'
 import { useGameStore } from '../store/gameStore'
 import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
@@ -11,18 +11,22 @@ import { playSound } from '../audio/engine'
 import { getBindings } from '../content/bindings'
 import { promptLabel } from '../sim/input'
 import type { WeaponModel } from '../sim/weapons'
+import { activePlayerIds, type ScenePlayers } from './scenePlayers'
+import { playerId, slotOf } from '../sim/players'
 
-/** A weapon lying on the floor, glowing, with a pick-up prompt while the player is close and empty-handed. */
-const WeaponItem = ({ item, model, playerPositionRef }: { item: PickupInstance; model: WeaponModel; playerPositionRef: RefObject<Vector3> }) => {
+/** A weapon lying on the floor, glowing, with a pick-up prompt while an empty-handed player is close. */
+const WeaponItem = ({ item, model, players }: { item: PickupInstance; model: WeaponModel; players: ScenePlayers }) => {
   const material = useRef<MeshStandardMaterial>(null)
   const prompt = useRef<HTMLDivElement>(null)
   const loop = useSimLoop()
   const [w, h, d] = model.size
   useFrame(() => {
     if (material.current) material.current.emissiveIntensity = 0.35 + Math.sin(loop.time * 4) * 0.2
-    const p = playerPositionRef.current
-    const s = useGameStore.getState()
-    const near = !!p && !s.playerWeapon && Math.hypot(p.x - item.x, p.z - item.z) <= getConfig().rules.pickupRadius
+    const radius = getConfig().rules.pickupRadius
+    const near = useGameStore.getState().players.some((pl) => {
+      const p = players.positions.get(playerId(pl.slot))
+      return pl.lives > 0 && !pl.weapon && !!p && Math.hypot(p.x - item.x, p.z - item.z) <= radius
+    })
     if (prompt.current) prompt.current.style.display = near ? 'block' : 'none'
   })
   const thick = model.shape === 'box' ? d : w
@@ -52,7 +56,7 @@ const WeaponItem = ({ item, model, playerPositionRef }: { item: PickupInstance; 
   )
 }
 
-const Item = ({ item, playerPositionRef }: { item: PickupInstance; playerPositionRef: RefObject<Vector3> }) => {
+const Item = ({ item, players }: { item: PickupInstance; players: ScenePlayers }) => {
   const def = getConfig().pickups[item.pickup]
   const weapon = def?.effect === 'weapon' && def.weapon ? getConfig().weapons[def.weapon] : undefined
   const ref = useRef<Group>(null)
@@ -64,7 +68,7 @@ const Item = ({ item, playerPositionRef }: { item: PickupInstance; playerPositio
     ref.current.rotation.y = loop.time * 2
   })
   if (!def) return null
-  if (weapon) return <WeaponItem item={item} model={weapon.model} playerPositionRef={playerPositionRef} />
+  if (weapon) return <WeaponItem item={item} model={weapon.model} players={players} />
   return (
     <group position={[item.x, 0, item.z]}>
       <group ref={ref}>
@@ -86,21 +90,24 @@ const Item = ({ item, playerPositionRef }: { item: PickupInstance; playerPositio
 
 /**
  * Pickups on the stage: renders them, and the `pickups` sim system collects
- * any the player stands on (within `rules.pickupRadius`). Weapons stay until
- * the player picks one up with the attack button (Player).
+ * any a player stands on (within `rules.pickupRadius`), for that player.
+ * Weapons stay until a player picks one up with the attack button (Player).
  */
-export const Pickups = ({ playerPositionRef }: { playerPositionRef: RefObject<Vector3> }) => {
+export const Pickups = ({ players }: { players: ScenePlayers }) => {
   const pickups = useGameStore((state) => state.pickups)
 
   useSimSystem('pickups', SYSTEM_ORDER.pickups, () => {
-    const player = playerPositionRef.current
-    if (!player) return
     const store = useGameStore.getState()
     for (const item of store.pickups) {
       // Weapons wait to be picked up with the attack button.
       if (getConfig().pickups[item.pickup]?.effect === 'weapon') continue
-      if (inPickupReach({ x: player.x, z: player.z }, item, getConfig().rules.pickupRadius)) {
-        store.collectPickup(item.id)
+      // The first player (by slot) standing on it gets it.
+      const by = activePlayerIds().find((id) => {
+        const p = players.positions.get(id)
+        return !!p && inPickupReach({ x: p.x, z: p.z }, item, getConfig().rules.pickupRadius)
+      })
+      if (by) {
+        store.collectPickup(item.id, slotOf(by))
         playSound(getConfig().audio.pickup)
       }
     }
@@ -109,7 +116,7 @@ export const Pickups = ({ playerPositionRef }: { playerPositionRef: RefObject<Ve
   return (
     <>
       {pickups.map((item) => (
-        <Item key={item.id} item={item} playerPositionRef={playerPositionRef} />
+        <Item key={item.id} item={item} players={players} />
       ))}
     </>
   )

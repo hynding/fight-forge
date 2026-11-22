@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { isFrozen, useGameStore, type Enemy } from './gameStore'
+import { freshPlayer, isFrozen, playerState, useGameStore, type Enemy, type PlayerState } from './gameStore'
 import { DEFAULT_CONFIG } from '../config/defaults'
 
 const makeEnemy = (id: string, health = 50): Enemy => ({
@@ -12,10 +12,17 @@ const makeEnemy = (id: string, health = 50): Enemy => ({
 
 const initialState = useGameStore.getState()
 
+/** Player 1's state now. */
+const p1 = (): PlayerState => playerState(useGameStore.getState(), 1)!
+
+/** Changes player 1's state. */
+const setP1 = (patch: Partial<PlayerState>) =>
+  useGameStore.setState((s) => ({ players: s.players.map((p) => (p.slot === 1 ? { ...p, ...patch } : p)) }))
+
 /** Loses the last life: game over. */
 const killPlayer = () => {
-  useGameStore.setState({ lives: 1 })
-  useGameStore.getState().damagePlayer(1000)
+  setP1({ lives: 1 })
+  useGameStore.getState().damagePlayer(1, 1000)
 }
 
 beforeEach(() => {
@@ -47,29 +54,48 @@ describe('damageEnemy', () => {
     const s = useGameStore.getState()
     s.spawnEnemy(makeEnemy('a', 10))
     s.spawnEnemy(makeEnemy('b', 10))
-    expect(s.requestAttackToken('a')).toBe(true)
-    expect(s.requestAttackToken('b')).toBe(false)
+    expect(s.requestAttackToken('a', 'p1')).toBe(true)
+    expect(s.requestAttackToken('b', 'p1')).toBe(false)
     s.damageEnemy('b', 10)
     s.damageEnemy('a', 10)
-    expect(useGameStore.getState().attackTokens).toEqual({ holders: [], waiting: [] })
+    expect(useGameStore.getState().attackTokens).toEqual({ p1: { holders: [], waiting: [] } })
   })
 
   it('keeps another enemy holding its token', () => {
     const s = useGameStore.getState()
     s.spawnEnemy(makeEnemy('a', 10))
     s.spawnEnemy(makeEnemy('b'))
-    s.requestAttackToken('b')
+    s.requestAttackToken('b', 'p1')
     s.damageEnemy('a', 10)
-    expect(useGameStore.getState().attackTokens.holders).toEqual(['b'])
+    expect(useGameStore.getState().attackTokens.p1.holders).toEqual(['b'])
   })
 
   it('limits attackers to enemy.maxSimultaneousAttackers', () => {
     const s = useGameStore.getState()
     const max = DEFAULT_CONFIG.rules.maxSimultaneousAttackers
-    const granted = ['a', 'b', 'c', 'd'].filter((id) => s.requestAttackToken(id))
+    const granted = ['a', 'b', 'c', 'd'].filter((id) => s.requestAttackToken(id, 'p1'))
     expect(granted).toHaveLength(max)
     s.releaseAttackToken(granted[0])
-    expect(useGameStore.getState().attackTokens.holders).toHaveLength(max - 1)
+    expect(useGameStore.getState().attackTokens.p1.holders).toHaveLength(max - 1)
+  })
+
+  it('limits attackers per player: each player has their own tokens', () => {
+    const s = useGameStore.getState()
+    const max = DEFAULT_CONFIG.rules.maxSimultaneousAttackers
+    const onP1 = ['a', 'b', 'c'].filter((id) => s.requestAttackToken(id, 'p1'))
+    const onP2 = ['d', 'e', 'f'].filter((id) => s.requestAttackToken(id, 'p2'))
+    expect(onP1).toHaveLength(max)
+    expect(onP2).toHaveLength(max)
+  })
+
+  it('moves a waiting enemy to the queue of the player it now goes for', () => {
+    const s = useGameStore.getState()
+    s.requestAttackToken('a', 'p1')
+    s.requestAttackToken('b', 'p1')
+    expect(useGameStore.getState().attackTokens.p1.waiting).toEqual(['b'])
+    expect(s.requestAttackToken('b', 'p2')).toBe(true)
+    expect(useGameStore.getState().attackTokens.p1.waiting).toEqual([])
+    expect(useGameStore.getState().attackTokens.p2.holders).toEqual(['b'])
   })
 
   it('does nothing after game over', () => {
@@ -84,11 +110,30 @@ describe('damageEnemy', () => {
 
 describe('damagePlayer', () => {
   it('clamps at 0 and sets game over on the last life', () => {
-    useGameStore.setState({ lives: 1 })
-    useGameStore.getState().damagePlayer(150)
-    const { playerHealth, isGameOver } = useGameStore.getState()
-    expect(playerHealth).toBe(0)
-    expect(isGameOver).toBe(true)
+    setP1({ lives: 1 })
+    useGameStore.getState().damagePlayer(1, 150)
+    expect(p1().health).toBe(0)
+    expect(useGameStore.getState().isGameOver).toBe(true)
+  })
+
+  it('puts out one player without ending the game while another is still in', () => {
+    useGameStore.setState((s) => ({ players: [...s.players, freshPlayer(2)] }))
+    setP1({ lives: 1 })
+    useGameStore.getState().damagePlayer(1, 1000)
+    expect(p1().lives).toBe(0)
+    expect(useGameStore.getState().isGameOver).toBe(false)
+    // An out player takes no more damage or healing.
+    useGameStore.getState().healPlayer(1, 10)
+    expect(p1().health).toBe(0)
+    const p2 = playerState(useGameStore.getState(), 2)!
+    useGameStore.getState().damagePlayer(2, 10)
+    expect(playerState(useGameStore.getState(), 2)!.health).toBe(p2.health - 10)
+    // The last one out: game over, and a continue brings both back.
+    useGameStore.setState((s) => ({ players: s.players.map((p) => (p.slot === 2 ? { ...p, lives: 1 } : p)) }))
+    useGameStore.getState().damagePlayer(2, 1000)
+    expect(useGameStore.getState().isGameOver).toBe(true)
+    useGameStore.getState().continueGame()
+    expect(useGameStore.getState().players.map((p) => p.lives)).toEqual([DEFAULT_CONFIG.rules.lives, DEFAULT_CONFIG.rules.lives])
   })
 })
 
@@ -118,12 +163,13 @@ describe('resetGame', () => {
 
     useGameStore.getState().resetGame()
     const state = useGameStore.getState()
-    expect(state.playerHealth).toBe(state.playerMaxHealth)
+    expect(p1().health).toBe(p1().maxHealth)
+    expect(p1().lives).toBe(DEFAULT_CONFIG.rules.lives)
     expect(state.score).toBe(0)
     expect(state.enemies).toEqual([])
     expect(state.isGameOver).toBe(false)
     expect(state.isPaused).toBe(false)
-    expect(state.attackTokens).toEqual({ holders: [], waiting: [] })
+    expect(state.attackTokens).toEqual({})
     expect(state.gameId).toBe(prevGameId + 1)
     expect(state.gameScreen).toBe('playing')
   })
@@ -142,11 +188,11 @@ describe('level completion', () => {
     const after = useGameStore.getState()
     expect(after.levelProgress.complete).toBe(true)
     expect(isFrozen(after)).toBe(true)
-    after.damagePlayer(10)
+    after.damagePlayer(1, 10)
     after.damageEnemy('a', 100)
     after.togglePause()
     const end = useGameStore.getState()
-    expect(end.playerHealth).toBe(end.playerMaxHealth)
+    expect(p1().health).toBe(p1().maxHealth)
     expect(end.enemies).toHaveLength(1)
     expect(end.isPaused).toBe(false)
   })
@@ -161,22 +207,21 @@ describe('level completion', () => {
 describe('lives and continues', () => {
   it('loses a life and respawns at full health while lives remain', () => {
     const s = useGameStore.getState()
-    s.damagePlayer(1000)
-    const after = useGameStore.getState()
-    expect(after.lives).toBe(DEFAULT_CONFIG.rules.lives - 1)
-    expect(after.playerHealth).toBe(after.playerMaxHealth)
-    expect(after.respawnCount).toBe(1)
-    expect(after.isGameOver).toBe(false)
+    s.damagePlayer(1, 1000)
+    expect(p1().lives).toBe(DEFAULT_CONFIG.rules.lives - 1)
+    expect(p1().health).toBe(p1().maxHealth)
+    expect(p1().respawnCount).toBe(1)
+    expect(useGameStore.getState().isGameOver).toBe(false)
   })
 
   it('is game over on the last life, then a continue restores lives in place', () => {
-    for (let i = 0; i < DEFAULT_CONFIG.rules.lives; i++) useGameStore.getState().damagePlayer(1000)
+    for (let i = 0; i < DEFAULT_CONFIG.rules.lives; i++) useGameStore.getState().damagePlayer(1, 1000)
     expect(useGameStore.getState().isGameOver).toBe(true)
     useGameStore.setState({ score: 700 })
     useGameStore.getState().continueGame()
     const after = useGameStore.getState()
     expect(after.isGameOver).toBe(false)
-    expect(after.lives).toBe(DEFAULT_CONFIG.rules.lives)
+    expect(p1().lives).toBe(DEFAULT_CONFIG.rules.lives)
     expect(after.continuesLeft).toBe(DEFAULT_CONFIG.rules.continues - 1)
     expect(after.score).toBe(700)
   })
@@ -202,14 +247,14 @@ describe('runs and levels', () => {
     const s = useGameStore.getState()
     s.spawnEnemy(makeEnemy('a', 10))
     s.damageEnemy('a', 10)
-    s.damagePlayer(1000) // lose a life
+    s.damagePlayer(1, 1000) // lose a life
     s.completeLevel(30)
     const before = useGameStore.getState()
     before.nextLevel()
     const after = useGameStore.getState()
     expect(after.levelIndex).toBe(1)
     expect(after.score).toBe(before.score)
-    expect(after.lives).toBe(before.lives)
+    expect(after.players[0].lives).toBe(before.players[0].lives)
     expect(after.runKos).toBe(1)
     expect(after.kos).toBe(0)
     expect(after.levelProgress.complete).toBe(false)
@@ -222,12 +267,13 @@ describe('runs and levels', () => {
   })
 
   it('starts a fresh run at any level through the loading screen', () => {
-    useGameStore.setState({ score: 500, lives: 1 })
+    useGameStore.setState({ score: 500 })
+    setP1({ lives: 1 })
     useGameStore.getState().startRun(1)
     const s = useGameStore.getState()
     expect(s.levelIndex).toBe(1)
     expect(s.score).toBe(0)
-    expect(s.lives).toBe(DEFAULT_CONFIG.rules.lives)
+    expect(p1().lives).toBe(DEFAULT_CONFIG.rules.lives)
     expect(s.gameScreen).toBe('loading')
   })
 
@@ -240,21 +286,21 @@ describe('runs and levels', () => {
 describe('pickups', () => {
   it('heals on collection, once, and ignores duplicate spawns', () => {
     const s = useGameStore.getState()
-    s.damagePlayer(50)
+    s.damagePlayer(1, 50)
     s.spawnPickup({ id: 'p1', pickup: 'food', x: 0, z: 0 })
     s.spawnPickup({ id: 'p1', pickup: 'food', x: 0, z: 0 })
     expect(useGameStore.getState().pickups).toHaveLength(1)
-    s.collectPickup('p1')
-    s.collectPickup('p1')
+    s.collectPickup('p1', 1)
+    s.collectPickup('p1', 1)
     const after = useGameStore.getState()
-    expect(after.playerHealth).toBe(after.playerMaxHealth - 50 + DEFAULT_CONFIG.pickups.food.amount)
+    expect(p1().health).toBe(p1().maxHealth - 50 + DEFAULT_CONFIG.pickups.food.amount)
     expect(after.pickups).toHaveLength(0)
   })
 
   it('scores coins', () => {
     const s = useGameStore.getState()
     s.spawnPickup({ id: 'c', pickup: 'coin', x: 0, z: 0 })
-    s.collectPickup('c')
+    s.collectPickup('c', 1)
     expect(useGameStore.getState().score).toBe(DEFAULT_CONFIG.pickups.coin.amount)
   })
 })
@@ -294,15 +340,17 @@ describe('props', () => {
 describe('meter', () => {
   it('fills up to the max and is spent only when there is enough', () => {
     const s = useGameStore.getState()
-    expect(s.meter).toBe(DEFAULT_CONFIG.rules.meter.start)
-    s.gainMeter(30)
-    expect(s.spendMeter(50)).toBe(false)
-    expect(useGameStore.getState().meter).toBe(30)
-    s.gainMeter(500)
-    expect(useGameStore.getState().meter).toBe(DEFAULT_CONFIG.rules.meter.max)
-    expect(s.spendMeter(50)).toBe(true)
-    expect(useGameStore.getState().meter).toBe(DEFAULT_CONFIG.rules.meter.max - 50)
-    s.gainMeter(-20)
-    expect(useGameStore.getState().meter).toBe(DEFAULT_CONFIG.rules.meter.max - 50)
+    expect(p1().meter).toBe(DEFAULT_CONFIG.rules.meter.start)
+    s.gainMeter(1, 30)
+    expect(s.spendMeter(1, 50)).toBe(false)
+    expect(p1().meter).toBe(30)
+    s.gainMeter(1, 500)
+    expect(p1().meter).toBe(DEFAULT_CONFIG.rules.meter.max)
+    expect(s.spendMeter(1, 50)).toBe(true)
+    expect(p1().meter).toBe(DEFAULT_CONFIG.rules.meter.max - 50)
+    s.gainMeter(1, -20)
+    expect(p1().meter).toBe(DEFAULT_CONFIG.rules.meter.max - 50)
+    // Another slot's meter is its own; a missing player can't spend.
+    expect(s.spendMeter(2, 1)).toBe(false)
   })
 })

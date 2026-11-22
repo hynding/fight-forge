@@ -40,16 +40,17 @@ export const inPickupReach = (player: Vec2, item: Vec2, radius: number): boolean
 export const rollDrop = (drop: DropDef | undefined, random: () => number = Math.random): string | null =>
   drop && random() < drop.chance ? drop.pickup : null
 
+/** The player collecting a pickup, and the score. */
 export interface PickupTargetState {
-  playerHealth: number
-  playerMaxHealth: number
+  health: number
+  maxHealth: number
   score: number
 }
 
 /** What collecting a pickup changes: health capped at max, or score. */
 export const applyPickup = (s: PickupTargetState, def: PickupDef): Partial<PickupTargetState> =>
   def.effect === 'heal'
-    ? { playerHealth: Math.min(s.playerMaxHealth, s.playerHealth + def.amount) }
+    ? { health: Math.min(s.maxHealth, s.health + def.amount) }
     : def.effect === 'score'
       ? { score: s.score + def.amount }
       : {}

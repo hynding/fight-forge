@@ -5,6 +5,7 @@
 // on. It is gone when its lifetime runs out, it leaves the stage or it lands.
 // Pure TS; the `projectiles` sim system owns the live list.
 
+import { isPlayerId } from './players'
 import type { Box } from './combat'
 import type { HitReaction } from './moves'
 import type { HeldWeapon } from './weapons'
@@ -52,7 +53,7 @@ export interface Projectile {
   key: number
   /** Projectile definition id. */
   def: string
-  /** The fighter that fired it (`player` or an enemy id). */
+  /** The fighter that fired it (a player id like `p1`, or an enemy id). */
   owner: string
   x: number
   y: number
@@ -67,10 +68,11 @@ export interface Projectile {
   hit: Set<string>
   pierceLeft: number
   /**
-   * May hit the player: an enemy's projectile fired while it held an attack
-   * token (or had its own slot). It keeps this until it lands.
+   * The players it may hit: for an enemy's projectile, the one the enemy held
+   * an attack token against when it fired (or every player, with its own
+   * slot). It keeps this until it lands. Empty for a player's.
    */
-  hurtsPlayer: boolean
+  hurts: readonly string[]
   /** A thrown weapon that lands as a pickup again where the projectile ends. */
   carries?: HeldWeapon
 }
@@ -88,7 +90,7 @@ export const launchProjectile = (
   defId: string,
   def: ProjectileDef,
   fire: ProjectileFire,
-  shooter: { owner: string; origin: { x: number; y: number; z: number }; facingX: number; scale: number; hurtsPlayer: boolean }
+  shooter: { owner: string; origin: { x: number; y: number; z: number }; facingX: number; scale: number; hurts: readonly string[] }
 ): Projectile => {
   const dirX = shooter.facingX >= 0 ? 1 : -1
   const p: Projectile = {
@@ -104,7 +106,7 @@ export const launchProjectile = (
     age: 0,
     hit: new Set(),
     pierceLeft: def.pierce ?? 0,
-    hurtsPlayer: shooter.hurtsPlayer,
+    hurts: shooter.hurts,
   }
   world.list.push(p)
   return p
@@ -138,13 +140,14 @@ export const projectileBox = (p: Projectile, def: ProjectileDef): Box => ({
 })
 
 /**
- * Who it may hit: the player's projectiles hit enemies; an enemy's hits the
- * player (and, with friendly fire, other enemies) only if it may hurt the player.
+ * Who it may hit: a player's projectiles hit enemies; an enemy's hits the
+ * players it may hurt (and, with friendly fire, other enemies), and nobody
+ * if it may hurt no player.
  */
-export const projectileTargets = (p: Projectile, player: string, enemies: Iterable<string>, friendlyFire: boolean): string[] => {
-  if (p.owner === player) return [...enemies]
-  if (!p.hurtsPlayer) return []
-  return friendlyFire ? [player, ...[...enemies].filter((e) => e !== p.owner)] : [player]
+export const projectileTargets = (p: Projectile, enemies: Iterable<string>, friendlyFire: boolean): string[] => {
+  if (isPlayerId(p.owner)) return [...enemies]
+  if (!p.hurts.length) return []
+  return friendlyFire ? [...p.hurts, ...[...enemies].filter((e) => e !== p.owner)] : [...p.hurts]
 }
 
 /** Records a hit on `target`; returns true when the projectile stops there. */
@@ -181,7 +184,7 @@ export interface FlightPath {
  * `height` above the floor: for the Forge's side view.
  */
 export const flightPath = (def: ProjectileDef, height: number, step = 1 / 60): FlightPath => {
-  const p: Projectile = { key: 0, def: '', owner: '', x: 0, y: height, z: 0, vx: def.speed, vy: def.lift, dirX: 1, age: 0, hit: new Set(), pierceLeft: 0, hurtsPlayer: false }
+  const p: Projectile = { key: 0, def: '', owner: '', x: 0, y: height, z: 0, vx: def.speed, vy: def.lift, dirX: 1, age: 0, hit: new Set(), pierceLeft: 0, hurts: [] }
   const points: FlightPoint[] = [{ t: 0, x: 0, y: 0 }]
   let apex = 0
   let result: FlightResult = 'flying'

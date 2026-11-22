@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
-import { useGameStore } from '../store/gameStore'
+import { playerState, useGameStore } from '../store/gameStore'
+import { playerId } from '../sim/players'
 import { getConfig } from '../content/active'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
@@ -21,7 +22,9 @@ import { FighterBody } from './FighterBody'
 
 
 interface PlayerProps {
-  /** Every fighter's live runtime by name; the player registers as "player". */
+  /** Which player: 1 for player 1. Its fighter is `p1` in the scene. */
+  slot: number
+  /** Every fighter's live runtime by name; the player registers under its id (`p1`). */
   runtimes: Map<string, FighterRuntime>
   /** The scrolling view; the player stays on screen. */
   view: StageView
@@ -29,8 +32,9 @@ interface PlayerProps {
   input: InputManager
 }
 
-/** The player: a FighterBody driven by the scene's input. */
-export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view, input }, ref) => {
+/** A player: a FighterBody driven by the scene's input. */
+export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, runtimes, view, input }, ref) => {
+  const id = playerId(slot)
   // Re-render when packs are reinstalled (a Forge playtest edit), so the steps below see the new tuning.
   useGameStore((state) => state.packs)
   const config = getConfig()
@@ -62,8 +66,8 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   const grabPress = useRef(false)
   // What the HUD last showed for the weapon in hand.
   const shownWeapon = useRef('')
-  const respawnSeen = useRef(useGameStore.getState().respawnCount)
-  const playerHealth = useGameStore((state) => state.playerHealth)
+  const respawnSeen = useRef(playerState(useGameStore.getState(), slot)?.respawnCount ?? 0)
+  const playerHealth = useGameStore((state) => playerState(state, slot)?.health ?? 0)
 
   // A Forge "Fight with it" sandbox: start with the weapon in hand.
   useEffect(() => {
@@ -73,19 +77,19 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
   }, [runtime])
 
   useEffect(() => {
-    runtimes.set('player', runtime)
+    runtimes.set(id, runtime)
     return () => {
-      runtimes.delete('player')
+      runtimes.delete(id)
     }
-  }, [runtimes, runtime])
+  }, [runtimes, runtime, id])
 
   // Moves run after the fighter step (so they see this step's intent and
   // facing) and before combat (so combat sees a move on the step it starts).
   // A hit reaction blocks starting moves; combat interrupts a move on hit.
-  useSimSystem('playerAttack', SYSTEM_ORDER.playerAttack, (dt) => {
+  useSimSystem(`playerAttack:${id}`, SYSTEM_ORDER.playerAttack, (dt) => {
     // Lost a life (or continued): drop back in at the middle of the screen,
     // briefly invulnerable (the body blinks).
-    const { respawnCount } = useGameStore.getState()
+    const respawnCount = playerState(useGameStore.getState(), slot)?.respawnCount ?? 0
     if (respawnCount !== respawnSeen.current) {
       respawnSeen.current = respawnCount
       interruptMove(runtime.move)
@@ -147,7 +151,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       const item = weaponInReach(store.pickups, config.pickups, at, config.rules.pickupRadius)
       const id = item && config.pickups[item.pickup].weapon
       if (item && id && config.weapons[id]) {
-        store.collectPickup(item.id)
+        store.collectPickup(item.id, slot)
         runtime.weapon = holdWeapon(id, config.weapons[id], item.durability)
         playSound(config.audio.pickup)
         stepPresses = stepPresses.filter((p) => p !== 'attack')
@@ -167,7 +171,9 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
       // The throw starts below, like a trigger's move.
     } else if (runtime.move.move !== null) press = stepPresses[0] ?? null
     else if (runtime.reaction.kind === null && !(inAir && airAttackUsed.current)) {
-      const { playerHealth, meter } = useGameStore.getState()
+      const me = playerState(useGameStore.getState(), slot)
+      const playerHealth = me?.health ?? 0
+      const meter = me?.meter ?? 0
       const ctx = {
         air: inAir,
         running: !!intent?.run,
@@ -192,8 +198,8 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
     if (event === 'started' && (weaponStart || trigger)) runtime.weaponMove = !weaponStart && index >= 0 && index < weaponRows
     if (runtime.move.move === null) runtime.weaponMove = false
     if (event === 'started' && trigger) {
-      if (trigger.cost?.health) useGameStore.getState().spendHealth(trigger.cost.health)
-      if (trigger.cost?.meter) useGameStore.getState().spendMeter(trigger.cost.meter)
+      if (trigger.cost?.health) useGameStore.getState().spendHealth(slot, trigger.cost.health)
+      if (trigger.cost?.meter) useGameStore.getState().spendMeter(slot, trigger.cost.meter)
       if (trigger.cost?.cooldown) cooldowns.current.set(rowKey(index), loop.time + trigger.cost.cooldown)
       // A move for "away" comes out behind without turning round.
       if (trigger.direction === 'away') runtime.facing.x = facingBefore.current
@@ -210,14 +216,14 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
     const shown = w ? `${w.id}:${w.durability}` : ''
     if (shown !== shownWeapon.current) {
       shownWeapon.current = shown
-      useGameStore.getState().setPlayerWeapon(w)
+      useGameStore.getState().setPlayerWeapon(slot, w)
     }
   })
 
   return (
     <FighterBody
       ref={ref}
-      name="player"
+      name={id}
       position={P.spawnPosition}
       linearDamping={P.linearDamping}
       movement={movement}
@@ -279,7 +285,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ runtimes, view
         direction.current = relativeDirection(intent.move, facingBefore.current)
         return intent
       }}
-      isDead={() => useGameStore.getState().playerHealth <= 0}
+      isDead={() => (playerState(useGameStore.getState(), slot)?.health ?? 0) <= 0}
       getBounds={() =>
         screenBounds(view, config.stage.depthBand, config.camera.edgeMargin)
       }

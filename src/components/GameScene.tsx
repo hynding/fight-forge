@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, createRef, RefObject } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { RapierRigidBody } from '@react-three/rapier'
 import { PerspectiveCamera } from '@react-three/drei'
-import { DirectionalLight, Vector3 } from 'three'
+import { DirectionalLight } from 'three'
 import { Player } from './Player'
 import { Enemy } from './Enemy'
 import { Stage } from './Stage'
@@ -36,6 +36,8 @@ import { Effects } from './Effects'
 import { InputManager } from '../input/InputManager'
 import { ModelBudgetContext, useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
+import { createScenePlayers, fighterBody, playerRef } from './scenePlayers'
+import { playerId } from '../sim/players'
 
 /** The `input` sim system: samples the scene's input first in every step. */
 const InputSystem = ({ input }: { input: InputManager }) => {
@@ -55,9 +57,15 @@ export const GameScene = () => {
   const STAGE_LENGTH = levelLength(LEVEL)
   // The registry guarantees the level's theme exists.
   const THEME = config.themes[LEVEL.theme]
-  const playerRef = useRef<RapierRigidBody>(null)
   const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
-  const playerPositionRef = useRef(new Vector3(...config.player.spawnPosition))
+  const slots = useGameStore((state) => state.players.map((p) => p.slot).join(','))
+  // Every player's body and position, by player id.
+  const [players] = useState(() =>
+    createScenePlayers(
+      useGameStore.getState().players.map((p) => p.slot),
+      config.player.spawnPosition
+    )
+  )
   const lightRef = useRef<DirectionalLight>(null)
   // Horizontal camera state, shared by the camera, the player's screen bounds, and the spawner.
   const [view] = useState(() => createStageView(config.player.spawnPosition[0]))
@@ -79,11 +87,11 @@ export const GameScene = () => {
   const editing = useGameStore((state) => state.editing)
   // Let the Forge (open over a paused playtest) see where the player stands.
   useEffect(() => {
-    sceneProbe.playerX = () => playerPositionRef.current.x
+    sceneProbe.playerX = () => players.positions.get(playerId(1))?.x ?? null
     sceneProbe.runtime = (name) => runtimes.get(name) ?? null
     sceneProbe.projectiles = () => projectiles.list
     sceneProbe.position = (name) => {
-      const body = name === 'player' ? playerRef.current : enemyRefs.current.get(name)?.current
+      const body = fighterBody(players, enemyRefs.current, name)
       if (!body) return null
       const t = body.translation()
       return { x: t.x, z: t.z }
@@ -94,7 +102,7 @@ export const GameScene = () => {
       sceneProbe.position = () => null
       sceneProbe.projectiles = () => []
     }
-  }, [runtimes, projectiles])
+  }, [runtimes, projectiles, players])
   // The level's music loops while the scene is up, quieter while it's frozen (paused, results, editing).
   useEffect(() => {
     playMusic(LEVEL.music)
@@ -154,25 +162,29 @@ export const GameScene = () => {
         <CameraRig
           view={view}
           stageLength={STAGE_LENGTH}
-          playerPositionRef={playerPositionRef}
+          players={players}
           lightRef={lightRef}
         />
         <LevelDirector
           level={LEVEL}
           stageLength={STAGE_LENGTH}
           view={view}
-          playerPositionRef={playerPositionRef}
+          players={players}
           summons={summons}
         />
         <ScenePhysics gravity={config.physics.gravity} frozen={frozen}>
           <Stage length={STAGE_LENGTH} theme={THEME} />
           <Props />
-          <Player
-            ref={playerRef}
-            runtimes={runtimes}
-            input={input}
-            view={view}
-          />
+          {slots.split(',').map(Number).map((slot) => (
+            <Player
+              key={slot}
+              ref={playerRef(players, playerId(slot))}
+              slot={slot}
+              runtimes={runtimes}
+              input={input}
+              view={view}
+            />
+          ))}
 
           {enemies.map((enemy) => {
             if (!enemyRefs.current.has(enemy.id)) {
@@ -186,7 +198,7 @@ export const GameScene = () => {
                 id={enemy.id}
                 type={enemy.type}
                 position={enemy.position}
-                playerPositionRef={playerPositionRef}
+                players={players}
                 enemyRefs={enemyRefs.current}
                 stageLength={STAGE_LENGTH}
                 view={view}
@@ -196,21 +208,16 @@ export const GameScene = () => {
             )
           })}
 
-          <CombatSystem
-            playerRef={playerRef}
-            runtimes={runtimes}
-            enemyRefs={enemyRefs.current}
-            playerPositionRef={playerPositionRef}
-          />
-          <GrabSystem playerRef={playerRef} runtimes={runtimes} enemyRefs={enemyRefs.current} />
-          <HeldWeapons playerRef={playerRef} runtimes={runtimes} enemyRefs={enemyRefs.current} />
-          <Projectiles world={projectiles} playerRef={playerRef} runtimes={runtimes} enemyRefs={enemyRefs.current} stageLength={STAGE_LENGTH} />
-          <Pickups playerPositionRef={playerPositionRef} />
+          <CombatSystem players={players} runtimes={runtimes} enemyRefs={enemyRefs.current} />
+          <GrabSystem players={players} runtimes={runtimes} enemyRefs={enemyRefs.current} />
+          <HeldWeapons players={players} runtimes={runtimes} enemyRefs={enemyRefs.current} />
+          <Projectiles world={projectiles} players={players} runtimes={runtimes} enemyRefs={enemyRefs.current} stageLength={STAGE_LENGTH} />
+          <Pickups players={players} />
         </ScenePhysics>
         <Effects />
         <HealthBars enemyRefs={enemyRefs.current} />
         <PerfMonitor fighters={() => runtimes.size} />
-        <ModelBudgetDriver playerPositionRef={playerPositionRef} enemyRefs={enemyRefs.current} />
+        <ModelBudgetDriver players={players} enemyRefs={enemyRefs.current} />
         </SimLoopDriver>
         </ModelBudgetContext.Provider>
       </Canvas>

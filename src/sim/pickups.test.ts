@@ -11,8 +11,8 @@ describe('pickups', () => {
   })
 
   it('heals up to max health, or adds score', () => {
-    const s = { playerHealth: 90, playerMaxHealth: 100, score: 10 }
-    expect(applyPickup(s, FOOD)).toEqual({ playerHealth: 100 })
+    const s = { health: 90, maxHealth: 100, score: 10 }
+    expect(applyPickup(s, FOOD)).toEqual({ health: 100 })
     expect(applyPickup(s, COIN)).toEqual({ score: 510 })
   })
 

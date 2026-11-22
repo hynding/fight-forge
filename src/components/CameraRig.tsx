@@ -1,4 +1,6 @@
 import { useRef, type RefObject } from 'react'
+import { playersFocus } from '../sim/players'
+import { activePlayerIds, type ScenePlayers } from './scenePlayers'
 import { useFrame, useThree } from '@react-three/fiber'
 import { DirectionalLight, PerspectiveCamera, Vector3 } from 'three'
 import { getConfig } from '../content/active'
@@ -14,25 +16,29 @@ const LIGHT_OFFSET = new Vector3(10, 20, 10)
 interface CameraRigProps {
   view: StageView
   stageLength: number
-  playerPositionRef: RefObject<Vector3>
+  players: ScenePlayers
   lightRef: RefObject<DirectionalLight>
 }
 
 /**
  * Side-on scrolling camera. The follow (dead zone, no backtracking, stage
- * clamp) is a sim system, so the player's screen bounds are game state; the
- * render loop only places the camera and light where the view says.
+ * clamp) is a sim system, so the players' screen bounds are game state; the
+ * render loop only places the camera and light where the view says. It
+ * follows the middle of the players still in.
  */
-export const CameraRig = ({ view, stageLength, playerPositionRef, lightRef }: CameraRigProps) => {
+export const CameraRig = ({ view, stageLength, players, lightRef }: CameraRigProps) => {
   const CAMERA = getConfig().camera
   const camera = useThree((s) => s.camera)
   const aspect = useThree((s) => s.size.width / s.size.height)
   const placed = useRef(false)
   const feel = useFeel()
 
+  // Where the camera follows: the middle of the players still in (null with none).
+  const focus = () => playersFocus(activePlayerIds().flatMap((id) => players.positions.get(id)?.x ?? []))
+
   useSimSystem('camera', SYSTEM_ORDER.camera, () => {
-    const p = playerPositionRef.current
-    if (p) stepCamera(view, p.x, stageLength, CAMERA)
+    const x = focus()
+    if (x !== null) stepCamera(view, x, stageLength, CAMERA)
   })
 
   useFrame(({ clock }) => {
@@ -41,10 +47,11 @@ export const CameraRig = ({ view, stageLength, playerPositionRef, lightRef }: Ca
       CAMERA.fov,
       aspect
     )
-    // Before the first sim step, settle the view on the player at once.
-    if (!placed.current && playerPositionRef.current) {
-      view.cameraX = view.maxCameraX = playerPositionRef.current.x
-      stepCamera(view, playerPositionRef.current.x, stageLength, CAMERA)
+    // Before the first sim step, settle the view on the players at once.
+    const x = placed.current ? null : focus()
+    if (x !== null) {
+      view.cameraX = view.maxCameraX = x
+      stepCamera(view, x, stageLength, CAMERA)
       placed.current = true
     }
 

@@ -6,12 +6,13 @@ import { getConfig } from '../content/active'
 import { movePhase } from '../sim/moves'
 import type { FighterRuntime } from '../sim/fighter'
 import type { ProjectileShape } from '../sim/projectiles'
+import { fighterBody, type ScenePlayers } from './scenePlayers'
 
 const CAPACITY = 48
 const SHAPES: ProjectileShape[] = ['box', 'cylinder', 'sphere']
 
 interface Props {
-  playerRef: RefObject<RapierRigidBody>
+  players: ScenePlayers
   runtimes: Map<string, FighterRuntime>
   enemyRefs: Map<string, RefObject<RapierRigidBody>>
 }
@@ -21,7 +22,7 @@ interface Props {
  * hand weapon at the front of the body, tipped forward (swung down during a
  * move's active frames); an overhead one above the head. Visual only.
  */
-export const HeldWeapons = ({ playerRef, runtimes, enemyRefs }: Props) => {
+export const HeldWeapons = ({ players, runtimes, enemyRefs }: Props) => {
   const meshes = useRef<Record<ProjectileShape, InstancedMesh | null>>({ box: null, cylinder: null, sphere: null })
   const tmp = useMemo(() => ({ m: new Matrix4(), p: new Vector3(), s: new Vector3(), q: new Quaternion(), e: new Euler(), c: new Color() }), [])
 
@@ -31,7 +32,7 @@ export const HeldWeapons = ({ playerRef, runtimes, enemyRefs }: Props) => {
     runtimes.forEach((rt, name) => {
       if (!rt.weapon) return
       const def = config.weapons[rt.weapon.id]
-      const body = name === 'player' ? playerRef.current : enemyRefs.get(name)?.current
+      const body = fighterBody(players, enemyRefs, name)
       const mesh = def ? meshes.current[def.model.shape] : null
       if (!def || !body || !mesh || counts[def.model.shape] >= CAPACITY) return
       const t = body.translation()
