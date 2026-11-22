@@ -1,6 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState, RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
-import { Vector3 } from 'three'
 import { EnemyType } from '../types/game'
 import { useGameStore } from '../store/gameStore'
 import { getConfig } from '../content/active'
@@ -24,6 +23,9 @@ import { playSound } from '../audio/engine'
 import { FighterBody } from './FighterBody'
 import { armedAttacks, holdWeapon, type WeaponDef } from '../sim/weapons'
 import type { AttackDef } from '../sim/attacks'
+import { nearestPlayer, RETARGET_MARGIN } from '../sim/players'
+import { poolFor, tokenTarget } from '../sim/tokens'
+import { playerTargets, type ScenePlayers } from './scenePlayers'
 
 // An armed enemy's attacks, worked out once per weapon definition.
 const armedCache = new WeakMap<WeaponDef, AttackDef[] | null>()
@@ -36,7 +38,8 @@ interface EnemyProps {
   id: string
   type: EnemyType
   position: [number, number, number]
-  playerPositionRef: RefObject<Vector3>
+  /** The players; the enemy goes for the nearest. */
+  players: ScenePlayers
   enemyRefs: Map<string, RefObject<RapierRigidBody>>
   stageLength: number
   view: StageView
@@ -53,7 +56,7 @@ interface EnemyProps {
  * a push, summons), has poise, and by default its own attack slot.
  */
 export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
-  ({ id, type, position, playerPositionRef, enemyRefs, stageLength, view, runtimes, summons }, ref) => {
+  ({ id, type, position, players, enemyRefs, stageLength, view, runtimes, summons }, ref) => {
     // Re-render when packs are reinstalled (a Forge playtest edit), so the steps below see the new tuning.
     useGameStore((state) => state.packs)
     const config = getConfig()
@@ -61,6 +64,8 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const def = config.enemyTypes[type]
     const [runtime] = useState(createFighterRuntime)
     const memory = useRef(createBrawlerMemory())
+    // The player it's going for (the nearest; kept while it holds a token against them).
+    const targetId = useRef<string | null>(null)
     // Attack-slot hold/recovery countdowns, stepped by the sim (game time).
     const slotTimer = useRef(createAttackSlotTimer())
     // Set by the AI when it's in reach and wants to hit; acted on by the slot system.
@@ -106,7 +111,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       [stats.speed, E.deceleration, BODY.stopSpeed]
     )
 
-    const holdsToken = useGameStore((state) => state.attackTokens.holders.includes(id))
+    const holdsToken = useGameStore((state) => tokenTarget(state.attackTokens, id) !== null)
     const isAttacking = holdsToken || (ownSlot && runtime.move.move !== null)
     const health = useGameStore(
       (state) => state.enemies.find((e) => e.id === id)?.health ?? def.maxHealth
@@ -140,7 +145,10 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     // AIController: decide where to go and whether to attack.
     const getIntent = (body: RapierRigidBody, dt: number) => {
       const self = body.translation()
-      const target = playerPositionRef.current
+      const candidates = playerTargets(players)
+      const pools = useGameStore.getState().attackTokens
+      targetId.current = tokenTarget(pools, id) ?? nearestPlayer({ x: self.x, z: self.z }, candidates, targetId.current, RETARGET_MARGIN)
+      const target = candidates.find((c) => c.id === targetId.current)
       if (!target) return idleIntent()
 
       const others: Vec2[] = []
@@ -150,11 +158,11 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         others.push({ x: o.x, z: o.z })
       })
 
-      const { holders } = useGameStore.getState().attackTokens
+      const { holders } = poolFor(pools, target.id)
       const ctx: BrawlerContext = {
         self: { x: self.x, z: self.z },
         target: { x: target.x, z: target.z },
-        targetFacingX: runtimes.get('player')?.facing.x,
+        targetFacingX: runtimes.get(target.id)?.facing.x,
         others,
         tokensTaken: !ownSlot && holders.length >= config.rules.maxSimultaneousAttackers && !holders.includes(id),
         // Off screen (walking in, or left behind by the camera): come and fight.
@@ -180,7 +188,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     // forgets the enemy's token and queue place.
     // Read live store state; a render-time selector can be frames stale.
     // A boss's phase change: cancel the move, go invulnerable and stand for
-    // the transition, taunt, push the player away and call in the summons.
+    // the transition, taunt, push the players away and call in the summons.
     const changePhase = (reached: number) => {
       const p = boss!.phases[reached - 1]
       const tr = boss!.transition
@@ -190,15 +198,16 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       ownCooldowns.current = []
       playSound(p.taunt)
       const me = enemyRefs.get(id)?.current?.translation()
-      const player = runtimes.get('player')
-      const target = playerPositionRef.current
-      if (me && player && target && !isInvulnerable(player.reaction)) {
-        const push = transitionPush(tr, target.x - me.x, target.z - me.z)
-        if (push !== 0 && applyHit(player.reaction, { hitstun: tr.duration, knockback: { x: 0, y: 0 } }, config.reactions)) {
-          interruptMove(player.move)
-          player.velocity = { x: push, z: 0 }
+      if (me)
+        for (const target of playerTargets(players)) {
+          const player = runtimes.get(target.id)
+          if (!player || isInvulnerable(player.reaction)) continue
+          const push = transitionPush(tr, target.x - me.x, target.z - me.z)
+          if (push !== 0 && applyHit(player.reaction, { hitstun: tr.duration, knockback: { x: 0, y: 0 } }, config.reactions)) {
+            interruptMove(player.move)
+            player.velocity = { x: push, z: 0 }
+          }
         }
-      }
       if (p.summon && me) summons.push({ enemies: p.summon.enemies, x: me.x })
     }
 
@@ -230,7 +239,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         }
       }
 
-      const holding = ownSlot ? slotTimer.current.holdLeft > 0 : store.attackTokens.holders.includes(id)
+      const holding = ownSlot ? slotTimer.current.holdLeft > 0 : tokenTarget(store.attackTokens, id) !== null
 
       if (runtime.reaction.kind !== null && holding) {
         releaseAttackSlotEarly(slotTimer.current, E)
@@ -247,11 +256,12 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
       const attacks = currentAttacks()
       const cooldowns = cooldownsNow()
       const choice = eligible ? pickAttack(attacks, attackAt.current, cooldowns.current, random) : null
-      if (choice === null) {
+      const target = targetId.current
+      if (choice === null || (!ownSlot && target === null)) {
         if (!ownSlot) store.cancelAttackRequest(id)
         return
       }
-      if (ownSlot || store.requestAttackToken(id)) {
+      if (ownSlot || (target !== null && store.requestAttackToken(id, target))) {
         startCooldown(cooldowns.current, attacks, choice)
         startAttackSlotHold(slotTimer.current, E)
         startMove(runtime.move, attacks[choice].move)

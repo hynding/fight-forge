@@ -19,11 +19,10 @@ import { dropWeapon } from './weaponDrops'
 import { propBox } from '../sim/props'
 import { rollDrop } from '../sim/pickups'
 import { boxesOverlap, type Box } from '../sim/combat'
-
-export const PLAYER = 'player'
+import { isPlayerId, slotOf } from '../sim/players'
 
 export interface LandedHit {
-  /** Who it's from (`player` or an enemy id), for meter and rumble. */
+  /** Who it's from (a player id like `p1`, or an enemy id), for meter and rumble. */
   attacker: string
   target: string
   targetRuntime: FighterRuntime
@@ -54,7 +53,8 @@ export const landHit = (feel: FeelState, h: LandedHit): void => {
   let damage = h.damage
   let reaction = h.reaction
   const audio = config.audio
-  const toPlayer = targetName === PLAYER
+  const toPlayer = isPlayerId(targetName)
+  const byPlayer = isPlayerId(h.attacker)
   const guarded = target.blocking && facesAttacker(target.facing.x, t.x, h.fromX)
   if (guarded) playSound(audio.block)
   else playSound(toPlayer ? (audio.hurt ?? h.hitSound ?? audio.hit) : (h.hitSound ?? audio.hit))
@@ -92,19 +92,19 @@ export const landHit = (feel: FeelState, h: LandedHit): void => {
     down: (!guarded && !!reaction.knockdown) || knockedOut,
   })
   rumble(
-    rumbleFor(config.feel, { damage: shown, toPlayer, byPlayer: h.attacker === PLAYER, ko: knockedOut }),
+    rumbleFor(config.feel, { damage: shown, toPlayer, byPlayer, ko: knockedOut }),
     config.feel.rumble.duration
   )
   // Knocked down or out: the weapon falls at its feet.
   if ((!guarded && reaction.knockdown) || knockedOut) dropWeapon(target, t)
 
   if (damage <= 0) return
-  // The special meter fills from hits the player lands and takes.
+  // A player's special meter fills from hits they land and take.
   const meter = rules.meter
-  if (h.attacker === PLAYER) store.gainMeter(damage * meter.perDamageDealt)
+  if (byPlayer) store.gainMeter(slotOf(h.attacker), damage * meter.perDamageDealt)
   if (toPlayer) {
-    store.gainMeter(shown * meter.perDamageTaken)
-    if (shown > 0) store.damagePlayer(shown)
+    store.gainMeter(slotOf(targetName), shown * meter.perDamageTaken)
+    if (shown > 0) store.damagePlayer(slotOf(targetName), shown)
   } else {
     hurtEnemy(targetName, damage, t)
   }

@@ -27,15 +27,15 @@ describe('combatTargets', () => {
   const enemies = ['e1', 'e2', 'e3']
 
   it('lets the player hit every enemy', () => {
-    expect(combatTargets('player', 'player', enemies, false)).toEqual(enemies)
-    expect(combatTargets('player', 'player', enemies, true)).toEqual(enemies)
+    expect(combatTargets('p1', ['p1'], enemies, false)).toEqual(enemies)
+    expect(combatTargets('p1', ['p1'], enemies, true)).toEqual(enemies)
   })
 
   it('lets an enemy hit only the player without friendly fire', () => {
-    expect(combatTargets('e2', 'player', enemies, false)).toEqual(['player'])
+    expect(combatTargets('e2', ['p1'], enemies, false)).toEqual(['p1'])
   })
 
   it('lets an enemy hit the player and the other enemies with friendly fire', () => {
-    expect(combatTargets('e2', 'player', enemies, true)).toEqual(['player', 'e1', 'e3'])
+    expect(combatTargets('e2', ['p1'], enemies, true)).toEqual(['p1', 'e1', 'e3'])
   })
 })

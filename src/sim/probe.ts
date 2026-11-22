@@ -10,7 +10,7 @@ import type { Projectile } from './projectiles'
 export const sceneProbe: {
   playerX: () => number | null
   runtime: (name: string) => FighterRuntime | null
-  /** A fighter's position on the floor (the player is `player`). */
+  /** A fighter's position on the floor (player 1 is `p1`). */
   position: (name: string) => { x: number; z: number } | null
   /** Frame times and renderer counts (PerfMonitor). */
   perf: () => PerfSnapshot | null

@@ -8,6 +8,14 @@ import {
   releaseToken,
   requestToken,
   type TokenPool,
+  NO_POOLS,
+  cancelRequests,
+  forgetAll,
+  poolFor,
+  releaseTokens,
+  requestTokenFor,
+  tokenTarget,
+  type TokenPools,
 } from './tokens'
 import {
   canClaimAttackSlot,
@@ -81,5 +89,45 @@ describe('token pool', () => {
     }
     expect(Math.min(...Object.values(turns))).toBeGreaterThanOrEqual(3)
     expect(Math.max(...Object.values(turns)) - Math.min(...Object.values(turns))).toBeLessThanOrEqual(1)
+  })
+})
+
+describe('token pools per player', () => {
+  it('gives each player their own attackers', () => {
+    let pools: TokenPools = NO_POOLS
+    const ask = (id: string, target: string) => {
+      const r = requestTokenFor(pools, target, id, 1)
+      pools = r.pools
+      return r.granted
+    }
+    expect(ask('a', 'p1')).toBe(true)
+    expect(ask('b', 'p1')).toBe(false)
+    expect(ask('c', 'p2')).toBe(true)
+    expect(tokenTarget(pools, 'a')).toBe('p1')
+    expect(tokenTarget(pools, 'c')).toBe('p2')
+    expect(tokenTarget(pools, 'b')).toBeNull()
+    expect(poolFor(pools, 'p1').waiting).toEqual(['b'])
+  })
+
+  it('waits in one queue at a time, and forgets an enemy everywhere', () => {
+    let pools: TokenPools = requestTokenFor(NO_POOLS, 'p1', 'a', 1).pools
+    pools = requestTokenFor(pools, 'p1', 'b', 1).pools
+    pools = requestTokenFor(pools, 'p2', 'c', 1).pools
+    // b gives up on p1 and goes for p2, where c holds the token: it waits there.
+    pools = requestTokenFor(pools, 'p2', 'b', 1).pools
+    expect(poolFor(pools, 'p1').waiting).toEqual([])
+    expect(poolFor(pools, 'p2').waiting).toEqual(['b'])
+    pools = releaseTokens(pools, 'c')
+    expect(requestTokenFor(pools, 'p2', 'b', 1).granted).toBe(true)
+    pools = cancelRequests(pools, 'b')
+    expect(poolFor(pools, 'p2').waiting).toEqual([])
+    pools = forgetAll(pools, 'a')
+    expect(poolFor(pools, 'p1')).toEqual({ holders: [], waiting: [] })
+  })
+
+  it('returns the same pools when nothing changes', () => {
+    const pools = requestTokenFor(NO_POOLS, 'p1', 'a', 1).pools
+    expect(cancelRequests(pools, 'zz')).toBe(pools)
+    expect(releaseTokens(pools, 'zz')).toBe(pools)
   })
 })

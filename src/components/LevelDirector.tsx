@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
-import { Vector3 } from 'three'
+import { useEffect, useRef, useState } from 'react'
+import { leadX } from '../sim/players'
+import { activePlayerIds, type ScenePlayers } from './scenePlayers'
 import { useGameStore } from '../store/gameStore'
 import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
@@ -24,13 +25,13 @@ interface LevelDirectorProps {
   level: Level
   stageLength: number
   view: StageView
-  playerPositionRef: RefObject<Vector3>
+  players: ScenePlayers
   /** Boss phase summons to spawn (taken from the queue as they come in). */
   summons: SummonRequest[]
 }
 
 /**
- * Runs the level script as a sim system: spawns waves when the player reaches
+ * Runs the level script as a sim system: spawns waves when the leading player reaches
  * triggers, locks and releases the camera, and completes the level at the
  * goal, and spawns the helpers a boss summons as it changes phase. The pure
  * logic is `stepLevel` in src/sim/level.ts.
@@ -39,7 +40,7 @@ export const LevelDirector = ({
   level,
   stageLength,
   view,
-  playerPositionRef,
+  players,
   summons,
 }: LevelDirectorProps) => {
   const [rt] = useState(() => createLevelRuntime(level))
@@ -104,8 +105,10 @@ export const LevelDirector = ({
   }, [level])
 
   useSimSystem('level', SYSTEM_ORDER.level, (dt) => {
-    const player = playerPositionRef.current
-    if (!player) return
+    // The level script follows the player furthest along.
+    const x = leadX(activePlayerIds().flatMap((id) => players.positions.get(id)?.x ?? []))
+    if (x === null) return
+    const player = { x }
     const store = useGameStore.getState()
     const alive = new Set(store.enemies.map((e) => e.id))
 

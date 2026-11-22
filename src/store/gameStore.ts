@@ -1,5 +1,5 @@
 import type { InputDevice, PadLabelSet } from '../sim/input'
-import { EMPTY_POOL, cancelRequest, forget, releaseToken, requestToken, type TokenPool } from '../sim/tokens'
+import { NO_POOLS, cancelRequests, forgetAll, releaseTokens, requestTokenFor, type TokenPools } from '../sim/tokens'
 import { create } from 'zustand'
 import type { EnemyType } from '../types/game'
 import { getConfig, getLevels } from '../content/active'
@@ -16,6 +16,47 @@ export interface Enemy {
   maxHealth: number
   position: [number, number, number]
 }
+
+/** One player's state: health, lives, meter and the weapon in hand (for the HUD). */
+export interface PlayerState {
+  /** 1 for player 1 (`p1` in the scene), 2 for player 2. */
+  slot: number
+  health: number
+  maxHealth: number
+  /** Lives left, including the current one. Losing the last puts the player out. */
+  lives: number
+  /** The special meter (see `rules.meter`); kept between levels of a run. */
+  meter: number
+  /** Incremented when the player loses a life or continues; the player respawns on change. */
+  respawnCount: number
+  /** The weapon in the player's hands, for the HUD (the player's runtime is the truth). */
+  weapon: HeldWeapon | null
+}
+
+/** A player as a run starts them. */
+export const freshPlayer = (slot: number): PlayerState => {
+  const config = getConfig()
+  return {
+    slot,
+    health: config.player.maxHealth,
+    maxHealth: config.player.maxHealth,
+    lives: config.rules.lives,
+    meter: config.rules.meter.start,
+    respawnCount: 0,
+    weapon: null,
+  }
+}
+
+/** A player's state by slot, if that player is in the game. */
+export const playerState = (s: Pick<GameState, 'players'>, slot: number): PlayerState | undefined => s.players.find((p) => p.slot === slot)
+
+/** The players with `slot` changed by `f` (others unchanged). */
+const withPlayer = (players: PlayerState[], slot: number, f: (p: PlayerState) => Partial<PlayerState> | null): PlayerState[] =>
+  players.map((p) => {
+    if (p.slot !== slot) return p
+    const patch = f(p)
+    return patch ? { ...p, ...patch } : p
+  })
 
 type GameScreen = 'menu' | 'loading' | 'playing' | 'forge' | 'gallery'
 
@@ -61,15 +102,15 @@ const INITIAL_LEVEL_PROGRESS: LevelProgress = {
 }
 
 interface GameState {
-  playerHealth: number
-  playerMaxHealth: number
+  /** Who's playing, by slot (player 1 first). */
+  players: PlayerState[]
   score: number
   enemies: Enemy[]
   isGameOver: boolean
   isPaused: boolean
   gameScreen: GameScreen
-  /** Who may attack the player now, and who is queued (see src/sim/tokens.ts). */
-  attackTokens: TokenPool
+  /** Who may attack each player now, and who is queued, by player id (see src/sim/tokens.ts). */
+  attackTokens: TokenPools
   /** Incremented on every reset. App keys GameScene on it so a restart remounts the scene. */
   gameId: number
   levelProgress: LevelProgress
@@ -91,14 +132,8 @@ interface GameState {
   playtest: PlaytestOrigin | null
   /** The Forge is open over a paused sandbox (the scene stays mounted underneath). */
   editing: boolean
-  /** Lives left, including the current one. Losing the last is game over. */
-  lives: number
   /** Continues left after a game over (`rules.continues` per run). */
   continuesLeft: number
-  /** The special meter (see `rules.meter`); kept between levels of a run. */
-  meter: number
-  /** Incremented when the player loses a life or continues; the player respawns on change. */
-  respawnCount: number
   /** Enemies defeated this level, and this run. */
   kos: number
   runKos: number
@@ -106,22 +141,21 @@ interface GameState {
   pickups: PickupInstance[]
   /** Props standing on the stage (broken or lifted ones are removed). */
   props: PropInstance[]
-  /** The weapon in the player's hands, for the HUD (the player's runtime is the truth). */
-  playerWeapon: HeldWeapon | null
   /** Imported content packs, in load order after the default pack (see src/content/library.ts). */
   packs: PackSummary[]
   /** Why the chosen packs can't be played together, if they can't; the menu won't start a run meanwhile. */
   contentError: string | null
 
   // Actions
-  damagePlayer: (damage: number) => void
+  /** Damage to a player: at 0 health they lose a life; losing the last puts them out, and with every player out it's game over. */
+  damagePlayer: (slot: number, damage: number) => void
   /** Pay health for a move: never below 1, and never a lost life. */
-  spendHealth: (amount: number) => void
-  /** Fill the special meter (up to `rules.meter.max`). */
-  gainMeter: (amount: number) => void
+  spendHealth: (slot: number, amount: number) => void
+  /** Fill a player's special meter (up to `rules.meter.max`). */
+  gainMeter: (slot: number, amount: number) => void
   /** Spend meter on a move; false (and nothing spent) without enough. */
-  spendMeter: (amount: number) => boolean
-  healPlayer: (amount: number) => void
+  spendMeter: (slot: number, amount: number) => boolean
+  healPlayer: (slot: number, amount: number) => void
   addScore: (points: number) => void
   spawnEnemy: (enemy: Enemy) => void
   removeEnemy: (id: string) => void
@@ -143,18 +177,19 @@ interface GameState {
   /** After a game over: spend a continue to carry on where you fell, with full lives. */
   continueGame: () => void
   spawnPickup: (item: PickupInstance) => void
-  collectPickup: (id: string) => void
+  /** Player `slot` collects a pickup (a heal heals that player). */
+  collectPickup: (id: string, slot: number) => void
   /** Places a level's props (ids are stable, so placing twice changes nothing). */
   placeProps: (props: PropInstance[]) => void
   /** Damages a breakable prop; true if that broke it (it's removed). */
   damageProp: (id: string, damage: number) => boolean
   /** Takes a prop off the stage (lifted). */
   removeProp: (id: string) => void
-  setPlayerWeapon: (weapon: HeldWeapon | null) => void
+  setPlayerWeapon: (slot: number, weapon: HeldWeapon | null) => void
   togglePause: () => void
   setGameScreen: (screen: GameScreen) => void
-  /** Queues for a token; true if this enemy holds one now. */
-  requestAttackToken: (id: string) => boolean
+  /** Queues for a token against player `target`; true if this enemy holds one now. */
+  requestAttackToken: (id: string, target: string) => boolean
   cancelAttackRequest: (id: string) => void
   releaseAttackToken: (id: string) => void
   setLevelProgress: (patch: Partial<LevelProgress>) => void
@@ -197,8 +232,8 @@ const freshLevel = (state: GameState): Partial<GameState> => ({
   enemies: [],
   pickups: [],
   props: [],
-  playerWeapon: null,
-  attackTokens: EMPTY_POOL,
+  players: state.players.map((p) => (p.weapon ? { ...p, weapon: null } : p)),
+  attackTokens: NO_POOLS,
   isGameOver: false,
   isPaused: false,
   levelProgress: INITIAL_LEVEL_PROGRESS,
@@ -207,25 +242,21 @@ const freshLevel = (state: GameState): Partial<GameState> => ({
 })
 
 /** Everything a run starts with. */
-const freshRun = (): Partial<GameState> => ({
-  playerHealth: getConfig().player.maxHealth,
-  playerMaxHealth: getConfig().player.maxHealth,
+const freshRun = (state: GameState): Partial<GameState> => ({
+  players: state.players.map((p) => freshPlayer(p.slot)),
   score: 0,
-  lives: getConfig().rules.lives,
   continuesLeft: getConfig().rules.continues,
   runKos: 0,
-  meter: getConfig().rules.meter.start,
 })
 
 export const useGameStore = create<GameState>((set, get) => ({
-  playerHealth: getConfig().player.maxHealth,
-  playerMaxHealth: getConfig().player.maxHealth,
+  players: [freshPlayer(1)],
   score: 0,
   enemies: [],
   isGameOver: false,
   isPaused: false,
   gameScreen: 'menu',
-  attackTokens: EMPTY_POOL,
+  attackTokens: NO_POOLS,
   gameId: 0,
   levelProgress: INITIAL_LEVEL_PROGRESS,
   showHitboxes: false,
@@ -239,15 +270,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   sandboxWeapon: null,
   playtest: null,
   editing: false,
-  lives: getConfig().rules.lives,
   continuesLeft: getConfig().rules.continues,
-  meter: getConfig().rules.meter.start,
-  respawnCount: 0,
   kos: 0,
   runKos: 0,
   pickups: [],
   props: [],
-  playerWeapon: null,
 
   toggleHitboxes: () => set((state) => ({ showHitboxes: !state.showHitboxes })),
   setInputDevice: (device, padLabels) => {
@@ -257,38 +284,41 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   setPacks: (packs, contentError) => set({ packs, contentError }),
 
-  spendHealth: (amount) => set((s) => ({ playerHealth: Math.max(1, s.playerHealth - amount) })),
-  gainMeter: (amount) => {
+  spendHealth: (slot, amount) =>
+    set((s) => ({ players: withPlayer(s.players, slot, (p) => ({ health: Math.max(1, p.health - amount) })) })),
+  gainMeter: (slot, amount) => {
     const max = getConfig().rules.meter.max
     const s = get()
-    const next = Math.min(max, s.meter + Math.max(0, amount))
-    if (next !== s.meter) set({ meter: next })
+    const p = playerState(s, slot)
+    if (!p) return
+    const next = Math.min(max, p.meter + Math.max(0, amount))
+    if (next !== p.meter) set({ players: withPlayer(s.players, slot, () => ({ meter: next })) })
   },
-  spendMeter: (amount) => {
+  spendMeter: (slot, amount) => {
     const s = get()
-    if (s.meter + 1e-9 < amount) return false
-    set({ meter: Math.max(0, s.meter - amount) })
+    const p = playerState(s, slot)
+    if (!p || p.meter + 1e-9 < amount) return false
+    set({ players: withPlayer(s.players, slot, () => ({ meter: Math.max(0, p.meter - amount) })) })
     return true
   },
-  damagePlayer: (damage) =>
+  damagePlayer: (slot, damage) =>
     set((state) => {
       if (state.isGameOver || state.levelProgress.complete) return {}
-      const newHealth = Math.max(0, state.playerHealth - damage)
-      if (newHealth > 0) return { playerHealth: newHealth }
-      // Out of health: lose a life and respawn, or it's game over on the last one.
-      if (state.lives > 1) {
-        return {
-          lives: state.lives - 1,
-          playerHealth: state.playerMaxHealth,
-          respawnCount: state.respawnCount + 1,
-        }
-      }
-      return { playerHealth: 0, lives: 0, isGameOver: true }
+      const players = withPlayer(state.players, slot, (p) => {
+        if (p.lives <= 0) return null
+        const health = Math.max(0, p.health - damage)
+        if (health > 0) return { health }
+        // Out of health: lose a life and respawn, or the player is out on the last one.
+        if (p.lives > 1) return { lives: p.lives - 1, health: p.maxHealth, respawnCount: p.respawnCount + 1 }
+        return { health: 0, lives: 0 }
+      })
+      // Every player out: game over.
+      return players.every((p) => p.lives <= 0) ? { players, isGameOver: true } : { players }
     }),
 
-  healPlayer: (amount) =>
+  healPlayer: (slot, amount) =>
     set((state) => ({
-      playerHealth: Math.min(state.playerMaxHealth, state.playerHealth + amount),
+      players: withPlayer(state.players, slot, (p) => (p.lives > 0 ? { health: Math.min(p.maxHealth, p.health + amount) } : null)),
     })),
 
   addScore: (points) =>
@@ -304,7 +334,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   removeEnemy: (id) =>
     set((state) => ({
       enemies: state.enemies.filter((e) => e.id !== id),
-      attackTokens: forget(state.attackTokens, id),
+      attackTokens: forgetAll(state.attackTokens, id),
     })),
 
   // Applies damage and, when health reaches 0, removes the enemy and awards the
@@ -326,7 +356,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       return {
         enemies: state.enemies.filter((e) => e.id !== id),
         score: state.score + getConfig().scoring.enemyKill,
-        attackTokens: forget(state.attackTokens, id),
+        attackTokens: forgetAll(state.attackTokens, id),
         kos: state.kos + 1,
         runKos: state.runKos + 1,
       }
@@ -335,7 +365,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   resetGame: () =>
     set((state) => ({
       ...freshLevel(state),
-      ...freshRun(),
+      ...freshRun(state),
       // Keep a menu screen; restarting from the game goes back to playing.
       gameScreen: state.gameScreen === 'menu' || state.gameScreen === 'forge' || state.gameScreen === 'gallery' ? state.gameScreen : 'playing',
       editing: false,
@@ -344,7 +374,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   startRun: (levelIndex) =>
     set((state) => ({
       ...freshLevel(state),
-      ...freshRun(),
+      ...freshRun(state),
       levelIndex: Math.max(0, Math.min(getLevels().length - 1, levelIndex)),
       sandbox: null,
       playtest: null,
@@ -355,7 +385,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   startSandbox: (level, origin, opts) =>
     set((state) => ({
       ...freshLevel(state),
-      ...freshRun(),
+      ...freshRun(state),
       levelIndex: 0,
       sandbox: level,
       sandboxBossHealth: opts?.bossHealth ?? 1,
@@ -372,7 +402,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   quitRun: () =>
     set((state) => ({
       ...freshLevel(state),
-      ...freshRun(),
+      ...freshRun(state),
       gameScreen: state.sandbox ? 'forge' : 'menu',
       sandbox: null,
       playtest: null,
@@ -385,7 +415,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         ? {
             ...freshLevel(state),
             levelIndex: state.levelIndex + 1,
-            playerHealth: state.playerMaxHealth,
+            players: state.players.map((p) => ({ ...p, health: p.maxHealth, weapon: null })),
           }
         : {}
     ),
@@ -396,9 +426,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         ? {
             isGameOver: false,
             continuesLeft: state.continuesLeft - 1,
-            lives: getConfig().rules.lives,
-            playerHealth: state.playerMaxHealth,
-            respawnCount: state.respawnCount + 1,
+            // Everyone who was out comes back with full lives.
+            players: state.players.map((p) =>
+              p.lives > 0 ? p : { ...p, lives: getConfig().rules.lives, health: p.maxHealth, respawnCount: p.respawnCount + 1 }
+            ),
           }
         : {}
     ),
@@ -408,14 +439,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       state.pickups.some((p) => p.id === item.id) ? {} : { pickups: [...state.pickups, item] }
     ),
 
-  collectPickup: (id) =>
+  collectPickup: (id, slot) =>
     set((state) => {
       const item = state.pickups.find((p) => p.id === id)
-      if (!item || state.isGameOver || state.levelProgress.complete) return {}
+      const player = playerState(state, slot)
+      if (!item || !player || state.isGameOver || state.levelProgress.complete) return {}
       const def = getConfig().pickups[item.pickup]
+      const got = def ? applyPickup({ health: player.health, maxHealth: player.maxHealth, score: state.score }, def) : {}
       return {
         pickups: state.pickups.filter((p) => p.id !== id),
-        ...(def ? applyPickup(state, def) : {}),
+        ...(got.score !== undefined ? { score: got.score } : {}),
+        ...(got.health !== undefined ? { players: withPlayer(state.players, slot, () => ({ health: got.health })) } : {}),
       }
     }),
 
@@ -437,7 +471,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   removeProp: (id) => set((state) => ({ props: state.props.filter((p) => p.id !== id) })),
 
-  setPlayerWeapon: (weapon) => set({ playerWeapon: weapon ? { ...weapon } : null }),
+  setPlayerWeapon: (slot, weapon) =>
+    set((state) => ({ players: withPlayer(state.players, slot, () => ({ weapon: weapon ? { ...weapon } : null })) })),
 
   // Pausing is meaningless once the game or level is over (their overlay owns the screen).
   togglePause: () =>
@@ -451,20 +486,20 @@ export const useGameStore = create<GameState>((set, get) => ({
       editing: false,
     }),
 
-  requestAttackToken: (id) => {
-    const r = requestToken(get().attackTokens, id, getConfig().rules.maxSimultaneousAttackers)
-    if (r.pool !== get().attackTokens) set({ attackTokens: r.pool })
+  requestAttackToken: (id, target) => {
+    const r = requestTokenFor(get().attackTokens, target, id, getConfig().rules.maxSimultaneousAttackers)
+    if (r.pools !== get().attackTokens) set({ attackTokens: r.pools })
     return r.granted
   },
 
   cancelAttackRequest: (id) => {
-    const pool = cancelRequest(get().attackTokens, id)
-    if (pool !== get().attackTokens) set({ attackTokens: pool })
+    const pools = cancelRequests(get().attackTokens, id)
+    if (pools !== get().attackTokens) set({ attackTokens: pools })
   },
 
   releaseAttackToken: (id) => {
-    const pool = releaseToken(get().attackTokens, id)
-    if (pool !== get().attackTokens) set({ attackTokens: pool })
+    const pools = releaseTokens(get().attackTokens, id)
+    if (pools !== get().attackTokens) set({ attackTokens: pools })
   },
 
   setLevelProgress: (patch) =>

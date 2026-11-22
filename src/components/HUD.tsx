@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { useGameStore } from '../store/gameStore'
+import { playerState, useGameStore } from '../store/gameStore'
 import { getConfig, getLevels } from '../content/active'
 import { getBindings } from '../content/bindings'
 import type { InputManager } from '../input/InputManager'
@@ -65,16 +65,18 @@ const MenuButton = ({
 export const HUD = ({ input }: { input: InputManager }) => {
   const inputDevice = useGameStore((state) => state.inputDevice)
   const padLabels = useGameStore((state) => state.padLabels)
-  const playerHealth = useGameStore((state) => state.playerHealth)
-  const playerMaxHealth = useGameStore((state) => state.playerMaxHealth)
-  const meter = useGameStore((state) => state.meter)
+  // Player 1's bars (player 2's come with co-op).
+  const p1 = useGameStore((state) => playerState(state, 1))
+  const playerHealth = p1?.health ?? 0
+  const playerMaxHealth = p1?.maxHealth ?? 1
+  const meter = p1?.meter ?? 0
   const score = useGameStore((state) => state.score)
   const enemies = useGameStore((state) => state.enemies)
   const isGameOver = useGameStore((state) => state.isGameOver)
   const level = useGameStore((state) => state.levelProgress)
   const resetGame = useGameStore((state) => state.resetGame)
   const showHitboxes = useGameStore((state) => state.showHitboxes)
-  const lives = useGameStore((state) => state.lives)
+  const lives = p1?.lives ?? 0
   const continuesLeft = useGameStore((state) => state.continuesLeft)
   const kos = useGameStore((state) => state.kos)
   const runKos = useGameStore((state) => state.runKos)
@@ -83,7 +85,7 @@ export const HUD = ({ input }: { input: InputManager }) => {
   const nextLevel = useGameStore((state) => state.nextLevel)
   const startRun = useGameStore((state) => state.startRun)
   const sandbox = useGameStore((state) => state.sandbox !== null)
-  const weapon = useGameStore((state) => state.playerWeapon)
+  const weapon = p1?.weapon ?? null
   const weaponDef = weapon ? getConfig().weapons[weapon.id] : undefined
   const lastLevel = sandbox || levelIndex >= getLevels().length - 1
 

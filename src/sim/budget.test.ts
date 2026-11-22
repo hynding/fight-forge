@@ -7,18 +7,18 @@ describe('model detail budget', () => {
       [
         { name: 'far', distance: 20 },
         { name: 'near', distance: 1 },
-        { name: 'player', distance: 0 },
+        { name: 'p1', distance: 0 },
         { name: 'mid', distance: 5 },
       ],
       3
     )
-    expect([...full].sort()).toEqual(['mid', 'near', 'player'])
-    expect(fullDetail([{ name: 'a', distance: 1 }, { name: 'player', distance: 9 }], 1)).toEqual(new Set(['player']))
+    expect([...full].sort()).toEqual(['mid', 'near', 'p1'])
+    expect(fullDetail([{ name: 'a', distance: 1 }, { name: 'p1', distance: 9 }], 1)).toEqual(new Set(['p1']))
   })
 
   it('assigns detail to registered models and forgets removed ones', () => {
     const b = createModelBudget()
-    const p = registerModel(b, 'player')
+    const p = registerModel(b, 'p1')
     const near = registerModel(b, 'e1')
     const far = registerModel(b, 'e2')
     const dist: Record<string, number> = { player: 0, e1: 2, e2: 9 }
