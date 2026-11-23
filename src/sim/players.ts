@@ -48,9 +48,3 @@ export const playersFocus = (xs: readonly number[]): number | null =>
 
 /** The player furthest along the stage (the level script triggers on them), or null. */
 export const leadX = (xs: readonly number[]): number | null => (xs.length ? Math.max(...xs) : null)
-
-/**
- * How much closer (in metres) another player must be before an enemy switches
- * to them. Moves to the `coop` settings with the second player (CO2).
- */
-export const RETARGET_MARGIN = 1

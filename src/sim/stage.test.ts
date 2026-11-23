@@ -59,6 +59,19 @@ describe('stepCamera', () => {
     expect(v.cameraX).toBe(38)
   })
 
+  it('waits for the player furthest behind', () => {
+    const v = createStageView(20, 10)
+    // The rear player is 1 m inside the left edge (margin 1): no scrolling forward.
+    stepCamera(v, 30, LENGTH, NO_BACK, { rearX: 11, edgeMargin: 1 })
+    expect(v.cameraX).toBe(20)
+    // They catch up 3 m: the camera moves 3 m.
+    stepCamera(v, 30, LENGTH, NO_BACK, { rearX: 14, edgeMargin: 1 })
+    expect(v.cameraX).toBe(23)
+    // A leash never scrolls back.
+    stepCamera(v, 30, LENGTH, NO_BACK, { rearX: 5, edgeMargin: 1 })
+    expect(v.cameraX).toBe(23)
+  })
+
   it('handles a stage narrower than the screen', () => {
     expect(cameraLimits(10, 12)).toEqual([10, 10])
   })

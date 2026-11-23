@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { playerState, useGameStore } from '../store/gameStore'
+import { playerState, useGameStore, type PlayerState } from '../store/gameStore'
 import { getConfig, getLevels } from '../content/active'
-import { getBindings } from '../content/bindings'
+import { getBindings, getKeyboard2 } from '../content/bindings'
 import type { InputManager } from '../input/InputManager'
 import { actionLabel, deviceHelp, helpExtras, promptLabel } from '../sim/input'
 import { formatTime } from '../utils/format'
@@ -62,11 +62,63 @@ const MenuButton = ({
   )
 }
 
+/** Player 2's corner: their bars, or how to join (or come back on a continue). */
+const Player2Panel = ({ p2, top }: { p2: PlayerState | undefined; top: number }) => {
+  const padLabels = useGameStore((state) => state.padLabels)
+  const continuesLeft = useGameStore((state) => state.continuesLeft)
+  const expected = useGameStore((state) => state.expectedPlayers)
+  const config = getConfig()
+  const key = actionLabel(getKeyboard2(), 'attack')
+  const pad = promptLabel(getBindings(), 'attack', 'gamepad', padLabels ?? 'xbox')
+  const box = { position: 'absolute' as const, top: `${top}px`, right: '20px', textAlign: 'right' as const, fontSize: '14px' }
+  if (!p2 || p2.lives <= 0) {
+    const out = !!p2
+    if (out && continuesLeft <= 0) return <div data-testid="p2-panel" style={{ ...box, color: '#888' }}>P2 OUT</div>
+    return (
+      <div data-testid="p2-panel" style={{ ...box, color: '#ffd27a', opacity: expected >= 2 || out ? 1 : 0.6 }}>
+        {out ? `P2 OUT · ${key} OR ${pad} TO CONTINUE (${continuesLeft})` : `P2: PRESS ${key}, OR ${pad} ON A FREE CONTROLLER, TO JOIN`}
+      </div>
+    )
+  }
+  const pct = (p2.health / p2.maxHealth) * 100
+  const def = p2.weapon ? config.weapons[p2.weapon.id] : undefined
+  const meterMax = config.rules.meter.max
+  return (
+    <div data-testid="p2-panel" style={box}>
+      <div style={{ marginBottom: '5px', color: config.coop.p2Color }}>
+        P2 HEALTH: {p2.health}/{p2.maxHealth}
+      </div>
+      <div style={{ width: '220px', height: '22px', backgroundColor: '#333', border: '2px solid #666', overflow: 'hidden', marginLeft: 'auto' }}>
+        <div
+          style={{
+            width: `${pct}%`,
+            height: '100%',
+            marginLeft: 'auto',
+            backgroundColor: pct > 50 ? '#00ff00' : pct > 25 ? '#ffff00' : '#ff0000',
+            transition: 'width 0.3s, background-color 0.3s',
+          }}
+        />
+      </div>
+      {config.player.moveset.some((t) => t.cost?.meter) && (
+        <div style={{ width: '220px', height: '8px', backgroundColor: '#333', border: '2px solid #666', overflow: 'hidden', margin: '4px 0 0 auto' }}>
+          <div style={{ width: `${(p2.meter / meterMax) * 100}%`, height: '100%', marginLeft: 'auto', backgroundColor: '#44aaff' }} />
+        </div>
+      )}
+      {def && <div style={{ marginTop: '4px', fontSize: '12px' }}>🗡 {def.name.toUpperCase()}</div>}
+      <div style={{ marginTop: '6px', fontSize: '18px' }}>
+        SCORE: {p2.score} | LIVES: {p2.lives}
+      </div>
+    </div>
+  )
+}
+
 export const HUD = ({ input }: { input: InputManager }) => {
   const inputDevice = useGameStore((state) => state.inputDevice)
   const padLabels = useGameStore((state) => state.padLabels)
-  // Player 1's bars (player 2's come with co-op).
+  // Player 1's bars top left; player 2's (or how to join) top right.
   const p1 = useGameStore((state) => playerState(state, 1))
+  const p2 = useGameStore((state) => playerState(state, 2))
+  const two = !!p2
   const playerHealth = p1?.health ?? 0
   const playerMaxHealth = p1?.maxHealth ?? 1
   const meter = p1?.meter ?? 0
@@ -140,10 +192,12 @@ export const HUD = ({ input }: { input: InputManager }) => {
         </button>
       )}
 
+      <Player2Panel p2={p2} top={sandbox ? 60 : 20} />
+
       {/* Health Bar */}
       <div style={{ marginBottom: '10px' }}>
         <div style={{ fontSize: '14px', marginBottom: '5px' }}>
-          HEALTH: {playerHealth}/{playerMaxHealth}
+          {two ? 'P1 ' : ''}HEALTH: {playerHealth}/{playerMaxHealth}
         </div>
         <div style={{
           width: '300px',
@@ -206,7 +260,7 @@ export const HUD = ({ input }: { input: InputManager }) => {
 
       {/* Score and lives */}
       <div style={{ fontSize: '20px', marginBottom: '10px' }}>
-        SCORE: {score} | LIVES: {lives}
+        {two ? `P1 SCORE: ${p1?.score ?? 0} | LIVES: ${lives} | TEAM: ${score}` : `SCORE: ${score} | LIVES: ${lives}`}
       </div>
 
       {/* Level and fight progress */}
@@ -269,12 +323,22 @@ export const HUD = ({ input }: { input: InputManager }) => {
           </h1>
           <table style={{ margin: '0 auto 30px', fontSize: '20px', borderSpacing: '24px 6px' }}>
             <tbody>
-              <ResultRow label="SCORE" value={score} />
+              {two && p2 && (
+                <>
+                  <ResultRow label="P1 SCORE" value={p1?.score ?? 0} />
+                  <ResultRow label="P2 SCORE" value={p2.score} />
+                </>
+              )}
+              <ResultRow label={two ? 'TEAM SCORE' : 'SCORE'} value={score} />
               {level.complete && level.time !== null && <ResultRow label="TIME" value={formatTime(level.time)} />}
               {level.complete && level.bossTime !== null && <ResultRow label="BOSS TIME" value={formatTime(level.bossTime)} />}
-              <ResultRow label="KOs" value={kos} />
+              {two && p2 ? (
+                <ResultRow label="KOs" value={`${kos} (P1 ${p1?.kos ?? 0} · P2 ${p2.kos})`} />
+              ) : (
+                <ResultRow label="KOs" value={kos} />
+              )}
               {level.complete && lastLevel && !sandbox && levelIndex > 0 && <ResultRow label="TOTAL KOs" value={runKos} />}
-              {level.complete && <ResultRow label="LIVES" value={lives} />}
+              {level.complete && <ResultRow label="LIVES" value={two && p2 ? `P1 ${lives} · P2 ${p2.lives}` : lives} />}
             </tbody>
           </table>
           <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>

@@ -11,7 +11,7 @@ import { DIRECTIONS, MOVESET_ACTIONS, SITUATIONS } from '../sim/moveset'
 import { GAMEPAD_INPUTS, INPUT_ACTIONS, MOUSE_INPUTS, RAW_PAD_INPUT, type InputAction } from '../sim/input'
 
 /** The pack format version this build reads. Bump it with a migration (M2.3). */
-export const SCHEMA_VERSION = 12
+export const SCHEMA_VERSION = 13
 
 // ---------------------------------------------------------------- primitives
 
@@ -357,6 +357,9 @@ export const weaponSchema = z
   })
   .strict()
 
+/** A keyboard map: action to lowercase `KeyboardEvent.key` values. */
+const keyMap = actionMap(z.string().min(1).refine((k) => k === k.toLowerCase(), 'keys must be lowercase'))
+
 export const settingsSchema = z
   .object({
     physics: z.object({ gravity: vec3 }).strict(),
@@ -473,13 +476,15 @@ export const settingsSchema = z
         /** One map per device: action to inputs. */
         bindings: z
           .object({
-            keyboard: actionMap(z.string().min(1).refine((k) => k === k.toLowerCase(), 'keys must be lowercase')),
+            keyboard: keyMap,
             mouse: actionMap(z.string().refine((b) => (MOUSE_INPUTS as readonly string[]).includes(b), 'not a mouse button or wheel direction')),
             gamepad: actionMap(
               z.string().refine((b) => (GAMEPAD_INPUTS as readonly string[]).includes(b) || RAW_PAD_INPUT.test(b), 'not a gamepad button or stick direction')
             ),
           })
           .strict(),
+        /** Player 2's keys when two share the keyboard (keys it shares with `bindings.keyboard` go to player 2 while it plays). */
+        keyboard2: keyMap,
         /** Analog sticks: no movement inside `deadZone`; past `runThreshold` the fighter runs. */
         analog: z.object({ deadZone: unit, runThreshold: unit }).strict(),
         actions: z
@@ -493,6 +498,17 @@ export const settingsSchema = z
           .strict(),
         chordWindow: finite.min(0).max(0.5),
         turnGrace: finite.min(0).max(0.5),
+      })
+      .strict(),
+    /** Two players: enemy scaling, friendly fire, how enemies pick a player, and player 2's look. */
+    coop: z
+      .object({
+        enemyHealth: positive,
+        friendlyFire: z.boolean(),
+        retargetMargin: nonNegative,
+        dropInGap: nonNegative,
+        p2Color: color,
+        p2Model: modelRefSchema.optional(),
       })
       .strict(),
     /** Game feel on hits: each effect can be tuned or turned off. */

@@ -1,7 +1,9 @@
-import { forwardRef, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
 import { playerState, useGameStore } from '../store/gameStore'
 import { playerId } from '../sim/players'
+import { dropInX } from '../sim/coop'
+import { activePlayerIds, type ScenePlayers } from './scenePlayers'
 import { getConfig } from '../content/active'
 import { useSimLoop, useSimSystem } from '../sim/simContext'
 import { SYSTEM_ORDER } from '../sim/loop'
@@ -24,6 +26,8 @@ import { FighterBody } from './FighterBody'
 interface PlayerProps {
   /** Which player: 1 for player 1. Its fighter is `p1` in the scene. */
   slot: number
+  /** The scene's players, so this one can drop in beside a partner. */
+  players: ScenePlayers
   /** Every fighter's live runtime by name; the player registers under its id (`p1`). */
   runtimes: Map<string, FighterRuntime>
   /** The scrolling view; the player stays on screen. */
@@ -33,7 +37,7 @@ interface PlayerProps {
 }
 
 /** A player: a FighterBody driven by the scene's input. */
-export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, runtimes, view, input }, ref) => {
+export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, players, runtimes, view, input }, ref) => {
   const id = playerId(slot)
   // Re-render when packs are reinstalled (a Forge playtest edit), so the steps below see the new tuning.
   useGameStore((state) => state.packs)
@@ -44,6 +48,25 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, runtimes
     [P.walkSpeed, P.deceleration, config.body.stopSpeed]
   )
   const [runtime] = useState(createFighterRuntime)
+  // Where a partner still in stands (the first other player with a body), for dropping in beside them.
+  const partner = () => {
+    for (const other of activePlayerIds()) {
+      if (other === id || !players.refs.get(other)?.current) continue
+      const at = players.positions.get(other)
+      if (at) return at
+    }
+    return null
+  }
+  // Where the body starts: the level's spawn, beside a partner already there
+  // (player 2 at the start of a level, or dropping in mid-level), or mid-screen
+  // when coming back after everyone was out.
+  const [spawn] = useState((): [number, number, number] => {
+    const gap = config.coop.dropInGap
+    const at = partner()
+    if (at) return [dropInX(at.x, view.cameraX, gap), P.spawnPosition[1], at.z]
+    const started = [...players.refs.values()].some((r) => r.current)
+    return started ? [view.cameraX, P.spawnPosition[1], 0] : [P.spawnPosition[0] + (slot - 1) * gap, P.spawnPosition[1], P.spawnPosition[2]]
+  })
   // Visual only (attack tint); gameplay reads `runtime.move`.
   const [isAttacking, setIsAttacking] = useState(false)
   const wasAttacking = useRef(false)
@@ -83,12 +106,20 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, runtimes
     }
   }, [runtimes, runtime, id])
 
+  // A player out of lives leaves the stage: forget the body, so nothing reads a removed one.
+  useEffect(
+    () => () => {
+      if (ref && typeof ref === 'object') (ref as MutableRefObject<RapierRigidBody | null>).current = null
+    },
+    [ref]
+  )
+
   // Moves run after the fighter step (so they see this step's intent and
   // facing) and before combat (so combat sees a move on the step it starts).
   // A hit reaction blocks starting moves; combat interrupts a move on hit.
   useSimSystem(`playerAttack:${id}`, SYSTEM_ORDER.playerAttack, (dt) => {
-    // Lost a life (or continued): drop back in at the middle of the screen,
-    // briefly invulnerable (the body blinks).
+    // Lost a life (or continued): drop back in beside a partner still in, or
+    // at the middle of the screen, briefly invulnerable (the body blinks).
     const respawnCount = playerState(useGameStore.getState(), slot)?.respawnCount ?? 0
     if (respawnCount !== respawnSeen.current) {
       respawnSeen.current = respawnCount
@@ -99,7 +130,9 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, runtimes
       runtime.velocity = { x: 0, z: 0 }
       const body = (ref as RefObject<RapierRigidBody> | null)?.current
       if (body) {
-        body.setTranslation({ x: view.cameraX, y: P.spawnPosition[1], z: 0 }, true)
+        const at = partner()
+        const x = at ? dropInX(at.x, view.cameraX, config.coop.dropInGap) : view.cameraX
+        body.setTranslation({ x, y: P.spawnPosition[1], z: at?.z ?? 0 }, true)
         body.setLinvel({ x: 0, y: 0, z: 0 }, true)
       }
       return
@@ -224,18 +257,19 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, runtimes
     <FighterBody
       ref={ref}
       name={id}
-      position={P.spawnPosition}
+      position={spawn}
       linearDamping={P.linearDamping}
       movement={movement}
       jumpVelocity={P.jumpVelocity}
-      model={P.model}
+      model={slot === 2 ? (config.coop.p2Model ?? P.model) : P.model}
       colliderHalfExtents={P.colliderHalfExtents}
-      color={P.color}
+      color={slot === 2 ? config.coop.p2Color : P.color}
       attackingColor="#ff4444"
       health={playerHealth}
       isAttacking={isAttacking}
       getIntent={() => {
-        const frame = input.frame
+        const seat = input.seat(slot)
+        const frame = seat.frame
         const actions = config.input.actions
         const prefs = loadControlPrefs()
         const controls = frameControls(frame)
@@ -267,9 +301,9 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, runtimes
         const held = controls.run && intent.move.x !== 0
         intent.run = (runMode !== 'hold' && tapped) || (runMode !== 'doubleTap' && held) || pushed
         // Face the cursor: standing still with the mouse in use, turn toward the pointer.
-        const pointer = input.pointerX
+        const pointer = slot === 1 ? input.pointerX : null
         const body = (ref as RefObject<RapierRigidBody> | null)?.current
-        if (prefs.faceCursor && pointer !== null && body && intent.move.x === 0 && input.sampler.lastDevice !== 'gamepad') {
+        if (prefs.faceCursor && pointer !== null && body && intent.move.x === 0 && seat.sampler.lastDevice !== 'gamepad') {
           const screenX = (body.translation().x - view.cameraX) / view.halfWidth
           if (Math.abs(pointer - screenX) > 0.02) intent.face = { x: Math.sign(pointer - screenX), z: 0 }
         }

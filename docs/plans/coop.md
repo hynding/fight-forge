@@ -1,6 +1,6 @@
 # Plan: local co-op (two players)
 
-Status: **planned**. Expands the Phase 6 stretch goal "Local co-op: a second `InputController` and HUD; camera framing for two players" (picked by Steve on 2026-11-22) into three PRs. The decisions in [section 8](#8-decisions-for-steve) are open.
+Status: **in progress** (CO1 and CO2 built). Expands the Phase 6 stretch goal "Local co-op: a second `InputController` and HUD; camera framing for two players" (picked by Steve on 2026-11-22) into three PRs. Steve took every recommendation in [section 8](#8-decisions-for-steve) on 2026-11-22.
 
 ## 1. Goal
 
@@ -21,8 +21,8 @@ The roadmap kept co-op possible: player and enemies share one fighter body (`Fig
 
 - **Who's playing:** the store gets a `players` list, one entry per joined player: `{ slot: 1 | 2, health, maxHealth, lives, meter, score, kos, weapon, respawnCount, device }`. Today's single-player fields become player 1's entry. Each player's fighter runtime registers as `p1` or `p2`.
 - **Joining (decision 1):** player 2 joins by pressing attack or start on a device nobody is using: a second pad, or the keyboard when player 1 is on a pad. They drop in mid-screen, invulnerable for a moment, like a respawn. At the start menu, "1 PLAYER / 2 PLAYERS" sets who is expected, but drop-in works either way.
-- **Devices (decision 2):** each player has their own `InputManager` reading only their device. Recommended setups: keyboard + pad, or two pads. Two players on one keyboard is supported with a second keyboard map, `input.bindings.keyboard2` (default: arrow keys to move, and the number pad for jump, attack, block and the rest). While player 2 uses the keyboard, the arrow keys leave player 1's map so they don't drive both fighters.
-- **Player 2's look:** the same fighter definition as player 1 (`settings.player`), recoloured with `coop.p2Color`. A pack can give player 2 a fighter of its own with `coop.p2Fighter` (decision 5).
+- **Devices (decision 2):** each player has their own `InputManager` reading only their device. Recommended setups: keyboard + pad, or two pads. Two players on one keyboard is supported with a second keyboard map, `input.keyboard2` (default: arrow keys to move, and the number pad for jump, attack, block and the rest). While player 2 uses the keyboard, the arrow keys leave player 1's map so they don't drive both fighters.
+- **Player 2's look:** the same fighter definition as player 1 (`settings.player`), recoloured with `coop.p2Color`. A pack can give player 2 a fighter of its own with `coop.p2Model` (decision 5; a model rather than a whole fighter definition, so player 2 keeps player 1's moves and stats).
 - **Leaving:** a player who runs out of lives and continues drops out, and their device can join again by spending a continue. The game is over only when every player is out.
 
 ## 4. Fighting together
@@ -47,7 +47,7 @@ The roadmap kept co-op possible: player and enemies share one fighter body (`Fig
 - **Start menu:** "1 PLAYER / 2 PLAYERS". The CONTROLS panel gets a Player 2 tab for `keyboard2` remapping and pad assignment ("press a button on player 2's controller").
 - **Pause:** either player's pause button pauses. Pausing on a disconnected pad works as today, for both players' pads.
 - **Forge:** `coop` settings (enemy health, friendly fire, player 2 colour and fighter) use the generated form. The Bindings card gets a Keyboard 2 tab. Sandboxes and "Play from here" have a "2 players" toggle, so a creator can try a fight with a friend.
-- **Schema v13:** the `coop` settings block and `input.bindings.keyboard2`. The migration fills in the defaults.
+- **Schema v13:** the `coop` settings block and `input.keyboard2`. The migration fills in the defaults.
 
 ## 7. Milestones
 
@@ -56,7 +56,7 @@ Each is one PR, in order. Schema v13 comes in CO2.
 | Id | PR | Contents | Done when |
 | --- | --- | --- | --- |
 | **CO1** | Players, not the player | • Store `players` list replacing the single-player fields; store actions take a slot<br>• Scene refs, runtimes and positions per player (`p1`, `p2`); `landHit`, CombatSystem, Projectiles, GrabSystem, Pickups, HeldWeapons, ModelBudgetDriver use them<br>• Enemy AI targets the nearest player; attack tokens per target; `hurtsPlayer` names a slot<br>• Camera framing and screen bounds over a list of players<br>• Still one player; no schema change | Every test passes and single-player plays exactly as before (headless checks of a level, the boss and weapons). Unit tests cover nearest-target, per-target tokens and framing with two positions. |
-| **CO2** | Second player | • Schema v13: `coop` settings, `input.bindings.keyboard2`<br>• An `InputManager` per player, pad assignment, keyboard split, drop-in join and dropping out<br>• Player 2 colour, friendly fire, enemy health scaling, per-player lives and continues, game over when all are out<br>• HUD for two, join prompt, results for two, "1 PLAYER / 2 PLAYERS" on the start menu | Two players finish level 1 together in a headless check (two keyboard maps, and a stubbed second pad): both fight, the camera leashes, one loses all lives and rejoins with a continue. |
+| **CO2** | Second player | • Schema v13: `coop` settings, `input.keyboard2`<br>• An `InputManager` per player, pad assignment, keyboard split, drop-in join and dropping out<br>• Player 2 colour, friendly fire, enemy health scaling, per-player lives and continues, game over when all are out<br>• HUD for two, join prompt, results for two, "1 PLAYER / 2 PLAYERS" on the start menu | Two players finish level 1 together in a headless check (two keyboard maps, and a stubbed second pad): both fight, the camera leashes, one loses all lives and rejoins with a continue. |
 | **CO3** | Co-op controls and Forge | • CONTROLS panel Player 2 tab (keyboard 2 remap, pad assignment)<br>• Forge: Keyboard 2 bindings tab, "2 players" toggle for sandboxes and Play from here<br>• Boss bar placement, polish from playing CO2<br>• CLAUDE.md updated | A creator can try a boss fight with two players from the Forge, and a player can remap player 2's keys from the menu. |
 
 CO1 is a refactor with no visible change, so it can be checked against today's behaviour. CO2 needs CO1. CO3 needs CO2.
@@ -72,3 +72,8 @@ Recommendations first. Decisions 1 to 3 shape CO1 and CO2; the others can change
 3. **How many enemies attack at once.** Recommended: the attacker limit applies per player (two players face two attackers by default). The alternative is one shared limit, which makes co-op much easier than single player.
 4. **Making co-op fair.** Recommended: multiply enemy health by 1.5 with two players and keep the same waves. Alternatives: add extra enemies to each wave (harder to tune and changes the level), or no scaling (co-op becomes easy).
 5. **Player 2's fighter.** Recommended: the same fighter as player 1 in another colour, with an optional `p2Fighter` so a pack can make player 2 a different character. Choosing a character from a roster is a bigger feature and can come later.
+
+## 9. As built
+
+- **CO2:** player 2's keys are `input.keyboard2` (beside `bindings`, not a fourth device in it). One `InputManager` holds a `PlayerInput` per slot rather than one manager per player, since keys arrive as one stream of events and have to be split. In a one-player game a keyboard player 1's first pad becomes theirs (as before co-op), so a friend joins with a second pad or the keys; with "2 PLAYERS" chosen on the start menu, the first pad joins as player 2. Players walk through each other. A player out of lives leaves the stage until they continue. Each player's score and KOs are credited to whoever landed the KO (or picked up the score); the team score counts everything, including KOs nobody landed (helpers knocked out when a boss falls). `coop.dropInGap` sets how far beside their partner a player drops in. Thrown enemies don't hurt players with co-op friendly fire on yet. The boss bar placement for two players is left for CO3.
+

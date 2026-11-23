@@ -92,6 +92,14 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "lookAtDepth": -3,
     "lookAtHeight": 2.5,
   },
+  "coop": {
+    "dropInGap": 1.5,
+    "enemyHealth": 1.5,
+    "friendlyFire": false,
+    "p2Color": "#e0a030",
+    "p2Model": undefined,
+    "retargetMargin": 1,
+  },
   "enemy": {
     "aggroRange": 10,
     "attackMove": "enemyPunch",
@@ -683,6 +691,48 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
       },
     },
     "chordWindow": 0.06,
+    "keyboard2": {
+      "attack": [
+        "1",
+      ],
+      "backward": [
+        "arrowdown",
+      ],
+      "block": [
+        "2",
+      ],
+      "dodge": [
+        "4",
+      ],
+      "forward": [
+        "arrowup",
+      ],
+      "grab": [
+        "6",
+      ],
+      "heavy": [
+        "3",
+      ],
+      "hitboxes": [],
+      "jump": [
+        "0",
+      ],
+      "left": [
+        "arrowleft",
+      ],
+      "pause": [
+        "enter",
+      ],
+      "right": [
+        "arrowright",
+      ],
+      "run": [
+        "+",
+      ],
+      "special": [
+        "5",
+      ],
+    },
     "turnGrace": 0.12,
   },
   "moves": {

@@ -15,6 +15,7 @@ export const StartMenu = () => {
   // Re-render when packs change: the level list comes from the active content.
   useGameStore((state) => state.packs)
   const contentError = useGameStore((state) => state.contentError)
+  const expectedPlayers = useGameStore((state) => state.expectedPlayers)
   const [isHovered, setIsHovered] = useState(false)
   // Re-render the controls line after a remap.
   const [, setControlsVersion] = useState(0)
@@ -64,6 +65,32 @@ export const StartMenu = () => {
 
       <PackPanel />
       <ControlsPanel onChange={() => setControlsVersion((v) => v + 1)} />
+
+      {/* 1 or 2 players: who's expected (player 2 can drop in either way) */}
+      <div role="radiogroup" aria-label="Players" style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
+        {[1, 2].map((n) => (
+          <button
+            key={n}
+            role="radio"
+            aria-checked={expectedPlayers === n}
+            onClick={() => useGameStore.getState().setExpectedPlayers(n)}
+            title={n === 2 ? 'Player 2 joins with a controller, or the second keyboard map' : 'Player 2 can still drop in'}
+            style={{
+              padding: '8px 18px',
+              fontSize: '14px',
+              fontFamily: 'monospace',
+              letterSpacing: '3px',
+              backgroundColor: expectedPlayers === n ? '#ff4444' : 'transparent',
+              color: expectedPlayers === n ? 'white' : '#ff8888',
+              border: '1px solid #ff4444',
+              borderRadius: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            {n} PLAYER{n === 2 ? 'S' : ''}
+          </button>
+        ))}
+      </div>
 
       {/* Play Button */}
       <button

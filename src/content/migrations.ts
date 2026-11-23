@@ -41,6 +41,24 @@ const ACTIONS_V7 = { heavy: { enabled: true }, special: { enabled: true }, run: 
 const NEW_INPUTS_V8: Record<string, Record<string, string[]>> = { keyboard: { grab: ['o'] }, mouse: { grab: [] }, gamepad: { grab: ['rs'] } }
 const GRAB_TUNING_V8 = { range: 0.15, depthTolerance: 0.4, contactTime: 0.2, holdTime: 2.5, cooldown: 0.6, releasePush: 3 }
 
+/** Player 2's keys at v13: arrows to move, the number pad (or number row) for the rest. */
+export const KEYBOARD2_V13: Record<string, string[]> = {
+  left: ['arrowleft'],
+  right: ['arrowright'],
+  forward: ['arrowup'],
+  backward: ['arrowdown'],
+  jump: ['0'],
+  attack: ['1'],
+  block: ['2'],
+  heavy: ['3'],
+  dodge: ['4'],
+  special: ['5'],
+  grab: ['6'],
+  run: ['+'],
+  pause: ['enter'],
+  hitboxes: [],
+}
+
 /** Adds each device's default inputs for new actions, skipping inputs the device already uses. */
 const addInputs = (bindings: Record<string, Record<string, string[]>>, added: Record<string, Record<string, string[]>>) => {
   const next = { ...bindings }
@@ -161,6 +179,14 @@ export const MIGRATIONS: MigrationTable = {
   10: (pack) => pack,
   // v12: weapons. The `weapons` record, weapon pickups, enemy `weapon`, prop `liftable` and `audio.break` are new and optional.
   11: (pack) => pack,
+  // v13: two players. `coop` settings are new (a pack without them inherits
+  // the default pack's); a pack's own `input` gains player 2's keyboard map.
+  12: (pack) => {
+    const settings = pack.settings as Json | undefined
+    const input = settings?.input as Json | undefined
+    if (!input || 'keyboard2' in input) return pack
+    return { ...pack, settings: { ...settings, input: { ...input, keyboard2: KEYBOARD2_V13 } } }
+  },
 }
 
 export type MigrationResult = { ok: true; value: unknown } | { ok: false; message: string }

@@ -33,17 +33,25 @@ export const cameraLimits = (halfWidth: number, stageLength: number): [number, n
   return [min, max]
 }
 
+/** With several players: the one furthest behind, and how close to the screen edge they may be. */
+export interface CameraLeash {
+  rearX: number
+  edgeMargin: number
+}
+
 /**
  * Moves the camera only when the target leaves the dead zone around screen
  * centre, clamps to the stage, and (unless backtracking is allowed) never
  * scrolls back left of the farthest point reached. A screen lock holds it
- * still. Mutates and returns `view`.
+ * still. With a `leash`, it doesn't scroll forward past where the player
+ * furthest behind would leave the screen. Mutates and returns `view`.
  */
 export const stepCamera = (
   view: StageView,
   targetX: number,
   stageLength: number,
-  cfg: CameraFollowConfig
+  cfg: CameraFollowConfig,
+  leash?: CameraLeash
 ): StageView => {
   if (view.lockX !== null) {
     view.cameraX = view.lockX
@@ -52,6 +60,9 @@ export const stepCamera = (
   let x = view.cameraX
   if (targetX > x + cfg.deadZone) x = targetX - cfg.deadZone
   else if (targetX < x - cfg.deadZone) x = targetX + cfg.deadZone
+
+  // The player furthest behind holds the camera back, so nobody is pushed off the left edge.
+  if (leash) x = Math.min(x, Math.max(view.cameraX, leash.rearX + view.halfWidth - leash.edgeMargin))
 
   const [min, max] = cameraLimits(view.halfWidth, stageLength)
   const floor = cfg.allowBacktrack ? min : Math.max(min, view.maxCameraX)

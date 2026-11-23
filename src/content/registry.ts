@@ -73,6 +73,7 @@ export const SETTINGS_SECTIONS = [
   'stage',
   'scoring',
   'rules',
+  'coop',
   'input',
   'feel',
   'audio',
@@ -236,6 +237,7 @@ export class ContentRegistry {
     const config: GameConfig = {
       ...s,
       player: { ...s.player, model: model(s.player.model) },
+      coop: { ...s.coop, p2Model: s.coop.p2Model ? model(s.coop.p2Model) : undefined },
       enemyTypes: Object.fromEntries(
         Object.entries(this.enemyTypes).map(([id, t]) => [id, { ...t, model: model(t.model) }])
       ),
@@ -393,6 +395,7 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
   })
   const presses = new Set([...pressKeys(player.moveset), ...Object.values(reg.weapons).flatMap((w) => pressKeys(w.moveset))])
   checkModel(player.model, 'settings:player', 'settings.player.model')
+  if (reg.settings.coop.p2Model) checkModel(reg.settings.coop.p2Model, 'settings:coop', 'settings.coop.p2Model')
   expect('move', enemy.attackMove, 'settings:enemy', 'settings.enemy.attackMove')
   // An input does one thing per device; the keyboard must be able to play the
   // game on its own, and a gamepad must at least move and pause.
@@ -404,6 +407,17 @@ export const checkReferences = (reg: ContentRegistry): ContentError[] => {
     if (bindings.keyboard[action].length === 0) err('settings:input', `settings.input.bindings.keyboard.${action}`, 'needs at least one key')
   for (const action of ['left', 'right', 'pause'] as const)
     if (bindings.gamepad[action].length === 0) err('settings:input', `settings.input.bindings.gamepad.${action}`, 'needs at least one button')
+  // Player 2's keyboard: one thing per key, enough to play, and player 1 keeps
+  // a key of its own for each must-have action while player 2 takes theirs.
+  const keyboard2 = reg.settings.input.keyboard2
+  for (const { key, actions } of bindingConflicts(keyboard2))
+    err('settings:input', 'settings.input.keyboard2', `"${key}" is bound to both ${actions.join(' and ')}`)
+  const taken = new Set(Object.values(keyboard2).flat())
+  for (const action of ['left', 'right', 'attack', 'pause'] as const) {
+    if (keyboard2[action].length === 0) err('settings:input', `settings.input.keyboard2.${action}`, 'needs at least one key')
+    if (bindings.keyboard[action].length > 0 && bindings.keyboard[action].every((k) => taken.has(k)))
+      err('settings:input', `settings.input.keyboard2.${action}`, `takes every key player 1 has for ${action}`)
+  }
 
   const checkAudioFile = (d: { kind: string; asset?: string }, origin: string, path: string) => {
     if (d.kind !== 'file' || d.asset === undefined) return

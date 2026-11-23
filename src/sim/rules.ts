@@ -12,9 +12,19 @@ export const scaledDamage = (damage: number, multiplier: number): number =>
 export const scaledHealth = (health: number, multiplier: number): number => Math.max(1, Math.round(health * multiplier))
 
 /**
- * Who an attacker's hitbox can hit: a player hits every enemy; an enemy hits
- * the players it may attack (`players`), and with friendly fire also every
- * other enemy.
+ * Who an attacker's hitbox can hit: a player hits every enemy, and the other
+ * players in `teammates` (co-op friendly fire); an enemy hits the players it
+ * may attack (`players`), and with friendly fire also every other enemy.
  */
-export const combatTargets = (attacker: string, players: readonly string[], enemies: Iterable<string>, friendlyFire: boolean): string[] =>
-  isPlayerId(attacker) ? [...enemies] : friendlyFire ? [...players, ...[...enemies].filter((e) => e !== attacker)] : [...players]
+export const combatTargets = (
+  attacker: string,
+  players: readonly string[],
+  enemies: Iterable<string>,
+  friendlyFire: boolean,
+  teammates: readonly string[] = []
+): string[] =>
+  isPlayerId(attacker)
+    ? [...enemies, ...teammates.filter((p) => p !== attacker)]
+    : friendlyFire
+      ? [...players, ...[...enemies].filter((e) => e !== attacker)]
+      : [...players]

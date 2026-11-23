@@ -527,6 +527,25 @@ describe('key bindings', () => {
     ])
   })
 
+  it('checks player 2\'s keyboard map', () => {
+    const with2 = (k2: Record<string, string[]>) =>
+      addon({ settings: { input: { ...DEFAULT_CONFIG.input, keyboard2: { ...DEFAULT_CONFIG.input.keyboard2, ...k2 } } } })
+    expect(build(defaultPack(), with2({ attack: ['m'] })).settings.input.keyboard2.attack).toEqual(['m'])
+    expect(errorsOf(defaultPack(), with2({ block: ['1'] })).map((e) => e.message)).toEqual(['"1" is bound to both attack and block'])
+    expect(paths(errorsOf(defaultPack(), with2({ pause: [] })))).toEqual(['settings.input.keyboard2.pause'])
+    // Player 1 would have no attack key left while player 2 is on the keyboard.
+    expect(errorsOf(defaultPack(), with2({ attack: ['j'] })).map((e) => `${e.path}: ${e.message}`)).toEqual([
+      'settings.input.keyboard2.attack: takes every key player 1 has for attack',
+    ])
+  })
+
+  it('gives a v12 pack\'s input player 2\'s keyboard map', () => {
+    const { keyboard2: _k, ...input } = DEFAULT_CONFIG.input
+    void _k
+    const old = { ...addon({ settings: { input } }), schemaVersion: 12 }
+    expect(build(defaultPack(), old).settings.input.keyboard2).toEqual(DEFAULT_CONFIG.input.keyboard2)
+  })
+
   it('moves a v3 pack\'s key map into the keyboard, adding mouse and gamepad defaults', () => {
     const keyboard = { ...DEFAULT_CONFIG.input.bindings.keyboard, attack: ['z'] }
     const old = { ...addon({ settings: { input: { bindings: keyboard } } }), schemaVersion: 3 }

@@ -94,7 +94,7 @@ export const GrabSystem = ({ players, runtimes, enemyRefs }: GrabSystemProps) =>
             endGrab(player, cfg)
             if (move.throw.damage > 0) {
               useGameStore.getState().gainMeter(slotOf(playerName), move.throw.damage * config.rules.meter.perDamageDealt)
-              hurtEnemy(thrownId, move.throw.damage, at)
+              hurtEnemy(thrownId, move.throw.damage, at, playerName)
             }
           } else {
             // Pinned in front of the player, facing it.
@@ -181,7 +181,7 @@ export const GrabSystem = ({ players, runtimes, enemyRefs }: GrabSystemProps) =>
         })
         if (flight.damage > 0) {
           if (isPlayerId(flight.by)) useGameStore.getState().gainMeter(slotOf(flight.by), flight.damage * config.rules.meter.perDamageDealt)
-          hurtEnemy(otherId, flight.damage, t)
+          hurtEnemy(otherId, flight.damage, t, flight.by)
         }
       })
     })
