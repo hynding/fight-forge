@@ -131,6 +131,8 @@ interface GameState {
   padLabels: PadLabelSet | null
   /** Players chosen on the start menu (1 or 2). Either way player 2 can drop in. */
   expectedPlayers: number
+  /** The Forge's "2 players" toggle: sandbox fights start with player 2 in (on the second keyboard map). */
+  forgeTwoPlayers: boolean
   /** Which of the active levels (`getLevels()`) is being played. */
   levelIndex: number
   /** A Forge sandbox fight, played instead of the active levels; leaving it returns to the Forge. */
@@ -184,7 +186,11 @@ interface GameState {
   /** Starts a new run at a level (from the menu); goes through the loading screen. */
   startRun: (levelIndex: number) => void
   /** Starts a Forge sandbox fight in a generated level (through the loading screen). */
-  startSandbox: (level: Level, origin?: PlaytestOrigin, opts?: { bossHealth?: number; weapon?: string }) => void
+  /** `players` defaults to the Forge's "2 players" toggle. */
+  startSandbox: (level: Level, origin?: PlaytestOrigin, opts?: { bossHealth?: number; weapon?: string; players?: number }) => void
+  setForgeTwoPlayers: (on: boolean) => void
+  /** Player `slot` switches what they play with (player 2 picking up a controller). */
+  setPlayerControls: (slot: number, controls: P2Controls) => void
   /** Mid-sandbox: open the Forge over the paused fight. */
   editPlaytest: () => void
   /** Close the Forge and carry on with the paused fight. */
@@ -286,6 +292,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   inputDevice: 'keyboard',
   padLabels: null,
   expectedPlayers: 1,
+  forgeTwoPlayers: false,
   packs: [],
   contentError: null,
   levelIndex: 0,
@@ -369,6 +376,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     return outcome !== null
   },
 
+  setForgeTwoPlayers: (on) => set({ forgeTwoPlayers: on }),
+
+  setPlayerControls: (slot, controls) => set((state) => ({ players: withPlayer(state.players, slot, (p) => (p.controls === controls ? null : { controls })) })),
+
   setExpectedPlayers: (count) => set({ expectedPlayers: Math.max(1, Math.min(2, Math.round(count))) }),
 
   spawnEnemy: (enemy) =>
@@ -432,6 +443,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       ...freshLevel(state),
       ...freshRun(state),
+      // With two, player 2 starts on the second keyboard map (a controller's attack takes them onto it).
+      players:
+        (opts?.players ?? (state.forgeTwoPlayers ? 2 : 1)) >= 2
+          ? [freshPlayer(1), freshPlayer(2, playerState(state, 2)?.controls ?? 'keyboard2')]
+          : [freshPlayer(1)],
       levelIndex: 0,
       sandbox: level,
       sandboxBossHealth: opts?.bossHealth ?? 1,

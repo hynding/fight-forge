@@ -24,10 +24,14 @@ interface Props {
   save: (wp: WorkspacePack) => void
 }
 
-const TABS: [InputDevice, string][] = [
+/** A device's bindings, or player 2's keyboard map (`input.keyboard2`). */
+type Tab = InputDevice | 'keyboard2'
+
+const TABS: [Tab, string][] = [
   ['keyboard', 'KEYBOARD'],
   ['mouse', 'MOUSE'],
   ['gamepad', 'CONTROLLER'],
+  ['keyboard2', 'KEYBOARD 2'],
 ]
 
 /** Inputs offered from a list (the keyboard is captured by pressing a key instead). */
@@ -37,22 +41,28 @@ const CHOICES: Partial<Record<InputDevice, readonly string[]>> = { mouse: MOUSE_
  * The pack's default bindings, per device: each action's inputs as chips.
  * On the keyboard, "+ key" then a key press adds one; mouse and controller
  * inputs are picked from a list. Adding an input takes it off any other
- * action on that device. Players can still remap for themselves on the start menu.
+ * action on that device. KEYBOARD 2 is player 2's keys (`input.keyboard2`).
+ * Players can still remap for themselves on the start menu.
  */
 export const BindingsTools = ({ pack, node, save }: Props) => {
   const json = pack.json
-  const [device, setDevice] = useState<InputDevice>('keyboard')
-  const all = (nodeValue(json, node) as { bindings?: Partial<DeviceBindings> } | undefined)?.bindings ?? {}
+  const [tab, setTab] = useState<Tab>('keyboard')
+  const device: InputDevice = tab === 'keyboard2' ? 'keyboard' : tab
+  const input = nodeValue(json, node) as { bindings?: Partial<DeviceBindings>; keyboard2?: Bindings } | undefined
+  const all = input?.bindings ?? {}
   // Heavy, special and the run button only when the pack turns them on.
   const actions = enabledActions(effectiveActions(json))
-  const bindings = (all[device] ?? {}) as Bindings
+  const bindings = ((tab === 'keyboard2' ? input?.keyboard2 : all[device]) ?? {}) as Bindings
+  // Player 2's keys that are also player 1's (player 2 takes them while playing on the keys).
+  const p1Keys = new Set(Object.values(all.keyboard ?? {}).flat())
   const [listening, setListening] = useState<InputAction | null>(null)
   const label = (k: string) => inputLabel(device, k)
   const choices = CHOICES[device]
 
   const set = (next: Bindings) => {
     const own = node.status === 'inherited' ? overrideNode(json, node) : json
-    save(editPack(pack, setIn(own, [...node.path, 'bindings', device], next) as PackJson))
+    const path = tab === 'keyboard2' ? [...node.path, 'keyboard2'] : [...node.path, 'bindings', device]
+    save(editPack(pack, setIn(own, path, next) as PackJson))
   }
 
   usePadCapture(device === 'gamepad' && listening !== null, (b) => {
@@ -73,7 +83,7 @@ export const BindingsTools = ({ pack, node, save }: Props) => {
     window.addEventListener('keydown', onKey, { capture: true })
     return () => window.removeEventListener('keydown', onKey, { capture: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listening])
+  }, [listening, tab])
 
   return (
     <div data-testid="bindings-tools">
@@ -83,10 +93,10 @@ export const BindingsTools = ({ pack, node, save }: Props) => {
           <button
             key={id}
             role="tab"
-            aria-selected={device === id}
-            style={{ ...ui.button, color: device === id ? '#ffd27a' : undefined }}
+            aria-selected={tab === id}
+            style={{ ...ui.button, color: tab === id ? '#ffd27a' : undefined }}
             onClick={() => {
-              setDevice(id)
+              setTab(id)
               setListening(null)
             }}
           >
@@ -100,7 +110,11 @@ export const BindingsTools = ({ pack, node, save }: Props) => {
             <span style={{ color: '#aab' }}>{ACTION_NAMES[action]}</span>
             <span style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
               {(bindings[action] ?? []).map((k) => (
-                <span key={k} style={{ border: '1px solid #3a4258', borderRadius: '3px', padding: '1px 4px' }}>
+                <span
+                  key={k}
+                  style={{ border: '1px solid #3a4258', borderRadius: '3px', padding: '1px 4px', color: tab === 'keyboard2' && p1Keys.has(k) ? '#ffd27a' : undefined }}
+                  title={tab === 'keyboard2' && p1Keys.has(k) ? "Also player 1's: player 2 takes it while playing on the keys" : undefined}
+                >
                   {label(k)}{' '}
                   <button
                     style={{ ...ui.button, padding: '0 4px' }}
@@ -149,6 +163,12 @@ export const BindingsTools = ({ pack, node, save }: Props) => {
           </div>
         ))}
       </div>
+      {tab === 'keyboard2' && (
+        <div style={{ color: '#667', marginTop: '4px' }}>
+          Player 2 joins a game by pressing their attack or pause key. Keys in yellow are also player 1's; while player 2 plays on the keys,
+          they're player 2's. Player 1 must keep at least one key to move, attack and pause.
+        </div>
+      )}
       <div style={{ color: '#667', marginTop: '4px' }}>
         These are the pack's defaults for each device. An input can do one thing only, so adding it here takes it off any other action. The keyboard
         must be able to move, attack and pause, and the controller to move and pause. Controller names follow the Xbox layout. Players can still

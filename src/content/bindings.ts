@@ -9,6 +9,7 @@ import {
   MOUSE_INPUTS,
   isPadInput,
   keyMap,
+  mergeBindings,
   mergeDeviceBindings,
   normalizeKey,
   type BindingOverride,
@@ -92,6 +93,7 @@ export const getOverride = (): DeviceOverride => {
 /** Read the override from storage again on next use (a fresh page load, in tests). */
 export const reloadOverride = (): void => {
   cached = null
+  cached2 = null
 }
 
 export const setOverride = (override: DeviceOverride): void => {
@@ -117,5 +119,43 @@ export const getBindings = (): DeviceBindings => mergeDeviceBindings(getPackBind
 /** The action a key event triggers under the current bindings. */
 export const actionForKey = (key: string): InputAction | undefined => keyMap(getBindings().keyboard).get(normalizeKey(key))
 
-/** Player 2's keyboard map in effect (the pack's `input.keyboard2`; the menu's remapping comes with CO3). */
-export const getKeyboard2 = (): Bindings => getConfig().input.keyboard2
+const KEYBOARD2_KEY = 'fight-forge.input-override.keyboard2.v1'
+let cached2: BindingOverride | null = null
+
+/** Player 2's keyboard remapping (this browser's preference, like player 1's). */
+export const getKeyboard2Override = (): BindingOverride => {
+  if (!cached2) cached2 = sanitizeBindingOverride(parse(storage()?.getItem(KEYBOARD2_KEY)))
+  return cached2
+}
+
+/** Replace player 2's keyboard remapping (empty resets it to the pack's). */
+export const setKeyboard2Override = (override: BindingOverride): void => {
+  cached2 = sanitizeBindingOverride(override)
+  try {
+    if (Object.keys(cached2).length) storage()?.setItem(KEYBOARD2_KEY, JSON.stringify(cached2))
+    else storage()?.removeItem(KEYBOARD2_KEY)
+  } catch {
+    // Storage full or blocked: the remapping still applies for this session.
+  }
+}
+
+/** The pack's keyboard map for player 2, before the remapping. */
+export const getPackKeyboard2 = (): Bindings => getConfig().input.keyboard2
+
+/** Player 2's keyboard map in effect: the pack's `input.keyboard2` with the player's remapping on top. */
+export const getKeyboard2 = (): Bindings => mergeBindings(getPackKeyboard2(), getKeyboard2Override())
+
+/**
+ * Keys player 2's map shares with player 1's keyboard map, by player 2
+ * action. While player 2 plays on the keys, those leave player 1.
+ */
+export const sharedWithPlayer1 = (): Partial<Record<InputAction, string[]>> => {
+  const p1 = new Set(Object.values(getBindings().keyboard).flat())
+  const k2 = getKeyboard2()
+  const out: Partial<Record<InputAction, string[]>> = {}
+  for (const action of INPUT_ACTIONS) {
+    const shared = k2[action].filter((k) => p1.has(k))
+    if (shared.length) out[action] = shared
+  }
+  return out
+}

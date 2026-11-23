@@ -151,6 +151,7 @@ export const Forge = () => {
     setGameScreen('menu')
   }
   // Back to the paused playtest with the edits: tuning applies in place; a changed level restarts where the player was.
+  const twoPlayers = useGameStore((state) => state.forgeTwoPlayers)
   const onBackToFight = async () => {
     const target = packs?.find((p) => p.id === playtest?.packId) ?? pack
     if (!target) return useGameStore.getState().resumePlaytest()
@@ -162,7 +163,7 @@ export const Forge = () => {
     if (!r.ok) return setMessage({ text: `${String(target.json.name)} can't be played yet:\n${describeErrors(r.errors)}`, error: true })
     const plan = planResume(playtest ?? { packId: target.id }, target.json, sceneProbe.playerX(), spawnXOf(target.json))
     if (plan.kind === 'resume') useGameStore.getState().resumePlaytest()
-    else useGameStore.getState().startSandbox(plan.level, plan.origin)
+    else useGameStore.getState().startSandbox(plan.level, plan.origin, { players: useGameStore.getState().players.length })
   }
   const onDelete = async () => {
     if (!pack) return
@@ -223,6 +224,12 @@ export const Forge = () => {
           </button>
         )}
         <div style={{ fontSize: '20px', fontWeight: 'bold', letterSpacing: '6px' }}>FORGE</div>
+        <label
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', color: twoPlayers ? '#ffd27a' : '#aab' }}
+          title="Sandbox fights and Play from here start with player 2 on the second keyboard map; attack on a controller moves them onto it"
+        >
+          <input type="checkbox" checked={twoPlayers} onChange={(e) => useGameStore.getState().setForgeTwoPlayers(e.target.checked)} />2 players
+        </label>
         {pack && (
           <>
             <div style={{ color: '#aab' }}>
