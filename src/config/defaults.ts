@@ -255,6 +255,8 @@ export interface GameConfig {
     friendlyFire: boolean
     /** How much closer (metres) another player must be before an enemy switches to them. */
     retargetMargin: number
+    /** How far beside their partner (metres) a player drops in. */
+    dropInGap: number
     /** Player 2's colour (player 1's fighter, recoloured). */
     p2Color: string
     /** Player 2's own model, if not player 1's. */

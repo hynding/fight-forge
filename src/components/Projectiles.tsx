@@ -98,7 +98,8 @@ export const Projectiles = ({ world, players, runtimes, enemyRefs, stageLength }
       const def = config.projectiles[p.def]
       if (!def || stepProjectile(p, def, dt, bounds) !== 'flying') return end(p)
       const box = projectileBox(p, def)
-      for (const targetName of projectileTargets(p, enemyRefs.keys(), config.rules.friendlyFire)) {
+      const teammates = config.coop.friendlyFire ? activePlayerIds() : []
+      for (const targetName of projectileTargets(p, enemyRefs.keys(), config.rules.friendlyFire, teammates)) {
         if (p.hit.has(targetName)) continue
         const target = runtimes.get(targetName)
         const targetBody = bodyOf(targetName)

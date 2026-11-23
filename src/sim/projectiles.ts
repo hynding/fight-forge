@@ -140,12 +140,13 @@ export const projectileBox = (p: Projectile, def: ProjectileDef): Box => ({
 })
 
 /**
- * Who it may hit: a player's projectiles hit enemies; an enemy's hits the
- * players it may hurt (and, with friendly fire, other enemies), and nobody
- * if it may hurt no player.
+ * Who it may hit: a player's projectiles hit enemies (and the other players
+ * in `teammates`, with co-op friendly fire); an enemy's hits the players it
+ * may hurt (and, with friendly fire, other enemies), and nobody if it may
+ * hurt no player.
  */
-export const projectileTargets = (p: Projectile, enemies: Iterable<string>, friendlyFire: boolean): string[] => {
-  if (isPlayerId(p.owner)) return [...enemies]
+export const projectileTargets = (p: Projectile, enemies: Iterable<string>, friendlyFire: boolean, teammates: readonly string[] = []): string[] => {
+  if (isPlayerId(p.owner)) return [...enemies, ...teammates.filter((t) => t !== p.owner)]
   if (!p.hurts.length) return []
   return friendlyFire ? [...p.hurts, ...[...enemies].filter((e) => e !== p.owner)] : [...p.hurts]
 }

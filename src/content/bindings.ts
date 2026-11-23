@@ -12,6 +12,7 @@ import {
   mergeDeviceBindings,
   normalizeKey,
   type BindingOverride,
+  type Bindings,
   type DeviceBindings,
   type DeviceOverride,
   type InputAction,
@@ -115,3 +116,6 @@ export const getBindings = (): DeviceBindings => mergeDeviceBindings(getPackBind
 
 /** The action a key event triggers under the current bindings. */
 export const actionForKey = (key: string): InputAction | undefined => keyMap(getBindings().keyboard).get(normalizeKey(key))
+
+/** Player 2's keyboard map in effect (the pack's `input.keyboard2`; the menu's remapping comes with CO3). */
+export const getKeyboard2 = (): Bindings => getConfig().input.keyboard2

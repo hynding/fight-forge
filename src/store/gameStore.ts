@@ -7,6 +7,7 @@ import { applyPickup, type PickupInstance } from '../sim/pickups'
 import type { PropInstance } from '../sim/props'
 import type { HeldWeapon } from '../sim/weapons'
 import type { Level } from '../sim/level'
+import { joinOutcome, type P2Controls } from '../sim/coop'
 
 
 export interface Enemy {
@@ -31,10 +32,15 @@ export interface PlayerState {
   respawnCount: number
   /** The weapon in the player's hands, for the HUD (the player's runtime is the truth). */
   weapon: HeldWeapon | null
+  /** This player's share of the score this run, and the enemies they defeated this level. */
+  score: number
+  kos: number
+  /** What player 2 plays with (null for player 1, who has the keyboard, mouse and first pad). */
+  controls: P2Controls | null
 }
 
 /** A player as a run starts them. */
-export const freshPlayer = (slot: number): PlayerState => {
+export const freshPlayer = (slot: number, controls: P2Controls | null = null): PlayerState => {
   const config = getConfig()
   return {
     slot,
@@ -44,6 +50,9 @@ export const freshPlayer = (slot: number): PlayerState => {
     meter: config.rules.meter.start,
     respawnCount: 0,
     weapon: null,
+    score: 0,
+    kos: 0,
+    controls,
   }
 }
 
@@ -120,6 +129,8 @@ interface GameState {
   inputDevice: InputDevice
   /** The controller's button names, once one has pressed something (null before). */
   padLabels: PadLabelSet | null
+  /** Players chosen on the start menu (1 or 2). Either way player 2 can drop in. */
+  expectedPlayers: number
   /** Which of the active levels (`getLevels()`) is being played. */
   levelIndex: number
   /** A Forge sandbox fight, played instead of the active levels; leaving it returns to the Forge. */
@@ -156,10 +167,18 @@ interface GameState {
   /** Spend meter on a move; false (and nothing spent) without enough. */
   spendMeter: (slot: number, amount: number) => boolean
   healPlayer: (slot: number, amount: number) => void
-  addScore: (points: number) => void
+  /** Adds to the team score, and to player `slot`'s share if given. */
+  addScore: (points: number, slot?: number) => void
   spawnEnemy: (enemy: Enemy) => void
   removeEnemy: (id: string) => void
-  damageEnemy: (id: string, damage: number) => void
+  /** Damage to an enemy; a KO scores, credited to player `by` if given. */
+  damageEnemy: (id: string, damage: number, by?: number) => void
+  /**
+   * Player `slot` presses to join with `controls`: a new player drops in, or
+   * one out of lives comes back by spending a continue. False if they can't.
+   */
+  joinPlayer: (slot: number, controls: P2Controls) => boolean
+  setExpectedPlayers: (count: number) => void
   /** Restarts the current level with a fresh run (lives, continues, score). */
   resetGame: () => void
   /** Starts a new run at a level (from the menu); goes through the loading screen. */
@@ -232,7 +251,7 @@ const freshLevel = (state: GameState): Partial<GameState> => ({
   enemies: [],
   pickups: [],
   props: [],
-  players: state.players.map((p) => (p.weapon ? { ...p, weapon: null } : p)),
+  players: state.players.map((p) => (p.weapon || p.kos ? { ...p, weapon: null, kos: 0 } : p)),
   attackTokens: NO_POOLS,
   isGameOver: false,
   isPaused: false,
@@ -241,9 +260,13 @@ const freshLevel = (state: GameState): Partial<GameState> => ({
   gameId: state.gameId + 1,
 })
 
+/** Adds `points` to player `slot`'s share (and a KO if `ko`). */
+const credit = (players: PlayerState[], slot: number | undefined, points: number, ko = false): PlayerState[] =>
+  slot === undefined ? players : withPlayer(players, slot, (p) => ({ score: p.score + points, kos: p.kos + (ko ? 1 : 0) }))
+
 /** Everything a run starts with. */
 const freshRun = (state: GameState): Partial<GameState> => ({
-  players: state.players.map((p) => freshPlayer(p.slot)),
+  players: state.players.map((p) => freshPlayer(p.slot, p.controls)),
   score: 0,
   continuesLeft: getConfig().rules.continues,
   runKos: 0,
@@ -262,6 +285,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   showHitboxes: false,
   inputDevice: 'keyboard',
   padLabels: null,
+  expectedPlayers: 1,
   packs: [],
   contentError: null,
   levelIndex: 0,
@@ -321,10 +345,31 @@ export const useGameStore = create<GameState>((set, get) => ({
       players: withPlayer(state.players, slot, (p) => (p.lives > 0 ? { health: Math.min(p.maxHealth, p.health + amount) } : null)),
     })),
 
-  addScore: (points) =>
+  addScore: (points, slot) =>
     set((state) => ({
       score: state.score + points,
+      players: credit(state.players, slot, points),
     })),
+
+  joinPlayer: (slot, controls) => {
+    const state = get()
+    if (isFrozen(state) || state.gameScreen !== 'playing') return false
+    const player = playerState(state, slot)
+    const outcome = joinOutcome(player, state.continuesLeft)
+    if (outcome === 'new') {
+      const players = [...state.players, freshPlayer(slot, controls)].sort((a, b) => a.slot - b.slot)
+      set({ players })
+    } else if (outcome === 'continue' && player) {
+      const lives = getConfig().rules.lives
+      set({
+        continuesLeft: state.continuesLeft - 1,
+        players: withPlayer(state.players, slot, (p) => ({ lives, health: p.maxHealth, controls, respawnCount: p.respawnCount + 1 })),
+      })
+    }
+    return outcome !== null
+  },
+
+  setExpectedPlayers: (count) => set({ expectedPlayers: Math.max(1, Math.min(2, Math.round(count))) }),
 
   spawnEnemy: (enemy) =>
     set((state) => ({
@@ -340,7 +385,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Applies damage and, when health reaches 0, removes the enemy and awards the
   // kill score in the same update, so a kill can never be scored twice and a
   // dead enemy never lingers for a frame.
-  damageEnemy: (id, damage) =>
+  damageEnemy: (id, damage, by) =>
     set((state) => {
       if (state.isGameOver || state.levelProgress.complete) return {}
       const target = state.enemies.find((e) => e.id === id)
@@ -356,6 +401,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       return {
         enemies: state.enemies.filter((e) => e.id !== id),
         score: state.score + getConfig().scoring.enemyKill,
+        players: credit(state.players, by, getConfig().scoring.enemyKill, true),
         attackTokens: forgetAll(state.attackTokens, id),
         kos: state.kos + 1,
         runKos: state.runKos + 1,
@@ -403,6 +449,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       ...freshLevel(state),
       ...freshRun(state),
+      // Back at the menu, the next run starts with player 1; player 2 drops in again.
+      players: [freshPlayer(1)],
       gameScreen: state.sandbox ? 'forge' : 'menu',
       sandbox: null,
       playtest: null,
@@ -415,7 +463,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         ? {
             ...freshLevel(state),
             levelIndex: state.levelIndex + 1,
-            players: state.players.map((p) => ({ ...p, health: p.maxHealth, weapon: null })),
+            players: state.players.map((p) => ({ ...p, health: p.maxHealth, weapon: null, kos: 0 })),
           }
         : {}
     ),
@@ -446,10 +494,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (!item || !player || state.isGameOver || state.levelProgress.complete) return {}
       const def = getConfig().pickups[item.pickup]
       const got = def ? applyPickup({ health: player.health, maxHealth: player.maxHealth, score: state.score }, def) : {}
+      let players = got.health !== undefined ? withPlayer(state.players, slot, () => ({ health: got.health })) : state.players
+      if (got.score !== undefined) players = credit(players, slot, got.score - state.score)
       return {
         pickups: state.pickups.filter((p) => p.id !== id),
         ...(got.score !== undefined ? { score: got.score } : {}),
-        ...(got.health !== undefined ? { players: withPlayer(state.players, slot, () => ({ health: got.health })) } : {}),
+        players,
       }
     }),
 

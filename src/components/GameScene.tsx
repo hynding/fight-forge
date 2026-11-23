@@ -58,7 +58,13 @@ export const GameScene = () => {
   // The registry guarantees the level's theme exists.
   const THEME = config.themes[LEVEL.theme]
   const enemyRefs = useRef<Map<string, RefObject<RapierRigidBody>>>(new Map())
-  const slots = useGameStore((state) => state.players.map((p) => p.slot).join(','))
+  // The players on the stage: those still in (a player out of lives leaves until they continue), and everyone at a game over.
+  const slots = useGameStore((state) =>
+    state.players
+      .filter((p) => p.lives > 0 || state.isGameOver)
+      .map((p) => p.slot)
+      .join(',')
+  )
   // Every player's body and position, by player id.
   const [players] = useState(() =>
     createScenePlayers(
@@ -175,11 +181,12 @@ export const GameScene = () => {
         <ScenePhysics gravity={config.physics.gravity} frozen={frozen}>
           <Stage length={STAGE_LENGTH} theme={THEME} />
           <Props />
-          {slots.split(',').map(Number).map((slot) => (
+          {slots.split(',').filter(Boolean).map(Number).map((slot) => (
             <Player
               key={slot}
               ref={playerRef(players, playerId(slot))}
               slot={slot}
+              players={players}
               runtimes={runtimes}
               input={input}
               view={view}

@@ -85,8 +85,9 @@ export const CombatSystem = ({ players, runtimes, enemyRefs }: CombatSystemProps
         playSound(move.sound)
       }
 
-      const rules = getConfig().rules
-      const targets = combatTargets(attackerName, mayHurt, enemyRefs.keys(), rules.friendlyFire)
+      const { rules, coop } = getConfig()
+      const teammates = byPlayer && coop.friendlyFire ? activePlayerIds() : []
+      const targets = combatTargets(attackerName, mayHurt, enemyRefs.keys(), rules.friendlyFire, teammates)
       for (const targetName of targets) {
         if (record.targets.has(targetName)) continue
         const target = runtimes.get(targetName)

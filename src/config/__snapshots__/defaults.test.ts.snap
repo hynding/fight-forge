@@ -93,6 +93,7 @@ exports[`DEFAULT_CONFIG > matches the snapshot (update it deliberately when retu
     "lookAtHeight": 2.5,
   },
   "coop": {
+    "dropInGap": 1.5,
     "enemyHealth": 1.5,
     "friendlyFire": false,
     "p2Color": "#e0a030",

@@ -33,12 +33,16 @@ export const CameraRig = ({ view, stageLength, players, lightRef }: CameraRigPro
   const placed = useRef(false)
   const feel = useFeel()
 
+  const xs = () => activePlayerIds().flatMap((id) => (players.refs.get(id)?.current ? (players.positions.get(id)?.x ?? []) : []))
   // Where the camera follows: the middle of the players still in (null with none).
-  const focus = () => playersFocus(activePlayerIds().flatMap((id) => players.positions.get(id)?.x ?? []))
+  const focus = () => playersFocus(xs())
 
   useSimSystem('camera', SYSTEM_ORDER.camera, () => {
-    const x = focus()
-    if (x !== null) stepCamera(view, x, stageLength, CAMERA)
+    const at = xs()
+    const x = playersFocus(at)
+    // With two players, the one behind holds the camera back (the leader waits at the right edge).
+    const leash = at.length > 1 ? { rearX: Math.min(...at), edgeMargin: CAMERA.edgeMargin } : undefined
+    if (x !== null) stepCamera(view, x, stageLength, CAMERA, leash)
   })
 
   useFrame(({ clock }) => {

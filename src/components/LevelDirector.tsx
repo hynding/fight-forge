@@ -8,6 +8,7 @@ import { useFeel, useSimLoop, useSimSystem } from '../sim/simContext'
 import { createLevelRuntime, placeItems, placeProps, stepLevel, type Level, type SpawnDef } from '../sim/level'
 import { offscreenSpawn, type StageView } from '../sim/stage'
 import { scaledHealth } from '../sim/rules'
+import { coopHealthScale } from '../sim/coop'
 import { playMusic, playSound } from '../audio/engine'
 import { feelBossKo, feelBusy } from '../sim/feel'
 import type { SummonRequest } from '../sim/boss'
@@ -68,7 +69,9 @@ export const LevelDirector = ({
       at = offscreenSpawn(view, side, getConfig().spawning.offscreenMargin, depth, stageLength, getConfig().stage.depthBand)
     }
     const id = nextEnemyId()
-    const maxHealth = scaledHealth(getConfig().enemyTypes[def.type].maxHealth, getConfig().rules.difficulty.enemyHealth)
+    // Tougher with two players in (`coop.enemyHealth`), so waves stay the same.
+    const crowd = coopHealthScale(activePlayerIds().length, getConfig().coop.enemyHealth)
+    const maxHealth = scaledHealth(getConfig().enemyTypes[def.type].maxHealth, getConfig().rules.difficulty.enemyHealth * crowd)
     // The Forge can start a sandbox boss part-way down, at a later phase.
     const { sandbox, sandboxBossHealth } = useGameStore.getState()
     const start = sandbox && getConfig().enemyTypes[def.type].boss ? Math.max(1, Math.round(maxHealth * sandboxBossHealth)) : maxHealth

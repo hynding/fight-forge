@@ -91,10 +91,11 @@ export const landHit = (feel: FeelState, h: LandedHit): void => {
     toPlayer,
     down: (!guarded && !!reaction.knockdown) || knockedOut,
   })
-  rumble(
-    rumbleFor(config.feel, { damage: shown, toPlayer, byPlayer, ko: knockedOut }),
-    config.feel.rumble.duration
-  )
+  // Each player's own pad: the one hit, and the one who hit.
+  if (toPlayer)
+    rumble(rumbleFor(config.feel, { damage: shown, toPlayer, byPlayer: false, ko: knockedOut }), config.feel.rumble.duration, slotOf(targetName))
+  if (byPlayer)
+    rumble(rumbleFor(config.feel, { damage: shown, toPlayer: false, byPlayer, ko: knockedOut }), config.feel.rumble.duration, slotOf(h.attacker))
   // Knocked down or out: the weapon falls at its feet.
   if ((!guarded && reaction.knockdown) || knockedOut) dropWeapon(target, t)
 
@@ -106,7 +107,7 @@ export const landHit = (feel: FeelState, h: LandedHit): void => {
     store.gainMeter(slotOf(targetName), shown * meter.perDamageTaken)
     if (shown > 0) store.damagePlayer(slotOf(targetName), shown)
   } else {
-    hurtEnemy(targetName, damage, t)
+    hurtEnemy(targetName, damage, t, h.attacker)
   }
 }
 

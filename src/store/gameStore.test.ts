@@ -354,3 +354,55 @@ describe('meter', () => {
     expect(s.spendMeter(2, 1)).toBe(false)
   })
 })
+
+describe('two players', () => {
+  const p2 = () => playerState(useGameStore.getState(), 2)
+
+  it('drops player 2 in while playing, once', () => {
+    useGameStore.setState({ gameScreen: 'playing' })
+    expect(useGameStore.getState().joinPlayer(2, 'keyboard2')).toBe(true)
+    expect(p2()).toMatchObject({ slot: 2, controls: 'keyboard2', lives: useGameStore.getState().players[0].lives })
+    expect(useGameStore.getState().joinPlayer(2, 'gamepad')).toBe(false)
+    // Not while paused, or at the menu.
+    useGameStore.setState({ players: [freshPlayer(1)], isPaused: true })
+    expect(useGameStore.getState().joinPlayer(2, 'keyboard2')).toBe(false)
+    useGameStore.setState({ isPaused: false, gameScreen: 'menu' })
+    expect(useGameStore.getState().joinPlayer(2, 'keyboard2')).toBe(false)
+  })
+
+  it('brings a player out of lives back on a continue, and the game goes on while one is in', () => {
+    useGameStore.setState({ gameScreen: 'playing', continuesLeft: 1 })
+    useGameStore.getState().joinPlayer(2, 'gamepad')
+    useGameStore.setState((s) => ({ players: s.players.map((p) => (p.slot === 2 ? { ...p, lives: 1 } : p)) }))
+    useGameStore.getState().damagePlayer(2, 9999)
+    expect(p2()?.lives).toBe(0)
+    expect(useGameStore.getState().isGameOver).toBe(false)
+    expect(useGameStore.getState().joinPlayer(2, 'keyboard2')).toBe(true)
+    expect(p2()).toMatchObject({ lives: freshPlayer(2).lives, controls: 'keyboard2', respawnCount: 1 })
+    expect(useGameStore.getState().continuesLeft).toBe(0)
+    // No continues left: can't come back.
+    useGameStore.setState((s) => ({ players: s.players.map((p) => (p.slot === 2 ? { ...p, lives: 0 } : p)) }))
+    expect(useGameStore.getState().joinPlayer(2, 'keyboard2')).toBe(false)
+  })
+
+  it('credits KOs and pickup score to the player who earned them', () => {
+    useGameStore.setState({ gameScreen: 'playing', players: [freshPlayer(1), freshPlayer(2, 'gamepad')] })
+    useGameStore.getState().spawnEnemy({ id: 'e1', type: 'BASIC', health: 5, maxHealth: 5, position: [0, 0, 0] })
+    useGameStore.getState().damageEnemy('e1', 5, 2)
+    const kill = DEFAULT_CONFIG.scoring.enemyKill
+    expect(p2()).toMatchObject({ score: kill, kos: 1 })
+    expect(playerState(useGameStore.getState(), 1)).toMatchObject({ score: 0, kos: 0 })
+    expect(useGameStore.getState().score).toBe(kill)
+    useGameStore.getState().addScore(50, 1)
+    expect(playerState(useGameStore.getState(), 1)?.score).toBe(50)
+    expect(useGameStore.getState().score).toBe(kill + 50)
+  })
+
+  it('starts the next menu run with player 1 only', () => {
+    useGameStore.setState({ players: [freshPlayer(1), freshPlayer(2, 'keyboard2')] })
+    useGameStore.getState().resetGame()
+    expect(useGameStore.getState().players.map((p) => p.slot)).toEqual([1, 2])
+    useGameStore.getState().quitRun()
+    expect(useGameStore.getState().players.map((p) => p.slot)).toEqual([1])
+  })
+})

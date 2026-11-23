@@ -23,7 +23,7 @@ import { playSound } from '../audio/engine'
 import { FighterBody } from './FighterBody'
 import { armedAttacks, holdWeapon, type WeaponDef } from '../sim/weapons'
 import type { AttackDef } from '../sim/attacks'
-import { nearestPlayer, RETARGET_MARGIN } from '../sim/players'
+import { nearestPlayer } from '../sim/players'
 import { poolFor, tokenTarget } from '../sim/tokens'
 import { playerTargets, type ScenePlayers } from './scenePlayers'
 
@@ -146,8 +146,16 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
     const getIntent = (body: RapierRigidBody, dt: number) => {
       const self = body.translation()
       const candidates = playerTargets(players)
-      const pools = useGameStore.getState().attackTokens
-      targetId.current = tokenTarget(pools, id) ?? nearestPlayer({ x: self.x, z: self.z }, candidates, targetId.current, RETARGET_MARGIN)
+      let pools = useGameStore.getState().attackTokens
+      // A token against a player who has dropped out is no use: give it back.
+      const held = tokenTarget(pools, id)
+      if (held && !candidates.some((c) => c.id === held)) {
+        useGameStore.getState().releaseAttackToken(id)
+        useGameStore.getState().cancelAttackRequest(id)
+        pools = useGameStore.getState().attackTokens
+      }
+      const margin = getConfig().coop.retargetMargin
+      targetId.current = tokenTarget(pools, id) ?? nearestPlayer({ x: self.x, z: self.z }, candidates, targetId.current, margin)
       const target = candidates.find((c) => c.id === targetId.current)
       if (!target) return idleIntent()
 

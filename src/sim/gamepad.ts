@@ -70,9 +70,12 @@ export const padStick = (pad: PadLike, deadZone: number): Vec2 => {
   return { x: (x / len) * scaled, z: (y / len) * scaled }
 }
 
-/** The pad that just pressed something, or the one already in use if it still exists. */
-export const choosePad = (pads: readonly (PadLike | null)[], current: number | null): PadLike | null => {
-  const live = pads.filter((p): p is PadLike => !!p && p.connected !== false)
+/**
+ * The pad that just pressed something, or the one already in use if it
+ * still exists. Pads in `taken` (another player's) are never chosen.
+ */
+export const choosePad = (pads: readonly (PadLike | null)[], current: number | null, taken: ReadonlySet<number> = new Set()): PadLike | null => {
+  const live = pads.filter((p): p is PadLike => !!p && p.connected !== false && !taken.has(p.index))
   const pressing = live.find((p) => p.index !== current && padInputs(p).size > 0)
   if (current === null) return pressing ?? null
   return live.find((p) => p.index === current) ?? pressing ?? null

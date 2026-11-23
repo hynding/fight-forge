@@ -31,6 +31,11 @@ describe('combatTargets', () => {
     expect(combatTargets('p1', ['p1'], enemies, true)).toEqual(enemies)
   })
 
+  it("lets a player hit the other player only with co-op friendly fire", () => {
+    expect(combatTargets('p1', [], enemies, false, ['p1', 'p2'])).toEqual([...enemies, 'p2'])
+    expect(combatTargets('p2', [], enemies, false, [])).toEqual(enemies)
+  })
+
   it('lets an enemy hit only the player without friendly fire', () => {
     expect(combatTargets('e2', ['p1'], enemies, false)).toEqual(['p1'])
   })

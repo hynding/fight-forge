@@ -49,6 +49,10 @@ describe('choosing player 1', () => {
     expect(choosePad([pad({ index: 0, down: [1] })], 1)?.index).toBe(0)
     expect(choosePad([pad({ index: 1, connected: false })], 1)).toBeNull()
   })
+  it("never takes player 2's pad", () => {
+    expect(choosePad([pad({ index: 0, down: [0] }), pad({ index: 1 })], null, new Set([0]))).toBeNull()
+    expect(choosePad([pad({ index: 0, down: [0] })], 1, new Set([0]))).toBeNull()
+  })
   it('reports buttons that went down and up', () => {
     expect(padChanges(new Set(['a', 'x']), new Set(['x', 'b']))).toEqual({ down: ['b'], up: ['a'] })
   })

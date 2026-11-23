@@ -506,6 +506,7 @@ export const settingsSchema = z
         enemyHealth: positive,
         friendlyFire: z.boolean(),
         retargetMargin: nonNegative,
+        dropInGap: nonNegative,
         p2Color: color,
         p2Model: modelRefSchema.optional(),
       })
