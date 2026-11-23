@@ -8,7 +8,7 @@ import type { AttackDef } from '../sim/attacks'
 import type { BossDef } from '../sim/boss'
 import { DEFAULT_CONTENT } from '../content/defaultContent'
 import type { DropDef, PickupDef } from '../sim/pickups'
-import type { ActionSettings, DeviceBindings } from '../sim/input'
+import type { ActionSettings, Bindings, DeviceBindings } from '../sim/input'
 import type { BackdropLayer } from '../sim/backdrop'
 import type { PropDef } from '../sim/props'
 import type { ProjectileDef } from '../sim/projectiles'
@@ -233,6 +233,8 @@ export interface GameConfig {
   /** Bindings per device (keyboard keys as lowercase `KeyboardEvent.key` values, mouse buttons, gamepad buttons); the player can remap them. */
   input: {
     bindings: DeviceBindings
+    /** Player 2's keys when two share the keyboard; keys it shares with `bindings.keyboard` go to player 2 while it plays. */
+    keyboard2: Bindings
     /** Analog sticks: no movement inside `deadZone` (0-1); past `runThreshold` the fighter runs. */
     analog: { deadZone: number; runThreshold: number }
     /** Which optional actions are on, and how run and block behave. */
@@ -244,6 +246,19 @@ export interface GameConfig {
      * against the old facing, so back + attack pressed together is an `away` move.
      */
     turnGrace: number
+  }
+  /** Two players. */
+  coop: {
+    /** Multiplies every enemy's max health while two players are in the game. */
+    enemyHealth: number
+    /** Players' hits (and throws and projectiles) also hurt the other player. */
+    friendlyFire: boolean
+    /** How much closer (metres) another player must be before an enemy switches to them. */
+    retargetMargin: number
+    /** Player 2's colour (player 1's fighter, recoloured). */
+    p2Color: string
+    /** Player 2's own model, if not player 1's. */
+    p2Model?: ModelRef
   }
   /** Items by name, placed by levels or dropped by enemies. */
   pickups: Record<string, PickupDef>

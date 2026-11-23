@@ -185,6 +185,22 @@
         "hitboxes": []
       }
     },
+    "keyboard2": {
+      "left": ["arrowleft"],
+      "right": ["arrowright"],
+      "forward": ["arrowup"],
+      "backward": ["arrowdown"],
+      "jump": ["0"],
+      "attack": ["1"],
+      "block": ["2"],
+      "heavy": ["3"],
+      "dodge": ["4"],
+      "special": ["5"],
+      "grab": ["6"],
+      "run": ["+"],
+      "pause": ["enter"],
+      "hitboxes": []
+    },
     "analog": { "deadZone": 0.2, "runThreshold": 0.85 },
     "actions": {
       "heavy": { "enabled": true },
@@ -196,6 +212,7 @@
     "chordWindow": 0.06,
     "turnGrace": 0.12
   },
+  "coop": { "enemyHealth": 1.5, "friendlyFire": false, "retargetMargin": 1, "p2Color": "#e0a030" },
   "feel": {
     "hitStop": { "enabled": true, "base": 0.03, "perDamage": 0.004, "max": 0.12 },
     "shake": { "enabled": true, "base": 0.02, "perDamage": 0.006, "max": 0.25, "decay": 9 },

@@ -93,6 +93,7 @@ const modelUrlErrors = (pack: Pack): ContentError[] => {
       errors.push(err(`${path}.url`, `"${model.url}" isn't a path on this site; put the model in the bundle as an asset`, pack.id))
   }
   if (pack.settings.player) check(pack.settings.player.model, 'settings.player.model')
+  if (pack.settings.coop?.p2Model) check(pack.settings.coop.p2Model, 'settings.coop.p2Model')
   for (const [id, t] of Object.entries(pack.enemyTypes)) check(t.model, `enemyTypes.${id}.model`)
   return errors
 }
