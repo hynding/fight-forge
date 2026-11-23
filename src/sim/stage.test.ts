@@ -3,10 +3,12 @@ import {
   cameraLimits,
   clampToBounds,
   createStageView,
+  halfWidthAt,
   offscreenSpawn,
   screenBounds,
   stageBounds,
   stepCamera,
+  viewWidths,
   visibleHalfWidth,
 } from './stage'
 
@@ -85,6 +87,15 @@ describe('bounds', () => {
     expect(clampToBounds(15, 0, b)).toEqual({ x: 15, z: 0, changed: false })
   })
 
+  it('narrows the screen bounds toward the front of the lane', () => {
+    const view = { ...createStageView(20, 10), halfWidthZ: -3, halfWidthSlope: -0.5 }
+    expect(halfWidthAt(view, -3)).toBe(10)
+    expect(halfWidthAt(view, 3)).toBe(7)
+    expect(screenBounds(view, [-3, 3], 1, 3)).toEqual({ minX: 14, maxX: 26, minZ: -3, maxZ: 3 })
+    // Without a depth, the bounds are those at the look-at depth.
+    expect(screenBounds(view, [-3, 3], 1).maxX).toBe(29)
+  })
+
   it('keeps enemies on the stage and in the lane', () => {
     expect(clampToBounds(-1, -9, stageBounds(LENGTH, [-3, 3]))).toEqual({ x: 0, z: -3, changed: true })
   })
@@ -106,5 +117,19 @@ describe('visibleHalfWidth', () => {
   it('widens with distance and aspect', () => {
     expect(visibleHalfWidth(10, 90, 1)).toBeCloseTo(10)
     expect(visibleHalfWidth(10, 90, 2)).toBeCloseTo(20)
+  })
+})
+
+describe('viewWidths', () => {
+  const cam = { height: 6, distance: 12, lookAtHeight: 2.5, lookAtDepth: -3, fov: 50 }
+
+  it('measures the half width at the look-at depth, narrower nearer the camera', () => {
+    const w = viewWidths(cam, 16 / 9)
+    expect(w.halfWidthZ).toBe(-3)
+    expect(w.halfWidth).toBeCloseTo(Math.hypot(3.5, 15) * Math.tan((25 * Math.PI) / 180) * (16 / 9))
+    const view = { ...createStageView(0, 0), ...w }
+    expect(halfWidthAt(view, 3)).toBeLessThan(w.halfWidth)
+    // A point on the camera's plane (z = distance along the view axis) sees nothing.
+    expect(halfWidthAt(view, -3 + Math.hypot(3.5, 15) ** 2 / 15)).toBeCloseTo(0)
   })
 })

@@ -6,7 +6,7 @@ import { DirectionalLight, PerspectiveCamera, Vector3 } from 'three'
 import { getConfig } from '../content/active'
 import { SYSTEM_ORDER } from '../sim/loop'
 import { useFeel, useSimSystem } from '../sim/simContext'
-import { stepCamera, visibleHalfWidth, type StageView } from '../sim/stage'
+import { halfWidthAt, stepCamera, viewWidths, type StageView } from '../sim/stage'
 import { shakeOffset } from '../sim/feel'
 
 // The key light sits up and to the right of the screen centre; its shadow
@@ -38,19 +38,18 @@ export const CameraRig = ({ view, stageLength, players, lightRef }: CameraRigPro
   const focus = () => playersFocus(xs())
 
   useSimSystem('camera', SYSTEM_ORDER.camera, () => {
-    const at = xs()
+    const ids = activePlayerIds().filter((id) => players.refs.get(id)?.current && players.positions.has(id))
+    const at = ids.map((id) => players.positions.get(id)!.x)
     const x = playersFocus(at)
     // With two players, the one behind holds the camera back (the leader waits at the right edge).
-    const leash = at.length > 1 ? { rearX: Math.min(...at), edgeMargin: CAMERA.edgeMargin } : undefined
+    const rear = ids.length > 1 ? players.positions.get(ids[at.indexOf(Math.min(...at))])! : null
+    const leash = rear ? { rearX: rear.x, edgeMargin: CAMERA.edgeMargin, rearHalfWidth: halfWidthAt(view, rear.z) } : undefined
     if (x !== null) stepCamera(view, x, stageLength, CAMERA, leash)
   })
 
   useFrame(({ clock }) => {
-    view.halfWidth = visibleHalfWidth(
-      Math.hypot(CAMERA.distance - CAMERA.lookAtDepth, CAMERA.height - CAMERA.lookAtHeight),
-      CAMERA.fov,
-      aspect
-    )
+    // The visible width at the back of the lane, and how it narrows toward the camera.
+    Object.assign(view, viewWidths(CAMERA, aspect))
     // Before the first sim step, settle the view on the players at once.
     const x = placed.current ? null : focus()
     if (x !== null) {

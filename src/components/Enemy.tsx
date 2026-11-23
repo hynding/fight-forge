@@ -15,7 +15,7 @@ import {
 import { interruptMove, startMove, stepMoveRunner } from '../sim/moves'
 import { attackRangeAt, createBrawlerMemory, enemyIntent, type BrawlerConfig, type BrawlerContext } from '../sim/controllers'
 import { createFighterRuntime, idleIntent, isBusy, type FighterRuntime, type Vec2 } from '../sim/fighter'
-import { stageBounds, type StageView } from '../sim/stage'
+import { halfWidthAt, stageBounds, type StageView } from '../sim/stage'
 import { attacksOf, farAttackReady, pickAttack, seededRandom, startCooldown, stepCooldowns, type AttackCooldowns } from '../sim/attacks'
 import { bossPhaseIndex, createPoiseState, phaseStats, stepPoise, transitionPush, type SummonRequest } from '../sim/boss'
 import { applyHit, isInvulnerable } from '../sim/reactions'
@@ -174,7 +174,7 @@ export const Enemy = forwardRef<RapierRigidBody, EnemyProps>(
         others,
         tokensTaken: !ownSlot && holders.length >= config.rules.maxSimultaneousAttackers && !holders.includes(id),
         // Off screen (walking in, or left behind by the camera): come and fight.
-        forceEngage: Math.abs(self.x - view.cameraX) > view.halfWidth,
+        forceEngage: Math.abs(self.x - view.cameraX) > halfWidthAt(view, self.z),
         farAttack: farAttackReady(currentAttacks(), cooldownsNow().current),
       }
       if (transitionLeft.current > 0) {
