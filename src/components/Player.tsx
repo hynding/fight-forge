@@ -321,7 +321,7 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, players,
       }}
       isDead={() => (playerState(useGameStore.getState(), slot)?.health ?? 0) <= 0}
       getBounds={() =>
-        screenBounds(view, config.stage.depthBand, config.camera.edgeMargin)
+        screenBounds(view, config.stage.depthBand, config.camera.edgeMargin, (ref as RefObject<RapierRigidBody> | null)?.current?.translation().z)
       }
       runtime={runtime}
     />

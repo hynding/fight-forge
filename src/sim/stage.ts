@@ -13,8 +13,16 @@ export interface StageView {
   cameraX: number
   /** Farthest the camera has scrolled forward (used when backtracking is off). */
   maxCameraX: number
-  /** Half the visible width at the depth lane's centre (set from the viewport). */
+  /** Half the visible width at depth `halfWidthZ` (the camera's look-at depth, the back of the lane; set from the viewport). */
   halfWidth: number
+  /** The depth (z) `halfWidth` is measured at. */
+  halfWidthZ: number
+  /**
+   * How the visible half width changes per metre of depth toward the camera
+   * (negative: the view is narrower at the front of the lane). 0 treats every
+   * depth alike.
+   */
+  halfWidthSlope: number
   /** While set (a level's screen lock), the camera holds at this X. */
   lockX: number | null
 }
@@ -23,8 +31,30 @@ export const createStageView = (cameraX: number, halfWidth = 10): StageView => (
   cameraX,
   maxCameraX: cameraX,
   halfWidth,
+  halfWidthZ: 0,
+  halfWidthSlope: 0,
   lockX: null,
 })
+
+/** The visible half width at depth `z` (narrower toward the camera, in perspective). */
+export const halfWidthAt = (view: StageView, z: number): number =>
+  Math.max(0, view.halfWidth + view.halfWidthSlope * (z - view.halfWidthZ))
+
+/**
+ * The perspective camera's visible half width at the look-at point, and how
+ * it changes with depth: a point's distance along the view direction is
+ * linear in z, and the visible width is linear in that distance.
+ */
+export const viewWidths = (
+  cam: { height: number; distance: number; lookAtHeight: number; lookAtDepth: number; fov: number },
+  aspect: number
+): { halfWidth: number; halfWidthZ: number; halfWidthSlope: number } => {
+  const dy = cam.lookAtHeight - cam.height
+  const dz = cam.lookAtDepth - cam.distance
+  const len = Math.hypot(dy, dz)
+  const k = Math.tan((cam.fov * Math.PI) / 360) * aspect
+  return { halfWidth: len * k, halfWidthZ: cam.lookAtDepth, halfWidthSlope: (dz / len) * k }
+}
 
 /** Camera X range that keeps the view inside the stage [0, length]. */
 export const cameraLimits = (halfWidth: number, stageLength: number): [number, number] => {
@@ -37,6 +67,8 @@ export const cameraLimits = (halfWidth: number, stageLength: number): [number, n
 export interface CameraLeash {
   rearX: number
   edgeMargin: number
+  /** The visible half width where the rear player stands (default: `halfWidth`). */
+  rearHalfWidth?: number
 }
 
 /**
@@ -62,7 +94,7 @@ export const stepCamera = (
   else if (targetX < x - cfg.deadZone) x = targetX + cfg.deadZone
 
   // The player furthest behind holds the camera back, so nobody is pushed off the left edge.
-  if (leash) x = Math.min(x, Math.max(view.cameraX, leash.rearX + view.halfWidth - leash.edgeMargin))
+  if (leash) x = Math.min(x, Math.max(view.cameraX, leash.rearX + (leash.rearHalfWidth ?? view.halfWidth) - leash.edgeMargin))
 
   const [min, max] = cameraLimits(view.halfWidth, stageLength)
   const floor = cfg.allowBacktrack ? min : Math.max(min, view.maxCameraX)
@@ -84,17 +116,24 @@ export interface Bounds {
   maxZ: number
 }
 
-/** The on-screen area the player must stay in (inside the screen edges and the lane). */
+/**
+ * The on-screen area a player must stay in (inside the screen edges and the
+ * lane), for a fighter at depth `z`: the screen is narrower toward the camera.
+ */
 export const screenBounds = (
   view: StageView,
   depthBand: [number, number],
-  edgeMargin: number
-): Bounds => ({
-  minX: view.cameraX - view.halfWidth + edgeMargin,
-  maxX: view.cameraX + view.halfWidth - edgeMargin,
-  minZ: depthBand[0],
-  maxZ: depthBand[1],
-})
+  edgeMargin: number,
+  z = view.halfWidthZ
+): Bounds => {
+  const half = Math.max(edgeMargin, halfWidthAt(view, z))
+  return {
+    minX: view.cameraX - half + edgeMargin,
+    maxX: view.cameraX + half - edgeMargin,
+    minZ: depthBand[0],
+    maxZ: depthBand[1],
+  }
+}
 
 /** The whole stage (enemies may wander off-screen but not off the stage or out of the lane). */
 export const stageBounds = (stageLength: number, depthBand: [number, number]): Bounds => ({
