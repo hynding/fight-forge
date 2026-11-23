@@ -17,6 +17,7 @@ import { hurtEnemy } from './enemyDamage'
 import { dropWeapon } from './weaponDrops'
 import { poiseHit } from '../sim/boss'
 import { isPlayerId, slotOf } from '../sim/players'
+import { scaledDamage } from '../sim/rules'
 import type { ScenePlayers } from './scenePlayers'
 
 interface GrabSystemProps {
@@ -141,7 +142,8 @@ export const GrabSystem = ({ players, runtimes, enemyRefs }: GrabSystemProps) =>
       }
     })
 
-    // Thrown enemies knock down the others they fly into.
+    // Thrown enemies knock down the others they fly into (and, with co-op friendly fire, the thrower's partner).
+    const partnerFire = config.coop.friendlyFire
     runtimes.forEach((thrown, id) => {
       if (!thrown.thrown) return
       const body = enemyBody(id)
@@ -152,8 +154,10 @@ export const GrabSystem = ({ players, runtimes, enemyRefs }: GrabSystemProps) =>
       const a = body.translation()
       const flight = thrown.thrown
       runtimes.forEach((other, otherId) => {
-        if (isPlayerId(otherId) || otherId === id || flight.hit.has(otherId)) return
-        const ob = enemyBody(otherId)
+        const toPlayer = isPlayerId(otherId)
+        if (otherId === id || flight.hit.has(otherId)) return
+        if (toPlayer && !(partnerFire && isPlayerId(flight.by) && otherId !== flight.by)) return
+        const ob = toPlayer ? (players.refs.get(otherId)?.current ?? null) : enemyBody(otherId)
         if (!ob || other.reaction.kind === 'held' || isInvulnerable(other.reaction) || isDodging(other.dodge)) return
         const t = ob.translation()
         // A flying body sweeps a little depth either side, like the grab's own reach.
@@ -176,10 +180,13 @@ export const GrabSystem = ({ players, runtimes, enemyRefs }: GrabSystemProps) =>
           feet: { x: t.x, y: t.y - other.hurtbox.y, z: t.z },
           damage: flight.damage,
           guarded: false,
-          toPlayer: false,
+          toPlayer,
           down: !!reaction.knockdown,
         })
-        if (flight.damage > 0) {
+        if (toPlayer) {
+          const shown = scaledDamage(flight.damage, config.rules.difficulty.damageTaken)
+          if (shown > 0) useGameStore.getState().damagePlayer(slotOf(otherId), shown)
+        } else if (flight.damage > 0) {
           if (isPlayerId(flight.by)) useGameStore.getState().gainMeter(slotOf(flight.by), flight.damage * config.rules.meter.perDamageDealt)
           hurtEnemy(otherId, flight.damage, t, flight.by)
         }
