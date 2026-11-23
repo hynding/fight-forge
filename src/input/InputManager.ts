@@ -135,6 +135,15 @@ export class InputManager {
     return true
   }
 
+  /** Player 2, in on the keys, picks up a controller: their keys go back to player 1. */
+  private takeOver(pad: number): boolean {
+    setPlayer2Pad(pad)
+    useGameStore.getState().setPlayerControls(2, 'gamepad')
+    releaseAll(this.seat(2).sampler)
+    this.remap()
+    return true
+  }
+
   /** Feeds one pad's button edges and stick into a player's sampler. */
   private feedPad(slot: number, { pad, inputs }: PadRead): void {
     const seat = this.seat(slot)
@@ -163,7 +172,8 @@ export class InputManager {
     const p2 = playerState(store, 2)
     const p2In = !!p2 && p2.lives > 0
     const p2Index = playerPad(2)
-    const seats = { p1: activePadIndex(), p2: p2Index, p2Free: !p2In, expected: store.expectedPlayers }
+    const p2OnKeys = p2In && p2?.controls === 'keyboard2'
+    const seats = { p1: activePadIndex(), p2: p2Index, p2Free: !p2In, p2OnKeys, expected: store.sandbox && store.forgeTwoPlayers ? 2 : store.expectedPlayers }
 
     // Pads nobody has: attack or start joins as player 2.
     for (const pad of allPads()) {
@@ -171,7 +181,7 @@ export class InputManager {
       const inputs = padInputs(pad)
       const { down } = padChanges(this.idleDown.get(pad.index) ?? new Set(), inputs)
       this.idleDown.set(pad.index, inputs)
-      if (padSeat(pad.index, this.padActions(down), seats) === 'join' && this.join('gamepad', pad.index)) {
+      if (padSeat(pad.index, this.padActions(down), seats) === 'join' && (p2OnKeys ? this.takeOver(pad.index) : this.join('gamepad', pad.index))) {
         // What's down now (the join press) doesn't also attack.
         this.seat(2).padDown = inputs
         return
@@ -179,7 +189,7 @@ export class InputManager {
     }
 
     // Player 1's pad: the first used, unless the menu chose two players and player 2 hasn't joined.
-    const waitForP2 = seats.p1 === null && seats.expected >= 2 && !p2In
+    const waitForP2 = seats.p1 === null && seats.expected >= 2 && (!p2In || p2OnKeys)
     this.feedPad(1, waitForP2 ? none : readPad())
 
     // Player 2's pad: theirs while they're in; attack or start brings them back on a continue.

@@ -47,6 +47,8 @@ export interface PadSeats {
   p2: number | null
   /** Whether player 2 can join now (not in, or out of lives). */
   p2Free: boolean
+  /** Player 2 is in on the second keyboard map (a controller can take them over). */
+  p2OnKeys?: boolean
   /** Players expected from the start menu (1 or 2). */
   expected: number
 }
@@ -54,15 +56,17 @@ export interface PadSeats {
 /**
  * Whose a pad is when it presses `actions`. A player's own pad is theirs.
  * Otherwise the first pad used is player 1's, unless the menu chose two
- * players and player 2 hasn't joined (then a keyboard player 1 and a friend
- * on the pad is the likely setup). A pad nobody has, pressing attack or
- * start while player 2 can join, joins as player 2.
+ * players and player 2 hasn't joined or is on the keys (then a keyboard
+ * player 1 and a friend on the pad is the likely setup). A pad nobody has,
+ * pressing attack or start while player 2 can join (or is on the keys),
+ * joins as player 2 (or takes player 2 onto it).
  */
 export const padSeat = (index: number, actions: readonly InputAction[], seats: PadSeats): 1 | 2 | 'join' | null => {
   if (index === seats.p1) return 1
   if (index === seats.p2) return 2
-  if (seats.p1 === null && !(seats.expected >= 2 && seats.p2Free)) return 1
-  if (seats.p2Free && actions.some((a) => JOIN_ACTIONS.includes(a))) return 'join'
+  const open = seats.p2Free || !!seats.p2OnKeys
+  if (seats.p1 === null && !(seats.expected >= 2 && open)) return 1
+  if (open && actions.some((a) => JOIN_ACTIONS.includes(a))) return 'join'
   return null
 }
 

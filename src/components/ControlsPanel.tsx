@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react'
-import { getBindings, getOverride, getPackBindings, setDeviceOverride } from '../content/bindings'
+import {
+  getBindings,
+  getKeyboard2,
+  getKeyboard2Override,
+  getOverride,
+  getPackBindings,
+  getPackKeyboard2,
+  setDeviceOverride,
+  setKeyboard2Override,
+  sharedWithPlayer1,
+} from '../content/bindings'
 import { bindKey, unbindKey } from '../forge/bindings'
 import {
   ACTION_NAMES,
@@ -31,20 +41,15 @@ const small = {
   cursor: 'pointer',
 } as const
 
-/**
- * Key remapping on the start menu. The pack sets the default keys; changes
- * here are this browser's preference (localStorage) and apply to the next
- * run. Choosing CHANGE then pressing a key binds it to that action alone,
- * taking it off any other action.
- */
-type Tab = 'keyboard' | 'gamepad'
+type Tab = 'keyboard' | 'gamepad' | 'p2'
 
 /**
  * Remapping on the start menu, per device. The pack sets the defaults;
  * changes here are this browser's preference (localStorage) and apply to the
  * next run. On the keyboard & mouse tab, CHANGE then a key or a mouse button
  * (or the wheel) binds it to that action alone, taking it off any other
- * action. The controller tab adds and removes buttons from lists.
+ * action. The controller tab adds and removes buttons from lists. The
+ * PLAYER 2 tab remaps the second keyboard map (keys only).
  */
 export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
   const [open, setOpen] = useState(false)
@@ -59,6 +64,11 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
     setVersion((v) => v + 1)
     onChange()
   }
+  const rebindP2 = (action: InputAction, key: string) => {
+    setKeyboard2Override(rebind(getKeyboard2Override(), getPackKeyboard2(), action, key))
+    setListening(null)
+    changed()
+  }
   const rebindOn = (device: InputDevice, action: InputAction, input: string) => {
     setDeviceOverride(device, rebind(getOverride()[device] ?? {}, getPackBindings()[device], action, input))
     setListening(null)
@@ -70,19 +80,21 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault()
       e.stopPropagation()
-      rebindOn('keyboard', listening, e.key)
+      if (tab === 'p2') rebindP2(listening, e.key)
+      else rebindOn('keyboard', listening, e.key)
     }
     const onMouse = (e: MouseEvent) => {
       // The row's CANCEL button cancels instead of binding the click.
       if ((e.target as Element | null)?.closest?.('[data-cancel-capture]')) return
       const button = MOUSE_BUTTONS[e.button]
-      if (!button) return
+      // Player 2's map is keys only.
+      if (!button || tab === 'p2') return
       e.preventDefault()
       e.stopPropagation()
       rebindOn('mouse', listening, button)
     }
     const onWheel = (e: WheelEvent) => {
-      if (e.deltaY === 0) return
+      if (e.deltaY === 0 || tab === 'p2') return
       e.preventDefault()
       rebindOn('mouse', listening, e.deltaY < 0 ? 'wheelup' : 'wheeldown')
     }
@@ -99,7 +111,7 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
       window.removeEventListener('contextmenu', noMenu, { capture: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listening])
+  }, [listening, tab])
 
   const bindings = getBindings()
   // Only the actions this pack uses (heavy, special and the run button can be off).
@@ -123,8 +135,16 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
   const padName = (b: string) => inputLabel('gamepad', b, padLabels ?? 'xbox')
   const deadZone = loadControlPrefs().deadZone ?? getConfig().input.analog.deadZone
   const override = getOverride()
-  const customized = Object.keys(override).length > 0
-  const tabCustomized = tab === 'keyboard' ? !!(override.keyboard || override.mouse) : !!override.gamepad || loadControlPrefs().deadZone !== null
+  const keyboard2 = getKeyboard2()
+  const p2Custom = Object.keys(getKeyboard2Override()).length > 0
+  const customized = Object.keys(override).length > 0 || p2Custom
+  const tabCustomized =
+    tab === 'keyboard'
+      ? !!(override.keyboard || override.mouse)
+      : tab === 'p2'
+        ? p2Custom
+        : !!override.gamepad || loadControlPrefs().deadZone !== null
+  const shared = tab === 'p2' ? sharedWithPlayer1() : {}
   const setPad = (next: typeof bindings.gamepad) => {
     setDeviceOverride('gamepad', next)
     changed()
@@ -170,6 +190,7 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
               [
                 ['keyboard', 'KEYBOARD & MOUSE'],
                 ['gamepad', 'CONTROLLER'],
+                ['p2', 'PLAYER 2'],
               ] as const
             ).map(([id, label]) => (
               <button
@@ -208,6 +229,35 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
                 </div>
               )
             })}
+          {tab === 'p2' && (
+            <>
+              <div style={{ color: '#888888', marginBottom: '8px' }}>
+                In a game, player 2 joins by pressing {actionLabel(keyboard2, 'attack')} on these keys, or attack or start on a free controller
+                (it uses the CONTROLLER tab's buttons). While player 2 plays on the keys, keys shared with player 1 are player 2's.
+              </div>
+              {actions.map((action) => (
+                <div key={action} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span style={{ flex: 1, color: '#bbbbbb' }}>{ACTION_NAMES[action]}</span>
+                  <span
+                    style={{ minWidth: '110px', textAlign: 'right', color: shared[action] ? '#ffd27a' : undefined }}
+                    title={shared[action] ? "Also player 1's: player 2 takes it while playing on the keys" : undefined}
+                  >
+                    {listening === action ? 'press a key…' : (keyboard2[action].length ? actionLabel(keyboard2, action) : '—') + (shared[action] ? ' *' : '')}
+                  </span>
+                  <button
+                    style={small}
+                    aria-label={`Change player 2 ${ACTION_NAMES[action]}`}
+                    onClick={() => setListening(listening === action ? null : action)}
+                  >
+                    {listening === action ? 'CANCEL' : 'CHANGE'}
+                  </button>
+                </div>
+              ))}
+              {Object.keys(shared).length > 0 && (
+                <div style={{ color: '#ffd27a', fontSize: '11px' }}>* also one of player 1's keys</div>
+              )}
+            </>
+          )}
           {tab === 'gamepad' && (
             <>
               <div style={{ color: padLabels ? '#88cc88' : '#888888', marginBottom: '8px' }}>
@@ -278,7 +328,7 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
               </label>
             </>
           )}
-          {packActions.block.mode === 'hold' && check('Toggle block', 'toggleBlock', 'Press block once to raise the guard and again to lower it')}
+          {packActions.block.mode === 'hold' && tab !== 'p2' && check('Toggle block', 'toggleBlock', 'Press block once to raise the guard and again to lower it')}
           {tab === 'keyboard' && check('Face the cursor', 'faceCursor', 'Standing still, turn toward the mouse pointer')}
           <button
             style={{ ...small, marginTop: '6px' }}
@@ -287,6 +337,8 @@ export const ControlsPanel = ({ onChange }: { onChange: () => void }) => {
               if (tab === 'keyboard') {
                 setDeviceOverride('keyboard', {})
                 setDeviceOverride('mouse', {})
+              } else if (tab === 'p2') {
+                setKeyboard2Override({})
               } else {
                 setDeviceOverride('gamepad', {})
                 saveControlPrefs({ ...loadControlPrefs(), deadZone: null })

@@ -1,6 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../config/defaults'
-import { actionForKey, getBindings, getOverride, reloadOverride, sanitizeOverride, setDeviceOverride, setOverride } from './bindings'
+import {
+  actionForKey,
+  getBindings,
+  getKeyboard2,
+  getOverride,
+  reloadOverride,
+  sanitizeOverride,
+  setDeviceOverride,
+  setKeyboard2Override,
+  setOverride,
+  sharedWithPlayer1,
+} from './bindings'
+import { rebind } from '../sim/input'
 
 // A minimal localStorage for the node test environment.
 const store = new Map<string, string>()
@@ -15,6 +27,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   setOverride({})
+  setKeyboard2Override({})
   store.clear()
   delete (globalThis as { localStorage?: unknown }).localStorage
 })
@@ -72,5 +85,24 @@ describe('an older, keyboard-only remapping', () => {
     expect(actionForKey('z')).toBe('attack')
     expect(store.has('fight-forge.input-override.v1')).toBe(false)
     expect(JSON.parse(store.get('fight-forge.input-override.v2')!)).toEqual({ keyboard: { attack: ['z'] } })
+  })
+})
+
+describe("player 2's keyboard map", () => {
+  it("is the pack's until remapped, and the remapping is remembered", () => {
+    expect(getKeyboard2()).toEqual(DEFAULT_CONFIG.input.keyboard2)
+    setKeyboard2Override(rebind({}, DEFAULT_CONFIG.input.keyboard2, 'jump', '1'))
+    // 1 moves from attack to jump.
+    expect(getKeyboard2().jump).toEqual(['1'])
+    expect(getKeyboard2().attack).toEqual([])
+    reloadOverride()
+    expect(getKeyboard2().jump).toEqual(['1'])
+  })
+
+  it("names the keys it takes from player 1", () => {
+    // By default: the arrows.
+    expect(sharedWithPlayer1()).toEqual({ left: ['arrowleft'], right: ['arrowright'], forward: ['arrowup'], backward: ['arrowdown'] })
+    setKeyboard2Override({ attack: ['j'] })
+    expect(sharedWithPlayer1().attack).toEqual(['j'])
   })
 })

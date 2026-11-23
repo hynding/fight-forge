@@ -53,6 +53,13 @@ describe('pads', () => {
     // Once player 2 is in, the next pad is player 1's.
     expect(padSeat(1, ['jump'], { ...s, p2: 0, p2Free: false })).toBe(1)
   })
+
+  it('lets a free pad take over player 2 from the keys', () => {
+    expect(padSeat(1, ['attack'], { p1: 0, p2: null, p2Free: false, p2OnKeys: true, expected: 1 })).toBe('join')
+    expect(padSeat(1, ['attack'], { p1: 0, p2: null, p2Free: false, expected: 1 })).toBeNull()
+    // With two players chosen and player 1 on the keyboard, the first pad goes to player 2.
+    expect(padSeat(0, ['attack'], { p1: null, p2: null, p2Free: false, p2OnKeys: true, expected: 2 })).toBe('join')
+  })
 })
 
 describe('joining', () => {
