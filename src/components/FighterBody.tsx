@@ -1,7 +1,8 @@
 import { walkFactor } from '../sim/weapons'
 import { forwardRef, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { CuboidCollider, RigidBody, RapierRigidBody, useRapier } from '@react-three/rapier'
+import { isPlayerId } from '../sim/players'
+import { CuboidCollider, RigidBody, RapierRigidBody, interactionGroups, useRapier } from '@react-three/rapier'
 import { Group, Mesh } from 'three'
 import { FighterModel } from './FighterModel'
 import type { ModelRef, Vec3 } from '../config/defaults'
@@ -62,6 +63,9 @@ interface FighterBodyProps {
  * hitbox debug overlay. Player and Enemy differ only in their controller and
  * how they start moves (`runtime.move`).
  */
+/** Players walk through each other (and bump into everything else): their own collision group, which they don't collide with. */
+const PLAYER_GROUPS = interactionGroups(1, [0, ...Array.from({ length: 14 }, (_, i) => i + 2)])
+
 export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
   (
     {
@@ -259,7 +263,7 @@ export const FighterBody = forwardRef<RapierRigidBody, FighterBodyProps>(
         linearDamping={linearDamping}
         angularDamping={1}
       >
-        <CuboidCollider args={[hx * scale, hy * scale, hz * scale]} />
+        <CuboidCollider args={[hx * scale, hy * scale, hz * scale]} {...(isPlayerId(name) ? { collisionGroups: PLAYER_GROUPS } : {})} />
 
         <group ref={visualGroupRef}>
           <FighterModel

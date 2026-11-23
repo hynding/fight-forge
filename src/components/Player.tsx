@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react'
 import { RapierRigidBody } from '@react-three/rapier'
 import { playerState, useGameStore } from '../store/gameStore'
 import { playerId } from '../sim/players'
@@ -105,6 +105,14 @@ export const Player = forwardRef<RapierRigidBody, PlayerProps>(({ slot, players,
       runtimes.delete(id)
     }
   }, [runtimes, runtime, id])
+
+  // A player out of lives leaves the stage: forget the body, so nothing reads a removed one.
+  useEffect(
+    () => () => {
+      if (ref && typeof ref === 'object') (ref as MutableRefObject<RapierRigidBody | null>).current = null
+    },
+    [ref]
+  )
 
   // Moves run after the fighter step (so they see this step's intent and
   // facing) and before combat (so combat sees a move on the step it starts).
